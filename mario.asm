@@ -1,4 +1,5 @@
 INCLUDE "gbhw.asm"
+INCLUDE "wram.asm"
 INCLUDE "hram.asm"
 
 SECTION "bank0", ROM0[$0000]
@@ -51,12 +52,12 @@ VBlank:: ; $0060
 	push bc
 	push de
 	push hl
-	call $2258
-	call $1B86
+	call $2258			; Loading in new areas of the map
+	call $1B86			; Collision with coins, coin blocks, etc...?
 	call $1C33			; Seems to update lives
 	call hDMARoutine
-	call $3F39
-	call $3D6A
+	call DisplayScore
+	call $3D6A			; Update time?
 	call $2401
 	ld hl, $FFAC
 	inc [hl]
@@ -247,10 +248,71 @@ CopyData::	; 05DE
 	jr nz, CopyData
 	ret
 
-INCBIN "baserom.gb", $05E7, $3F92 - $05E7
+INCBIN "baserom.gb", $05E7, $3F39 - $05E7
+; Display the score at wScore. Print spaces instead of leading zeroes
+DisplayScore::
+	ld a, [$FF00+$B1]	; Some check to see if the score needs to be  
+	and a				; updated?
+	ret z
+	ld a, [$C0E2]
+	and a
+	ret nz
+	ld a, [$FF00+$EA]
+	cp a, 02
+	ret z
+	ld de, wScore + 2	; Start with the ten and hundred thousands
+	ld hl, $9820		; TODO VRAM layout
+	xor a
+	ld [$FF00+$B1], a	; Start by printing spaces instead of leading zeroes
+	ld c, $03			; Maximum 3 digit pairs
+.printDigitPair
+	ld a, [de]
+	ld b, a
+	swap a				; Start with the more significant digit
+	and a, $0F
+	jr nz, .startNumber1
+	ld a, [$FF00+$B1]	; If it's zero, check if the number has already started
+	and a
+	ld a, 0
+	jr nz, .printFirstDigit
+	ld a, $2C			; If not, start with spaces, not leading zeroes
+.printFirstDigit
+	ldi [hl], a			; Place the digit or space in VRAM
+	ld a, b				; Now the lesser significant digit
+	and a, $0F
+	jr nz, .startNumber2; If non-zero, number has started (or already is)
+	ld a, [$FF00+$B1]
+	and a				; If zero, check if already started
+	ld a, 0
+	jr nz, .printSecondDigit
+	ld a, 1				; If the number still hasn't started at the ones,
+	cp c				; score is 0. Print just one 0
+	ld a, 0
+	jr z, .printSecondDigit
+	ld a, $2C			; Otherwise, print another space
+.printSecondDigit
+	ldi [hl], a			; Put the second digit in VRAM
+	dec e				; Go to the next pair of digits in memory
+	dec c				; Which is less significant
+	jr nz, .printDigitPair
+	xor a
+	ld [$FF00+$B1], a
+	ret
+.startNumber1
+	push af
+	ld a, 1
+	ld [$FF00+$B1], a	; Number has start, print "0" instead of " "
+	pop af
+	jr .printFirstDigit
+.startNumber2
+	push af
+	ld a, 1
+	ld [$FF00+$B1], a	; Number has start, print "0" instead of " "
+	pop af
+	jr .printSecondDigit
 
 DMARoutine::
-	ld a, $C0 ; TODO Name
+	ld a, wOAMBuffer / $100
 	ld [rDMA], a
 	ld a, $28
 .wait
