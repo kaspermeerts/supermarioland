@@ -1,4 +1,5 @@
 INCLUDE "gbhw.asm"
+INCLUDE "hram.asm"
 
 SECTION "bank0", ROM0[$0000]
 
@@ -27,23 +28,114 @@ TableJump::
 
 ; Interrupts
 SECTION "Interrupt VBlank", ROM0[$0040]
-	jp $60
+	jp VBlank
 
 SECTION "Interrupt LCD STAT", ROM0[$0048]
-	jp $95
+	jp LCDStatus
 
 SECTION "Interrupt Timer", ROM0[$0050]
 ; Switch to bank 3 (XXX contains music code?)
+; Overlaps into serial interrupt mid opcode, but it's unused anyway
 	push af
-	ld a, 03
+	ld a, $03
 	ld [MBC1RomBank], a
-	call $7FF0
-	ld a, [$FF00+$FD]
+	call $7FF0 ; TODO
+	ld a, [$FF00+$FD] ; Some sort of last active ROM bank?
 	ld [MBC1RomBank], a
 	pop af
 	reti
 
-INCBIN "baserom.gb", $0060, $0100 - $0060
+VBlank:: ; $0060
+; Coincides with the joypad interrupt, which is unused afaict
+	push af
+	push bc
+	push de
+	push hl
+	call $2258
+	call $1B86
+	call $1C33			; Seems to update lives
+	call hDMARoutine
+	call $3F39
+	call $3D6A
+	call $2401
+	ld hl, $FFAC
+	inc [hl]
+	ld a, [$FF00+$B3]	; TODO Gamestate?
+	cp a, $3A			; Game over?
+	jr nz, .jmp_88
+	ld hl, rLCDC
+	set 5, [hl]			; Turn on window
+.jmp_88
+	xor a
+	ld [rSCX], a
+	ld [rSCY], a
+	inc a
+	ld [$FF00+$85], a
+	pop hl
+	pop de
+	pop bc
+	pop af
+	reti
+
+LCDStatus::
+	push af
+	push hl
+.wait
+	ld a, [rSTAT]
+	and a, $03
+	jr nz, .wait	; Wait for HBlank
+	ld a, [$C0A5]
+	and a
+	jr nz, .jmp_CF
+	ld a, [$FF00+$A4]
+	ld [rSCX], a
+	ld a, [$C0DE]
+	and a
+	jr z, .jmp_B2
+	ld a, [$C0DF]
+	ld [rSCY], a
+.jmp_B2
+	ld a, [$FF00+$B3]
+	cp a, $3A
+	jr nz, .jmp_CC
+	ld hl, rWY
+	ld a, [hl]
+	cp a, $40
+	jr z, .jmp_DE
+	dec [hl]
+	cp a, $87
+	jr nc, .jmp_CC
+.jmp_C5
+	add a, $08
+	ld [rLYC], a
+	ld [$C0A5], a
+.jmp_CC
+	pop hl
+	pop af
+	reti
+.jmp_CF
+	ld hl, rLCDC
+	res 5, [hl]		; Turn off Window
+	ld a, $0F
+	ld [rLYC], a
+	xor a
+	ld [$C0A5], a
+	jr .jmp_CC
+.jmp_DE
+	push af
+	ld a, [$FF00+$FB]
+	and a
+	jr z, .jmp_EA
+	dec a
+	ld [$FF00+$FB], a
+.jmp_E7
+	pop af
+	jr .jmp_C5
+.jmp_EA
+	ld a, $FF
+	ld [$C0AD], a
+	jr .jmp_E7
+
 
 SECTION "Entry point", ROM0[$0100]
 	nop
@@ -56,7 +148,7 @@ Start::	; 0150
 
 INCBIN "baserom.gb", $0153, $0185 - $0153
 Init::	; 0185
-	ld a, $03
+	ld a, (1 << VBLANK) | (1 << LCD_STAT)
 	di
 	ld [rIF], a
 	ld [rIE], a
