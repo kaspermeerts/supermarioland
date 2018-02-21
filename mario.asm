@@ -141,8 +141,22 @@ SECTION "Entry point", ROM0[$0100]
 	nop
 	jp Start
 
-; TODO Declare this here, or use rgbfix?
-INCBIN "baserom.gb", $0104, $0150 - $0104
+; Missing values will be filled in by rgbfix
+SECTION "Header", ROM0[$104]
+	ds $30		; Nintendo Logo
+	db "SUPER MARIOLAND"
+	db 00		; DMG - classic Game Boy
+	db 00, 00	; No new licensee code
+	db 00		; No SGB functions
+	db 01		; MBC1 
+	db 01		; 64kB, 4 banks
+	db 00		; No RAM
+	db 00		; Japanese
+	db 01		; Old licensee code: Nintendo
+	db 01		; First revision
+	ds 1		; Header Checksum
+	ds 2		; Global Checksum
+
 Start::	; 0150
 	jp Init
 
