@@ -1,3 +1,4 @@
+INCLUDE "charmap.asm"
 INCLUDE "gbhw.asm"
 INCLUDE "wram.asm"
 INCLUDE "hram.asm"
@@ -145,7 +146,8 @@ SECTION "Entry point", ROM0[$0100]
 ; Missing values will be filled in by rgbfix
 SECTION "Header", ROM0[$104]
 	ds $30		; Nintendo Logo
-	db "SUPER MARIOLAND"
+				; SUPER MARIOLAND in ASCII
+	db $53, $55, $50, $45, $52, $20, $4D, $41, $52, $49, $4F, $4C, $41, $4E, $44
 	db 00		; DMG - classic Game Boy
 	db 00, 00	; No new licensee code
 	db 00		; No SGB functions
@@ -226,7 +228,7 @@ Init::	; 0185
 	dec b
 	jr nz, .clearHRAMloop
 	ld c, $FFB6 % $100 ; TODO Name?
-	ld b, DMARoutineEnd - DMARoutine
+	ld b, DMARoutineEnd - DMARoutine + 2 ; TODO
 	ld hl, DMARoutine
 .copyDMAroutine		; No memory can be accessed during DMA other than HRAM,
 	ldi a, [hl]		; so the routine is copied and executed there
@@ -319,11 +321,15 @@ DMARoutine::
 	dec a
 	jr nz, .wait
 	ret
-db $16, $0A ; TODO What's this?
 DMARoutineEnd:
 
-INCBIN "baserom.gb", $3F9E, $4000 - $3F9E
+; TODO Give this a name
+db "mario*    world time"
+db "       $*   1-1  000"
 
+; TODO contains the flickering candle from world 1-3, the waves from 2-1
+; maybe more animated sprites
+INCBIN "baserom.gb", $3FC4, $4000 - $3FC4
 SECTION "bank1", ROMX, BANK[1]
 INCBIN "baserom.gb", $4000, $4000
 
