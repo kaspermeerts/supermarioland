@@ -55,7 +55,7 @@ VBlank:: ; $0060
 	push hl
 	call $2258			; Loading in new areas of the map
 	call $1B86			; Collision with coins, coin blocks, etc...?
-	call $1C33			; Seems to update lives
+	call UpdateLives
 	call hDMARoutine
 	call DisplayScore
 	call $3D6A			; Update time?
@@ -250,7 +250,55 @@ CopyData::	; 05DE
 	jr nz, CopyData
 	ret
 
-INCBIN "baserom.gb", $05E7, $3F39 - $05E7
+INCBIN "baserom.gb", $05E7, $1C33 - $05E7
+
+; 1C33
+UpdateLives::
+	ld a, [$FF00+$9F]	; Demo mode?
+	and a
+	ret nz
+	ld a, [$C0A3]		; FF removes one life, any other non-zero value adds one
+	or a
+	ret z
+	cp a, $FF			; FF = -1
+	ld a, [wNumLives]
+	jr z, .loseLife
+	cp a, $99			; Saturate at 99 lives
+	jr z, .out
+	push af
+	ld a, $08
+	ld [$DFE0], a
+	ld [$FF00+$D3], a
+	pop af
+	add a, 1			; Add one life
+.displayLives
+	daa
+	ld [wNumLives], a
+	ld a, [wNumLives]	; Huh? Bug?
+	ld b, a
+	and a, $0F
+	ld [$9807], a
+	ld a, b
+	and a, $F0
+	swap a
+	ld [$9806], a		; TODO Gives these fellas a name
+.out
+	xor a
+	ld [$C0A3], a
+	ret
+.gameOver
+	ld a, $39			; Game over :'(
+	ld [$FF00+$B3], a	; Game state TODO
+	ld [$C0A4], a
+	jr .out
+.loseLife
+	and a
+	jr z, .gameOver		; No lives anymore
+	sub a, 1			; Subtract one life
+	jr .displayLives
+
+INCBIN "baserom.gb", $1C7C, $3F39 - $1C7C
+
 ; Display the score at wScore. Print spaces instead of leading zeroes
 DisplayScore::
 	ld a, [$FF00+$B1]	; Some check to see if the score needs to be  
