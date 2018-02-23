@@ -5,12 +5,12 @@ INCLUDE "hram.asm"
 
 SECTION "bank0", ROM0[$0000]
 
-; RST addresses
+; RST vectors
 SECTION "RST 0", ROM0[$0000]
-	jp $0185
+	jp Init
 
 SECTION "RST 8", ROM0[$0008]
-	jp $0185
+	jp Init
 
 SECTION "RST 28", ROM0[$0028]
 ; Immediately following the return address is a jump table
@@ -79,6 +79,7 @@ VBlank:: ; $0060
 	pop af
 	reti
 
+; Update scroll registers. Don't understand the logic yet
 LCDStatus::
 	push af
 	push hl
@@ -176,13 +177,13 @@ Init::	; 0185
 	ld [rSCX], a
 	ldh [$A4], a
 	ld a, $80
-	ld [rLCDC], a
+	ld [rLCDC], a	; Turn LCD on, but don't display anything
 .wait
 	ld a, [rLY]
 	cp a, $94 ; TODO magic
-	jr nz, .wait
+	jr nz, .wait	; Waits for VBlank?
 	ld a, $3
-	ld [rLCDC], a
+	ld [rLCDC], a	; Turn LCD off
 	ld a, $E4
 	ld [rBGP], a
 	ld [rOBP0], a
@@ -195,6 +196,7 @@ Init::	; 0185
 	ldd [hl], a		; Output all sounds to both terminals
 	ld [hl], $77	; Turn the volume up to the max
 	ld sp, $CFFF
+
 	xor a
 	ld hl, $DFFF	; End of Work RAM
 	ld c, $40
@@ -203,11 +205,12 @@ Init::	; 0185
 	ldd [hl], a
 	dec b
 	jr nz, .clearWRAMloop
-	dec c
-	jr nz, .clearWRAMloop ; Why this doesn't use a loop on BC is beyond me...
+	dec c			; Why this doesn't use a loop on BC is beyond me...
+	jr nz, .clearWRAMloop
 	ld hl, $9FFF	; End of Video RAM
 	ld c, $20		; CB = $2000, size of Video RAM
-	xor a
+
+	xor a			; Unnecessary
 	ld b, 0
 .clearVRAMloop
 	ldd [hl], a
@@ -215,20 +218,23 @@ Init::	; 0185
 	jr nz, .clearVRAMloop
 	dec c
 	jr nz, .clearVRAMloop
-	ld hl, $FEFF	; End of OAM (well, over the end)
+
+	ld hl, $FEFF	; End of OAM (well, over the end, bug?)
 	ld b, 0			; Underflow, clear $FF bytes
 .clearOAMloop
 	ldd [hl], a
 	dec b
 	jr nz, .clearOAMloop
+
 	ld hl, $FFFE	; End of High RAM
 	ld b, $80		; Size of High RAM
 .clearHRAMloop
 	ldd [hl], a
 	dec b
 	jr nz, .clearHRAMloop
-	ld c, $FFB6 % $100 ; TODO Name?
-	ld b, DMARoutineEnd - DMARoutine + 2 ; TODO
+
+	ld c, LOW($FFB6) ; TODO Name?
+	ld b, DMARoutineEnd - DMARoutine + 2 ; TODO Bug?
 	ld hl, DMARoutine
 .copyDMAroutine		; No memory can be accessed during DMA other than HRAM,
 	ldi a, [hl]		; so the routine is copied and executed there
@@ -460,7 +466,8 @@ UpdateLives::
 INCBIN "baserom.gb", $1C7C, $3F39 - $1C7C
 
 ; Display the score at wScore. Print spaces instead of leading zeroes
-DisplayScore::
+; TODO Resuses FFB1?
+DisplayScore:: ; 3F39
 	ld a, [$FF00+$B1]	; Some check to see if the score needs to be  
 	and a				; updated?
 	ret z
@@ -483,9 +490,9 @@ DisplayScore::
 	jr nz, .startNumber1
 	ld a, [$FF00+$B1]	; If it's zero, check if the number has already started
 	and a
-	ld a, 0
+	ld a, "0"
 	jr nz, .printFirstDigit
-	ld a, $2C			; If not, start with spaces, not leading zeroes
+	ld a, " "			; If not, start with spaces, not leading zeroes
 .printFirstDigit
 	ldi [hl], a			; Place the digit or space in VRAM
 	ld a, b				; Now the lesser significant digit
@@ -493,13 +500,13 @@ DisplayScore::
 	jr nz, .startNumber2; If non-zero, number has started (or already is)
 	ld a, [$FF00+$B1]
 	and a				; If zero, check if already started
-	ld a, 0
+	ld a, "0"
 	jr nz, .printSecondDigit
 	ld a, 1				; If the number still hasn't started at the ones,
 	cp c				; score is 0. Print just one 0
-	ld a, 0
+	ld a, "0"
 	jr z, .printSecondDigit
-	ld a, $2C			; Otherwise, print another space
+	ld a, " "			; Otherwise, print another space
 .printSecondDigit
 	ldi [hl], a			; Put the second digit in VRAM
 	dec e				; Go to the next pair of digits in memory
@@ -522,7 +529,7 @@ DisplayScore::
 	jr .printSecondDigit
 
 DMARoutine::
-	ld a, wOAMBuffer / $100
+	ld a, HIGH(wOAMBuffer)
 	ld [rDMA], a
 	ld a, $28
 .wait
@@ -538,6 +545,7 @@ db "       $*   1-1  000"
 ; TODO contains the flickering candle from world 1-3, the waves from 2-1
 ; maybe more animated sprites
 INCBIN "baserom.gb", $3FC4, $4000 - $3FC4
+
 SECTION "bank1", ROMX, BANK[1]
 INCBIN "baserom.gb", $4000, $4000
 
