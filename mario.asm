@@ -164,7 +164,35 @@ SECTION "Header", ROM0[$104]
 Start::	; 0150
 	jp Init
 
-INCBIN "baserom.gb", $0153, $0185 - $0153
+INCBIN "baserom.gb", $0153, $0166 - $0153
+; Add BCD encoded DE to the score. Signal that the displayed version
+; needs to be updated
+AddScore:: ; 0166
+	ld a, [$FF00+$9F]	; Demo mode?
+	and a
+	ret nz
+	ld a, e
+	ld hl, wScore
+	add [hl]
+	daa
+	ldi [hl], a
+	ld a, d
+	adc [hl]
+	daa
+	ldi [hl], a
+	ld a, 0				; No score addition is larger than 9999
+	adc [hl]			; Add 0 to propagate carry
+	daa
+	ld [hl], a
+	ld a, 1
+	ld [$FF00+$B1], a	; TODO We've seen this address before
+	ret nc
+	ld a, $99			; Score saturates at 999999
+	ldd [hl], a
+	ldd [hl], a
+	ld [hl], a
+	ret
+
 Init::	; 0185
 	ld a, (1 << VBLANK) | (1 << LCD_STAT)
 	di
