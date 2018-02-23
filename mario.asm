@@ -42,7 +42,7 @@ SECTION "Interrupt Timer", ROM0[$0050]
 	ld a, $03
 	ld [MBC1RomBank], a
 	call $7FF0 ; TODO
-	ld a, [$FF00+$FD] ; Some sort of last active ROM bank?
+	ldh a, [$FF00+$FD] ; Some sort of last active ROM bank?
 	ld [MBC1RomBank], a
 	pop af
 	reti
@@ -62,17 +62,17 @@ VBlank:: ; $0060
 	call $2401
 	ld hl, $FFAC
 	inc [hl]
-	ld a, [hGameState]
+	ldh a, [hGameState]
 	cp a, $3A			; Game over? TODO
 	jr nz, .jmp_88
 	ld hl, rLCDC
 	set 5, [hl]			; Turn on window
 .jmp_88
 	xor a
-	ld [rSCX], a
-	ld [rSCY], a
+	ldh [rSCX], a
+	ldh [rSCY], a
 	inc a
-	ld [$FF00+$85], a
+	ldh [$FF00+$85], a
 	pop hl
 	pop de
 	pop bc
@@ -84,21 +84,21 @@ LCDStatus::
 	push af
 	push hl
 .wait
-	ld a, [rSTAT]
+	ldh a, [rSTAT]
 	and a, $03
 	jr nz, .wait	; Wait for HBlank
 	ld a, [$C0A5]
 	and a
 	jr nz, .jmp_CF
-	ld a, [$FF00+$A4]
-	ld [rSCX], a
+	ldh a, [$FF00+$A4]
+	ldh [rSCX], a
 	ld a, [$C0DE]
 	and a
 	jr z, .jmp_B2
 	ld a, [$C0DF]
-	ld [rSCY], a
+	ldh [rSCY], a
 .jmp_B2
-	ld a, [hGameState]
+	ldh a, [hGameState]
 	cp a, $3A
 	jr nz, .jmp_CC
 	ld hl, rWY
@@ -110,7 +110,7 @@ LCDStatus::
 	jr nc, .jmp_CC
 .jmp_C5
 	add a, $08
-	ld [rLYC], a
+	ldh [rLYC], a
 	ld [$C0A5], a
 .jmp_CC
 	pop hl
@@ -120,17 +120,17 @@ LCDStatus::
 	ld hl, rLCDC
 	res 5, [hl]		; Turn off Window
 	ld a, $0F
-	ld [rLYC], a
+	ldh [rLYC], a
 	xor a
 	ld [$C0A5], a
 	jr .jmp_CC
 .jmp_DE
 	push af
-	ld a, [$FF00+$FB]
+	ldh a, [$FF00+$FB]
 	and a
 	jr z, .jmp_EA
 	dec a
-	ld [$FF00+$FB], a
+	ldh [$FF00+$FB], a
 .jmp_E7
 	pop af
 	jr .jmp_C5
@@ -168,7 +168,7 @@ INCBIN "baserom.gb", $0153, $0166 - $0153
 ; Add BCD encoded DE to the score. Signal that the displayed version
 ; needs to be updated
 AddScore:: ; 0166
-	ld a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	ret nz
 	ld a, e
@@ -185,7 +185,7 @@ AddScore:: ; 0166
 	daa
 	ld [hl], a
 	ld a, 1
-	ld [$FF00+$B1], a	; TODO We've seen this address before
+	ldh [$FF00+$B1], a	; TODO We've seen this address before
 	ret nc
 	ld a, $99			; Score saturates at 999999
 	ldd [hl], a
@@ -196,27 +196,27 @@ AddScore:: ; 0166
 Init::	; 0185
 	ld a, (1 << VBLANK) | (1 << LCD_STAT)
 	di
-	ld [rIF], a
-	ld [rIE], a
+	ldh [rIF], a
+	ldh [rIE], a
 	ld a, $40
-	ld [rSTAT], a
+	ldh [rSTAT], a
 	xor a
-	ld [rSCY], a
-	ld [rSCX], a
+	ldh [rSCY], a
+	ldh [rSCX], a
 	ldh [$A4], a
 	ld a, $80
-	ld [rLCDC], a	; Turn LCD on, but don't display anything
+	ldh [rLCDC], a	; Turn LCD on, but don't display anything
 .wait
-	ld a, [rLY]
+	ldh a, [rLY]
 	cp a, $94 ; TODO magic
 	jr nz, .wait	; Waits for VBlank?
 	ld a, $3
-	ld [rLCDC], a	; Turn LCD off
+	ldh [rLCDC], a	; Turn LCD off
 	ld a, $E4
-	ld [rBGP], a
-	ld [rOBP0], a
+	ldh [rBGP], a
+	ldh [rOBP0], a
 	ld a, $54
-	ld [rOBP1], a
+	ldh [rOBP1], a
 	ld hl, rNR52
 	ld a, $80
 	ldd [hl], a		; Turn the sound on
@@ -272,24 +272,24 @@ Init::	; 0185
 	jr nz, .copyDMAroutine
 
 	xor a
-	ld [$FF00+$E4], a
+	ldh [$FF00+$E4], a
 	ld a, $11
-	ld [$FF00+$B4], a
+	ldh [$FF00+$B4], a
 	ld [$C0A8], a
 	ld a, 2
 	ld [$C0DC], a
 	ld a, $0E
-	ld [hGameState], a	; TODO
+	ldh [hGameState], a	; TODO
 	ld a, 3
 	ld [MBC1RomBank], a
 	ld [$C0A4], a
 	ld a, 0
 	ld [$C0E1], a
-	ld [$FF00+$9A], a
+	ldh [$FF00+$9A], a
 	call $7FF3			; This seems to set up sound
 	ld a, 2
 	ld [MBC1RomBank], a
-	ld [$FF00+$FD], a	; TODO Stores the ROM bank?? We've been over this
+	ldh [$FF00+$FD], a	; TODO Stores the ROM bank?? We've been over this
 
 .jmp_226				; MAIN LOOP (well, i think)
 	ld a, [$DA1D]		; TODO DA1D is 0 in normal play, 1 if time < 100
@@ -300,24 +300,24 @@ Init::	; 0185
 	call $09F1
 	call $1736
 .jmp_238
-	ld a, [$FF00+$FD]	; Again, ROM bank?
-	ld [$FF00+$E1], a	; temporarily store for some reason
+	ldh a, [$FF00+$FD]	; Again, ROM bank?
+	ldh [$FF00+$E1], a	; temporarily store for some reason
 	ld a, 3
-	ld [$FF00+$FD], a
+	ldh [$FF00+$FD], a
 	ld [MBC1RomBank], a
 	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF91)
-	ld a, [$FF00+$E1]
-	ld [$FF00+$FD], a	; another bank switch
+	ldh a, [$FF00+$E1]
+	ldh [$FF00+$FD], a	; another bank switch
 	ld [MBC1RomBank], a
-	ld a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	jr nz, .jmp_25A
 	call $07DA			; TODO 7E5 reboots if A+B+Start+Select is pressed,
-	ld a, [$FF00+$B2]	; seems this also starts the game? Checks for Start
+	ldh a, [$FF00+$B2]	; seems this also starts the game? Checks for Start
 	and a
 	jr nz, .jmp_296
 .jmp_25A
-	ld hl, $FFA6
+	ld hl, $FFA6		; General purpose state counter?
 	ld b, 2
 .jmp_25F
 	ld a, [hl]
@@ -328,13 +328,13 @@ Init::	; 0185
 	inc l
 	dec b
 	jr nz, .jmp_25F
-	ld a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	jr z, .jmp_293
-	ld a, [$FF00+$80]		; keys pressed
+	ldh a, [$FF00+$80]		; keys pressed
 	bit 3, a			; test for Start
 	jr nz, .jmp_283
-	ld a, [$FF00+$AC]
+	ldh a, [$FF00+$AC]
 	and a, $0F
 	jr nz, .jmp_293
 	ld hl, $C0D7
@@ -344,28 +344,28 @@ Init::	; 0185
 	dec [hl]
 	jr .jmp_293
 .jmp_283
-	ld a, [hGameState]	; 0 corresponds to normal gameplay...
+	ldh a, [hGameState]	; 0 corresponds to normal gameplay...
 	and a
 	jr nz, .jmp_293
 	ld a, 2
 	ld [MBC1RomBank], a
-	ld [$FF00+$FD], a
+	ldh [$FF00+$FD], a
 	ld a, $0E
-	ld [hGameState], a
+	ldh [hGameState], a
 .jmp_293
 	call .jmp_2A3
 .jmp_296
 	halt
-	ld a, [$FF00+$85]
+	ldh a, [$FF00+$85]
 	and a
 	jr z, .jmp_296
 	xor a
-	ld [$FF00+$85], a
+	ldh [$FF00+$85], a
 	jr .jmp_226
 .jmp_2A1
 	jr .jmp_2A1 ; Infinite loop??
 .jmp_2A3
-	ld a, [hGameState]
+	ldh a, [hGameState]
 	rst $28		; Jump Table
 	; 2A6
 dw $0627 ; 0x00 Normal gameplay
@@ -448,7 +448,7 @@ INCBIN "baserom.gb", $05E7, $1C33 - $05E7
 
 ; 1C33
 UpdateLives::
-	ld a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	ret nz
 	ld a, [$C0A3]		; FF removes one life, any other non-zero value adds one
@@ -462,7 +462,7 @@ UpdateLives::
 	push af
 	ld a, $08
 	ld [$DFE0], a
-	ld [$FF00+$D3], a
+	ldh [$FF00+$D3], a
 	pop af
 	add a, 1			; Add one life
 .displayLives
@@ -482,7 +482,7 @@ UpdateLives::
 	ret
 .gameOver
 	ld a, $39			; TODO Game over :'(
-	ld [hGameState], a
+	ldh [hGameState], a
 	ld [$C0A4], a
 	jr .out
 .loseLife
@@ -561,7 +561,7 @@ DisplayTimer:: ; 3D6A ; TODO better name?
 	ld a, [$C0A4]		; stores game over?
 	and a
 	ret nz
-	ld a, [hGameState]
+	ldh a, [hGameState]
 	cp a, $12			; game states > $12 don't make the timer count TODO
 	ret nc
 	ld a, [$DA00]		; Timer subdivision
@@ -591,19 +591,19 @@ INCBIN "baserom.gb", $3D97, $3F39 - $3D97
 ; Display the score at wScore. Print spaces instead of leading zeroes
 ; TODO Resuses FFB1?
 DisplayScore:: ; 3F39
-	ld a, [$FF00+$B1]	; Some check to see if the score needs to be  
+	ldh a, [$FF00+$B1]	; Some check to see if the score needs to be  
 	and a				; updated?
 	ret z
 	ld a, [$C0E2]
 	and a
 	ret nz
-	ld a, [$FF00+$EA]
+	ldh a, [$FF00+$EA]
 	cp a, 02
 	ret z
 	ld de, wScore + 2	; Start with the ten and hundred thousands
 	ld hl, $9820		; TODO VRAM layout
 	xor a
-	ld [$FF00+$B1], a	; Start by printing spaces instead of leading zeroes
+	ldh [$FF00+$B1], a	; Start by printing spaces instead of leading zeroes
 	ld c, $03			; Maximum 3 digit pairs
 .printDigitPair
 	ld a, [de]
@@ -611,7 +611,7 @@ DisplayScore:: ; 3F39
 	swap a				; Start with the more significant digit
 	and a, $0F
 	jr nz, .startNumber1
-	ld a, [$FF00+$B1]	; If it's zero, check if the number has already started
+	ldh a, [$FF00+$B1]	; If it's zero, check if the number has already started
 	and a
 	ld a, "0"
 	jr nz, .printFirstDigit
@@ -621,7 +621,7 @@ DisplayScore:: ; 3F39
 	ld a, b				; Now the lesser significant digit
 	and a, $0F
 	jr nz, .startNumber2; If non-zero, number has started (or already is)
-	ld a, [$FF00+$B1]
+	ldh a, [$FF00+$B1]
 	and a				; If zero, check if already started
 	ld a, "0"
 	jr nz, .printSecondDigit
@@ -636,24 +636,24 @@ DisplayScore:: ; 3F39
 	dec c				; Which is less significant
 	jr nz, .printDigitPair
 	xor a
-	ld [$FF00+$B1], a
+	ldh [$FF00+$B1], a
 	ret
 .startNumber1
 	push af
 	ld a, 1
-	ld [$FF00+$B1], a	; Number has start, print "0" instead of " "
+	ldh [$FF00+$B1], a	; Number has start, print "0" instead of " "
 	pop af
 	jr .printFirstDigit
 .startNumber2
 	push af
 	ld a, 1
-	ld [$FF00+$B1], a	; Number has start, print "0" instead of " "
+	ldh [$FF00+$B1], a	; Number has start, print "0" instead of " "
 	pop af
 	jr .printSecondDigit
 
 DMARoutine::
 	ld a, HIGH(wOAMBuffer)
-	ld [rDMA], a
+	ldh [rDMA], a
 	ld a, $28
 .wait
 	dec a
