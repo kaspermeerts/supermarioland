@@ -58,7 +58,7 @@ VBlank:: ; $0060
 	call UpdateLives
 	call hDMARoutine
 	call DisplayScore
-	call $3D6A			; Update time?
+	call DisplayTimer
 	call $2401
 	ld hl, $FFAC
 	inc [hl]
@@ -491,7 +491,102 @@ UpdateLives::
 	sub a, 1			; Subtract one life
 	jr .displayLives
 
-INCBIN "baserom.gb", $1C7C, $3F39 - $1C7C
+INCBIN "baserom.gb", $1C7C, $3D1A - $1C7C
+
+
+; 3D1A
+	ld hl, $C030	; TODO ? wOAMBuffer + $30 ? used for "dynamic" sprites?
+	ld b, $20
+	xor a
+.jmp_3D20
+	ldi [hl], a
+	dec b
+	jr nz, .jmp_3D20
+	ld hl, $DA00
+	ld a, $28		; 40 frames per time unit
+	ldi [hl], a		; DA00 - Time hundredths	
+	xor a
+	ldi [hl], a		; DA01 - Time ones and tens
+	ld a, $04
+	ldi [hl], a		; DA02 - Time hundreds
+	call DisplayTimer.printTimer	; TODO
+	ld a, $20		; Some sort of timers? For "dynamic" sprites?
+	ldi [hl], a		; DA03
+	ldi [hl], a		; DA04
+	ldi [hl], a		; DA05
+	ldi [hl], a		; DA06
+	ld a, $F6		; One for each "timer"?
+	ldi [hl], a		; DA07
+	ldi [hl], a		; DA08
+	ldi [hl], a		; DA09
+	ldi [hl], a		; DA0A
+	ld a, $30		; Cycles between the three "timers"
+	ldi [hl], a		; DA0B
+	xor a
+	ld b, $09
+.loop
+	ldi [hl], a		; DA0C - DA14
+	dec b
+	jr nz, .loop
+	ld a, 2
+	ldi [hl], a		; DA15 - Lives
+	dec a
+	ldi [hl], a		; DA16 - TODO
+	xor a
+	ldi [hl], a		; DA17 - Bonus game from here...
+	ldi [hl], a		; DA18
+	ldi [hl], a		; DA19
+	ldi [hl], a		; DA1A
+	ld a, $40
+	ldi [hl], a		; DA1B
+	xor a
+	ldi [hl], a		; DA1C
+	ldi [hl], a		; DA1D
+	ldi [hl], a		; DA1E
+	ld a, $40
+	ldi [hl], a		; DA1F
+	xor a
+	ld b, $08
+.loop2
+	ldi [hl], a		; DA20 - DA27 - ... to here
+	dec b
+	jr nz, .loop2
+	ld a, $04
+	ldi [hl], a		; DA28
+	ld a, $11
+	ld [hl], a		; DA29 - Changes during the bonus game..
+	ret
+
+DisplayTimer:: ; 3D6A ; TODO better name?
+	ld a, [$C0A4]		; stores game over?
+	and a
+	ret nz
+	ld a, [hGameState]
+	cp a, $12			; game states > $12 don't make the timer count TODO
+	ret nc
+	ld a, [$DA00]		; Timer subdivision
+	cp a, $28			; 40 frames per time unit (why not 60?)
+	ret nz
+	call .printTimer	; well, that's silly, could've just fallen through. Bug?
+	ret
+.printTimer ; 3D7E
+	ld de, $9833		; TODO VRAM
+	ld a, [$DA01]		; Ones and Tens
+	ld b, a
+	and a, $0F
+	ld [de], a
+	dec e
+	ld a, b
+	and a, $F0
+	swap a
+	ld [de], a
+	dec e
+	ld a, [$DA02]		; Hundreds
+	and a, $0F
+	ld [de], a
+	ret
+
+INCBIN "baserom.gb", $3D97, $3F39 - $3D97
 
 ; Display the score at wScore. Print spaces instead of leading zeroes
 ; TODO Resuses FFB1?
