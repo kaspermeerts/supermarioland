@@ -62,8 +62,8 @@ VBlank:: ; $0060
 	call $2401
 	ld hl, $FFAC
 	inc [hl]
-	ld a, [$FF00+$B3]	; TODO Gamestate?
-	cp a, $3A			; Game over?
+	ld a, [hGameState]
+	cp a, $3A			; Game over? TODO
 	jr nz, .jmp_88
 	ld hl, rLCDC
 	set 5, [hl]			; Turn on window
@@ -97,7 +97,7 @@ LCDStatus::
 	ld a, [$C0DF]
 	ld [rSCY], a
 .jmp_B2
-	ld a, [$FF00+$B3]
+	ld a, [hGameState]
 	cp a, $3A
 	jr nz, .jmp_CC
 	ld hl, rWY
@@ -245,7 +245,7 @@ Init::	; 0185
 	ld a, 2
 	ld [$C0DC], a
 	ld a, $0E
-	ld [$FF00+$B3], a
+	ld [hGameState], a	; TODO
 	ld a, 3
 	ld [MBC1RomBank], a
 	ld [$C0A4], a
@@ -310,14 +310,14 @@ Init::	; 0185
 	dec [hl]
 	jr .jmp_293
 .jmp_283
-	ld a, [$FF00+$B3]
+	ld a, [hGameState]	; 0 corresponds to normal gameplay...
 	and a
 	jr nz, .jmp_293
 	ld a, 2
 	ld [MBC1RomBank], a
 	ld [$FF00+$FD], a
 	ld a, $0E
-	ld [$FF00+$B3], a
+	ld [hGameState], a
 .jmp_293
 	call .jmp_2A3
 .jmp_296
@@ -331,7 +331,7 @@ Init::	; 0185
 .jmp_2A1
 	jr .jmp_2A1 ; Infinite loop??
 .jmp_2A3
-	ld a, [$FF00+$B3]		; Definitely some sort of game state
+	ld a, [hGameState]
 	rst $28		; Jump Table
 	; 2A6
 dw $0627 ; 0x00 Normal gameplay
@@ -447,8 +447,8 @@ UpdateLives::
 	ld [$C0A3], a
 	ret
 .gameOver
-	ld a, $39			; Game over :'(
-	ld [$FF00+$B3], a	; Game state TODO
+	ld a, $39			; TODO Game over :'(
+	ld [hGameState], a
 	ld [$C0A4], a
 	jr .out
 .loseLife
