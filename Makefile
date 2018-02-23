@@ -15,7 +15,7 @@ check: mario.gb
 	@sha1sum -c --quiet rom.sha1
 
 %.o: %.asm
-	rgbasm -o $@ $<
+	rgbasm -h -o $@ $<
 
 mario.gb: $(objects)
 	rgblink -d -n $*.sym -m $*.map -o $@ $^

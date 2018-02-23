@@ -237,7 +237,167 @@ Init::	; 0185
 	dec b
 	jr nz, .copyDMAroutine
 
-INCBIN "baserom.gb", $01FA, $05DE - $01FA
+	xor a
+	ld [$FF00+$E4], a
+	ld a, $11
+	ld [$FF00+$B4], a
+	ld [$C0A8], a
+	ld a, 2
+	ld [$C0DC], a
+	ld a, $0E
+	ld [$FF00+$B3], a
+	ld a, 3
+	ld [MBC1RomBank], a
+	ld [$C0A4], a
+	ld a, 0
+	ld [$C0E1], a
+	ld [$FF00+$9A], a
+	call $7FF3			; This seems to set up sound
+	ld a, 2
+	ld [MBC1RomBank], a
+	ld [$FF00+$FD], a	; TODO Stores the ROM bank?? We've been over this
+
+.jmp_226				; MAIN LOOP (well, i think)
+	ld a, [$DA1D]		; TODO DA1D is 0 in normal play, 1 if time < 100
+	cp a, 3				; 2 if time < 50, 3 if time == 0? FF if time up
+	jr nz, .jmp_238
+	ld a, $FF			; Here DA1D is changed from 3 to FF?
+	ld [$DA1D], a
+	call $09F1
+	call $1736
+.jmp_238
+	ld a, [$FF00+$FD]	; Again, ROM bank?
+	ld [$FF00+$E1], a	; temporarily store for some reason
+	ld a, 3
+	ld [$FF00+$FD], a
+	ld [MBC1RomBank], a
+	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF91)
+	ld a, [$FF00+$E1]
+	ld [$FF00+$FD], a	; another bank switch
+	ld [MBC1RomBank], a
+	ld a, [$FF00+$9F]	; Demo mode?
+	and a
+	jr nz, .jmp_25A
+	call $07DA			; TODO 7E5 reboots if A+B+Start+Select is pressed,
+	ld a, [$FF00+$B2]	; seems this also starts the game? Checks for Start
+	and a
+	jr nz, .jmp_296
+.jmp_25A
+	ld hl, $FFA6
+	ld b, 2
+.jmp_25F
+	ld a, [hl]
+	and a
+	jr z, .jmp_264
+	dec [hl]			; This is some sort of counter for the Demo
+.jmp_264
+	inc l
+	dec b
+	jr nz, .jmp_25F
+	ld a, [$FF00+$9F]	; Demo mode?
+	and a
+	jr z, .jmp_293
+	ld a, [$FF00+$80]		; keys pressed
+	bit 3, a			; test for Start
+	jr nz, .jmp_283
+	ld a, [$FF00+$AC]
+	and a, $0F
+	jr nz, .jmp_293
+	ld hl, $C0D7
+	ld a, [hl]
+	and a
+	jr z, .jmp_283
+	dec [hl]
+	jr .jmp_293
+.jmp_283
+	ld a, [$FF00+$B3]
+	and a
+	jr nz, .jmp_293
+	ld a, 2
+	ld [MBC1RomBank], a
+	ld [$FF00+$FD], a
+	ld a, $0E
+	ld [$FF00+$B3], a
+.jmp_293
+	call .jmp_2A3
+.jmp_296
+	halt
+	ld a, [$FF00+$85]
+	and a
+	jr z, .jmp_296
+	xor a
+	ld [$FF00+$85], a
+	jr .jmp_226
+.jmp_2A1
+	jr .jmp_2A1 ; Infinite loop??
+.jmp_2A3
+	ld a, [$FF00+$B3]		; Definitely some sort of game state
+	rst $28		; Jump Table
+	; 2A6
+dw $0627 ; 0x00 Normal gameplay
+dw $06BC ; 0x01 Dead?
+dw $06DC ; 0x02 Reset to checkpoint
+dw $0B8D ; 0x03
+dw $0BD6 ; 0x04 Dying
+dw $0C73 ; 0x05 Score counting down
+dw $0CCB ; 0x06 End of level
+dw $0C40 ; 0x07 End of level gate, music
+dw $0D49 ; 0x08
+dw $161B ; 0x09 Going down a pipe
+dw $162F ; 0x0A Warping to underground?
+dw $166C ; 0x0B Going right in a pipe
+dw $16DA ; 0x0C Going up out of a pipe
+dw $2376 ; 0x0D
+dw $0322 ; 0x0E Init menu
+dw $04C3 ; 0x0F Start menu
+dw $05CE ; 0x10
+dw $0576 ; 0x11
+dw $3D97 ; 0x12 Bonus game
+dw $3DD7 ; 0x13
+dw $5832 ; 0x14
+dw $5835 ; 0x15 Bonus game
+dw $3EA7 ; 0x16
+dw $5838 ; 0x17 Bonus game walking
+dw $583B ; 0x18 Bonus game descending ladder
+dw $583E ; 0x19 Bonus game ascending ladder
+dw $5841 ; 0x1A Getting price
+dw $0DF9 ; 0x1B
+dw $0E15 ; 0x1C
+dw $0E31 ; 0x1D
+dw $0E5D ; 0x1E
+dw $0E96 ; 0x1F
+dw $0EA9 ; 0x20
+dw $0ECD ; 0x21
+dw $0F12 ; 0x22
+dw $0F33 ; 0x23
+dw $0F6A ; 0x24
+dw $0FFD ; 0x25
+dw $1055 ; 0x26
+dw $1099 ; 0x27
+dw $0EA9 ; 0x28
+dw $1116 ; 0x29
+dw $1165 ; 0x2A
+dw $1194 ; 0x2B
+dw $11D0 ; 0x2C
+dw $121B ; 0x2D
+dw $1254 ; 0x2E
+dw $12A1 ; 0x2F
+dw $12C2 ; 0x30
+dw $12F1 ; 0x31
+dw $138E ; 0x32
+dw $13F0 ; 0x33
+dw $1441 ; 0x34
+dw $145A ; 0x35
+dw $1466 ; 0x36
+dw $1488 ; 0x37
+dw $14DC ; 0x38
+dw $1C7C ; 0x39
+dw $1CE8 ; 0x3A
+dw $1CF0 ; 0x3B
+dw $1D1D ; 0x3C
+dw $06BB ; 0x3D
+
+INCBIN "baserom.gb", $322, $05DE - $0322
 
 CopyData::	; 05DE
 ; Copy BC bytes from HL to DE
