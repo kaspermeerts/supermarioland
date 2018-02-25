@@ -403,7 +403,7 @@ dw $2376 ; 0x0D Auto scrolling level
 dw $0322 ; 0x0E Init menu
 dw $04C3 ; 0x0F Start menu
 dw $05CE ; 0x10
-dw $0576 ; 0x11 Continue?
+dw $0576 ; 0x11 Level start
 dw $3D97 ; 0x12 Go to Bonus game
 dw $3DD7 ; 0x13 Entering Bonus game
 dw $5832 ; 0x14
@@ -450,6 +450,7 @@ dw $1D1D ; 0x3C Time up
 dw $06BB ; 0x3D
 
 ;322
+GameState_0E::
 	xor a
 	ldh [rLCDC], a	; Turn off LCD
 	di
@@ -494,7 +495,7 @@ dw $06BB ; 0x3D
 	ld de, $8000
 	ld bc, $02A0
 	call CopyData	; same, but to the other tile data bank
-	call FillVRAMWithEmptyTile
+	call FillTileMapWithEmptyTile
 	xor a
 	ldh [$FF00+$E5], a	; Level block TODO
 	ldh a, [$FF00+$E4]
@@ -506,7 +507,7 @@ dw $06BB ; 0x3D
 	ldh [$FF00+$E4], a
 	ld a, $3C
 	ld hl, $9800		; tile map
-	call $056F			; smth with where the HUD goes
+	call FillStartMenuTopRow	; usually hidden by the HUD
 	ld hl, $9804
 	ld [hl], $94
 	ld hl, $9822
@@ -534,7 +535,7 @@ dw $06BB ; 0x3D
 	dec b
 	jr nz, .compareScores
 	jr .printTopScore
-.newTopScore
+.newTopScore			; This is so not the place to do this...
 	ld hl, wScore + 2
 	ld de, wTopScore + 2
 	ld b, 3
@@ -547,7 +548,7 @@ dw $06BB ; 0x3D
 .printTopScore
 	ld de, wTopScore + 2
 	ld hl, $9969
-	call PrintScore	; tiens
+	call PrintScore
 	ld hl, wOAMBuffer + 4
 	ld [hl], $78	; Y
 	ld a, [wNumContinues]
@@ -605,9 +606,238 @@ dw $06BB ; 0x3D
 
 ; 446 TODO give a name
 db "continue *"
-INCBIN "baserom.gb", $450, $05CF - $450
 
-FillVRAMWithEmptyTile:: ; 05CF  What a waste
+; 450
+GameState_0F::
+.startPressed
+	ld a, [wOAMBuffer + 4]
+	cp a, $78	; usual start Y position
+	jr z, .dontContinue
+	ld a, [wNumContinues]	; if not, use up a continue
+	dec a
+	ld [wNumContinues], a
+	ld a, [$C0A8]			; TODO BCD level on which you game overed?
+	ldh [$FFB4], a
+	ld e, 0
+	cp a, $11				; Convert BCD level to index
+	jr z, .startLevelInE
+	inc e
+	cp a, $12
+	jr z, .startLevelInE
+	inc e
+	cp a, $13
+	jr z, .startLevelInE
+	inc e
+	cp a, $21
+	jr z, .startLevelInE
+	inc e
+	cp a, $22
+	jr z, .startLevelInE
+	inc e
+	cp a, $23
+	jr z, .startLevelInE
+	inc e
+	cp a, $31
+	jr z, .startLevelInE
+	inc e
+	cp a, $32
+	jr z, .startLevelInE
+	inc e
+	cp a, $33
+	jr z, .startLevelInE
+	inc e
+	cp a, $41
+	jr z, .startLevelInE
+	inc e
+	cp a, $42
+	jr z, .startLevelInE
+	inc e
+.startLevelInE
+	ld a, e
+.storeAndStartLevel
+	ld [$FFE4], a
+	jp .jmp_53D
+.dontContinue
+	xor a
+	ld [wNumContinues], a	; harsh
+	ldh a, [hWinCount]
+	cp a, 2
+	jp nc, .jmp_53D
+	ld a, $11
+	ldh [$FFB4], a
+	xor a
+	jr .storeAndStartLevel
+.selectPressed
+	ld a, [wNumContinues]
+	and a
+	jr z, .checkLevelSelect	; if we have no continues, pretend like nothing happened
+	ld hl, $C004
+	ld a, [hl]
+	xor a, $F8
+	ld [hl], a
+	jr .checkLevelSelect
+.entryPoint::
+	ldh a, [$FF81]
+	ld b, a
+	bit 3, b		; START button
+	jr nz, .startPressed
+	bit 2, b		; SELECT button
+	jr nz, .selectPressed
+.checkLevelSelect
+	ldh a, [hWinCount]
+	cp a, 2
+	jr c, .checkDemoTimer
+	bit 0, b		; A button
+	jr z, .drawLevelSelect
+	ldh a, [$FFB4]	; increment the level select
+	inc a			; Level
+	ld b, a
+	and a, $0F
+	cp a, $04		; 3 levels per world
+	ld a, b
+	jr nz, .skip
+	add a, $10 - 3	; to increment the upper nibble, the world
+.skip
+	ldh [$FFB4], a
+	ldh a, [$FFE4]
+	inc a
+	cp a, $0C		; 12 levels in total
+	jr nz, .drawNewLevelSelect
+	ld a, $11		; go back to 1-1
+	ldh [$FFB4], a
+	xor a
+.drawNewLevelSelect
+	ldh [$FFE4], a
+.drawLevelSelect	; with sprites
+	ld hl, $C008
+	ldh a, [$FFB4]	; nibble encoded
+	ld b, $78		; Y coordinate
+	ld c, a
+	and a, $F0		; world
+	swap a
+	ld [hl], b		; Y
+	inc l
+	ld [hl], $78	; X for world
+	inc l
+	ldi [hl], a		; world sprite index
+	inc l
+	ld a, c
+	and a, $0F
+	ld [hl], b		; Y
+	inc l
+	ld [hl], $88	; X for level
+	inc l
+	ldi [hl], a		; level sprite index
+	inc l
+	ld [hl], b		; Y
+	inc l
+	ld [hl], $80	; X for -
+	inc l
+	ld [hl], "-"
+.checkDemoTimer
+	ld a, [$C0D7]	; Demo timer
+	and a
+	ret nz
+	ld a, [$C0DC]	; Demo select
+	sla a
+	ld e, a
+	ld d, 0
+	ld hl, $0569	; Demo levels
+	add hl, de
+	ldi a, [hl]
+	ldh [$FFB4], a
+	ld a, [hl]
+	ldh [$FFE4], a	; level index and encoding
+	ld a, $50
+	ld [$C0D7], a	; timer
+	ld a, $11		; TODO
+	ldh [hGameState], a
+	xor a
+	ldh [hWinCount], a ; to avoid expert mode in demos. Mirrored at C0E1
+	ret
+.jmp_53D
+	ld a, $11
+	ldh [hGameState], a
+	xor a
+	ldh [rIF], a
+	ldh [$FF9F], a
+	ld [$C0A4], a
+	dec a
+	ld [$DFE8], a
+	ld a, 3
+	ld [MBC1RomBank], a
+	call $7FF3			; setup sound effects
+	ldh a, [$FFFD]
+	ld [MBC1RomBank], a
+	xor a
+	ld [$DFE0], a
+	ld [$DFF0], a
+	ld [$DFF8], a
+	ld a, $7			; enable timer interrupt
+	ld [rIE], a
+	ret
+
+; TODO more random data... Demo levels
+db $11, $00, $12, $01, $33, $08
+
+; What kind of garbage is this?
+FillStartMenuTopRow:
+	ld b, $14
+.loop
+	ldi [hl], a
+	dec b
+	jr nz, .loop
+	ret
+
+GameState_11::
+.entryPoint::
+	xor a
+	ldh [rLCDC], a	; turn off LCD
+	di
+	ldh a, [$FF9F]	; seems to be only non zero in the menu
+	and a
+	jr nz, .jmp_58B
+	xor a
+	ld [wScore], a
+	ld [$C0A1], a
+	ld [$C0A2], a
+	ldh [$FFFA], a
+.jmp_58B
+	call $5E7	; todo
+	call FillTileMapWithEmptyTile
+	ld hl, $9C00
+	ld b, $5F
+	ld a, " "
+.loop
+	ldi [hl], a
+	dec b
+	jr nz, .loop
+	call PrepareHUD
+	ld a, $0F
+	ldh [rLYC], a	; height of the hud?
+	ld a, (1 << rTAC_ON) | rTAC_16384_HZ
+	ldh [rTAC], a
+	ld hl, rWY
+	ld [hl], $85
+	inc l			; rWX
+	ld [hl], $60	; bottom right corner
+	xor a
+	ldh [rTMA], a
+	ldh [rIF], a
+	dec a
+	ldh [$FFA7], a
+	ldh [$FFB1], a
+	ld a, $5B
+	ldh [$FFE9], a
+	call $2442
+	call $3D1A
+	call $1C1B
+	call $1C56
+	ldh a, [$FFB4]
+	call $0D6D
+	ret
+
+FillTileMapWithEmptyTile:: ; 05CF  What a waste
 	ld hl, $9BFF	; TODO... name
 	ld bc, $0400
 .loop
@@ -630,8 +860,45 @@ CopyData::	; 05DE
 	jr nz, CopyData
 	ret
 
-INCBIN "baserom.gb", $05E7, $1C33 - $05E7
+; 5E7
+	ld hl, $5032
+	ld de, $9000
+	ld bc, $0800
+	call CopyData
+	ld hl, $4032
+	ld de, $8000
+	ld bc, $1000
+	call CopyData
+	ld hl, $5603
+	ld de, $C600
+	ld b, $08
+.loop
+	ldi a, [hl]
+	ld [de], a
+	inc hl
+	inc de
+	dec b
+	jr nz, .loop
+	ret
 
+PrepareHUD::
+	ld hl, DMARoutineEnd	; HUD
+	ld de, $9800
+	ld b, $02
+.loop
+	ldi a, [hl]
+	ld [de], a
+	inc e
+	ld a, e
+	and a, $1F
+	cp a, $14
+	jr nz, .loop
+	ld e, $20
+	dec b
+	jr nz, .loop
+	ret
+
+INCBIN "baserom.gb", $0627, $1C33 - $0627
 ; 1C33
 UpdateLives::
 	ldh a, [$FF00+$9F]	; Demo mode?
