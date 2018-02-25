@@ -164,7 +164,25 @@ SECTION "Header", ROM0[$104]
 Start::	; 0150
 	jp Init
 
-INCBIN "baserom.gb", $0153, $0166 - $0153
+; FFAD is ~ x coordinate, FFAE ~ y coordinate
+; FFAF least significant 5 bits are x, rest 3 are y??
+; 3EE6 shifts and ands them together. But why?
+; maybe find scroll coordinates from Mario's position in the level?
+.mystery_153:
+	call $3EE6
+.wait1
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .wait1
+	ld b, [hl]
+.wait2
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .wait2
+	ld a, [hl]
+	and b
+	ret
+
 ; Add BCD encoded DE to the score. Signal that the displayed version
 ; needs to be updated
 AddScore:: ; 0166
@@ -374,6 +392,7 @@ dw $06DC ; 0x02 Reset to checkpoint
 dw $0B8D ; 0x03
 dw $0BD6 ; 0x04 Dying
 dw $0C73 ; 0x05 Score counting down
+dw $0C73 ; 0x05 Explosion/Score counting down
 dw $0CCB ; 0x06 End of level
 dw $0C40 ; 0x07 End of level gate, music
 dw $0D49 ; 0x08
@@ -381,11 +400,11 @@ dw $161B ; 0x09 Going down a pipe
 dw $162F ; 0x0A Warping to underground?
 dw $166C ; 0x0B Going right in a pipe
 dw $16DA ; 0x0C Going up out of a pipe
-dw $2376 ; 0x0D
+dw $2376 ; 0x0D Auto scrolling level
 dw $0322 ; 0x0E Init menu
 dw $04C3 ; 0x0F Start menu
 dw $05CE ; 0x10
-dw $0576 ; 0x11
+dw $0576 ; 0x11 Continue?
 dw $3D97 ; 0x12 Bonus game
 dw $3DD7 ; 0x13
 dw $5832 ; 0x14
@@ -396,39 +415,39 @@ dw $583B ; 0x18 Bonus game descending ladder
 dw $583E ; 0x19 Bonus game ascending ladder
 dw $5841 ; 0x1A Getting price
 dw $0DF9 ; 0x1B
-dw $0E15 ; 0x1C
+dw $0E15 ; 0x1C Smth with the gate after a boss
 dw $0E31 ; 0x1D
-dw $0E5D ; 0x1E
-dw $0E96 ; 0x1F
-dw $0EA9 ; 0x20
-dw $0ECD ; 0x21
-dw $0F12 ; 0x22
-dw $0F33 ; 0x23
-dw $0F6A ; 0x24
-dw $0FFD ; 0x25
-dw $1055 ; 0x26
-dw $1099 ; 0x27
-dw $0EA9 ; 0x28
+dw $0E5D ; 0x1E Gate opening
+dw $0E96 ; 0x1F Gate open
+dw $0EA9 ; 0x20 Walk off button
+dw $0ECD ; 0x21 Mario offscreen
+dw $0F12 ; 0x22 Scroll to fake Daisy
+dw $0F33 ; 0x23 Walk to fake Daisy
+dw $0F6A ; 0x24 Fake Daisy speak
+dw $0FFD ; 0x25 Fake Daisy morphing
+dw $1055 ; 0x26 Fake Daisy monster jumping away
+dw $1099 ; 0x27	Tatanga dying
+dw $0EA9 ; 0x28 Tatanga dead, plane moves forward
 dw $1116 ; 0x29
-dw $1165 ; 0x2A
-dw $1194 ; 0x2B
-dw $11D0 ; 0x2C
-dw $121B ; 0x2D
-dw $1254 ; 0x2E
-dw $12A1 ; 0x2F
-dw $12C2 ; 0x30
-dw $12F1 ; 0x31
-dw $138E ; 0x32
-dw $13F0 ; 0x33
-dw $1441 ; 0x34
-dw $145A ; 0x35
-dw $1466 ; 0x36
-dw $1488 ; 0x37
-dw $14DC ; 0x38
-dw $1C7C ; 0x39
-dw $1CE8 ; 0x3A
-dw $1CF0 ; 0x3B
-dw $1D1D ; 0x3C
+dw $1165 ; 0x2A Daisy speaking
+dw $1194 ; 0x2B Daisy moving
+dw $11D0 ; 0x2C Daisy kissing
+dw $121B ; 0x2D Daisy quest over
+dw $1254 ; 0x2E Mario credits running
+dw $12A1 ; 0x2F Entering airplane
+dw $12C2 ; 0x30 Airplane taking off
+dw $12F1 ; 0x31 Airplane moving forward
+dw $138E ; 0x32 Airplane leaving hanger?
+dw $13F0 ; 0x33 In between two credits?
+dw $1441 ; 0x34 Credits coming up
+dw $145A ; 0x35 Credits stand still
+dw $1466 ; 0x36 Credits leave
+dw $1488 ; 0x37 Airplane leaving
+dw $14DC ; 0x38 THE END letters flying
+dw $1C7C ; 0x39 Pre game over?
+dw $1CE8 ; 0x3A Game over
+dw $1CF0 ; 0x3B Pre time up
+dw $1D1D ; 0x3C Time up
 dw $06BB ; 0x3D
 
 INCBIN "baserom.gb", $322, $05DE - $0322
