@@ -303,7 +303,7 @@ Init::	; 0185
 	ld [$C0A4], a
 	ld a, 0
 	ld [$C0E1], a
-	ldh [$FF00+$9A], a
+	ldh [hWinCount], a
 	call $7FF3			; This seems to set up sound
 	ld a, 2
 	ld [MBC1RomBank], a
@@ -341,7 +341,7 @@ Init::	; 0185
 	ld a, [hl]
 	and a
 	jr z, .jmp_264
-	dec [hl]			; This is some sort of counter for the Demo
+	dec [hl]			; FFA6 and FFA7 are timers for frame based animations
 .jmp_264
 	inc l
 	dec b
@@ -371,7 +371,7 @@ Init::	; 0185
 	ld a, $0E
 	ldh [hGameState], a
 .jmp_293
-	call .jmp_2A3
+	call .jmp_2A3		; This will the return address for the imminent rst $28
 .jmp_296
 	halt
 	ldh a, [$FF00+$85]
@@ -389,9 +389,8 @@ Init::	; 0185
 dw $0627 ; 0x00 Normal gameplay
 dw $06BC ; 0x01 Dead?
 dw $06DC ; 0x02 Reset to checkpoint
-dw $0B8D ; 0x03
-dw $0BD6 ; 0x04 Dying
-dw $0C73 ; 0x05 Score counting down
+dw $0B8D ; 0x03 Pre dying
+dw $0BD6 ; 0x04 Dying animation
 dw $0C73 ; 0x05 Explosion/Score counting down
 dw $0CCB ; 0x06 End of level
 dw $0C40 ; 0x07 End of level gate, music
@@ -405,8 +404,8 @@ dw $0322 ; 0x0E Init menu
 dw $04C3 ; 0x0F Start menu
 dw $05CE ; 0x10
 dw $0576 ; 0x11 Continue?
-dw $3D97 ; 0x12 Bonus game
-dw $3DD7 ; 0x13
+dw $3D97 ; 0x12 Go to Bonus game
+dw $3DD7 ; 0x13 Entering Bonus game
 dw $5832 ; 0x14
 dw $5835 ; 0x15 Bonus game
 dw $3EA7 ; 0x16
@@ -414,7 +413,7 @@ dw $5838 ; 0x17 Bonus game walking
 dw $583B ; 0x18 Bonus game descending ladder
 dw $583E ; 0x19 Bonus game ascending ladder
 dw $5841 ; 0x1A Getting price
-dw $0DF9 ; 0x1B
+dw $0DF9 ; 0x1B Leaving Bonus game
 dw $0E15 ; 0x1C Smth with the gate after a boss
 dw $0E31 ; 0x1D
 dw $0E5D ; 0x1E Gate opening
@@ -450,7 +449,175 @@ dw $1CF0 ; 0x3B Pre time up
 dw $1D1D ; 0x3C Time up
 dw $06BB ; 0x3D
 
-INCBIN "baserom.gb", $322, $05DE - $0322
+;322
+	xor a
+	ldh [rLCDC], a	; Turn off LCD
+	di
+	ldh [$FF00+$A4], a	; smth to do with the map scrolling
+	ld hl, wOAMBuffer
+	ld b, $9F
+.clearOAMBufferLoop
+	ldi [hl], a
+	dec b
+	jr nz, .clearOAMBufferLoop
+	ldh [$FF99], a
+	ld [$C0A5], a	; these are in the hblank routine as well
+	ld [$C0AD], a
+	ld hl, $C0D8
+	ldi [hl], a
+	ldi [hl], a
+	ldi [hl], a
+	ld a, [$C0E1]
+	ldh [hWinCount], a
+	ld hl, $791A	; TODO give name
+	ld de, $9300
+	ld bc, $0500
+	call CopyData	; loads tiles for the menu
+	ld hl, $7E1A
+	ld de, $8800
+	ld bc, $0170
+	call CopyData	; and more tiles
+	ld hl, $4862
+	ldh a, [hWinCount]
+	cp a, 1
+	jr c, .noWins	; no win yet
+	ld hl, $4E72
+.noWins
+	ld de, $8AC0
+	ld bc, $0010
+	call CopyData	; mushroom sprite (or mario head)
+	ld hl, $5032
+	ld de, $9000
+	ld bc, $02C0
+	call CopyData	; font, coins
+	ld hl, $5032
+	ld de, $8000
+	ld bc, $02A0
+	call CopyData	; same, but to the other tile data bank
+	call FillVRAMWithEmptyTile
+	xor a
+	ldh [$FF00+$E5], a	; Level block TODO
+	ldh a, [$FF00+$E4]
+	push af
+	ld a, $0C
+	ldh [$FF00+$E4], a
+	call $0807			; Draw level into tile map TODO based on FFE4?
+	pop af
+	ldh [$FF00+$E4], a
+	ld a, $3C
+	ld hl, $9800		; tile map
+	call $056F			; smth with where the HUD goes
+	ld hl, $9804
+	ld [hl], $94
+	ld hl, $9822
+	ld [hl], $95
+	inc l
+	ld [hl], $96		; Mario's head
+	inc l
+	ld [hl], $8C
+	ld hl, $982F		; Clouds in top right
+	ld [hl], $3F
+	inc l
+	ld [hl], $4C
+	inc l
+	ld [hl], $4D
+	ld hl, wScore + 2
+	ld de, wTopScore + 2
+	ld b, 3
+.compareScores			; Compare the last score to the top score
+	ld a, [de]
+	sub [hl]
+	jr c, .newTopScore
+	jr nz, .printTopScore
+	dec e
+	dec l
+	dec b
+	jr nz, .compareScores
+	jr .printTopScore
+.newTopScore
+	ld hl, wScore + 2
+	ld de, wTopScore + 2
+	ld b, 3
+.replaceTopScore
+	ldd a, [hl]
+	ld [de], a
+	dec e
+	dec b
+	jr nz, .replaceTopScore
+.printTopScore
+	ld de, wTopScore + 2
+	ld hl, $9969
+	call PrintScore	; tiens
+	ld hl, wOAMBuffer + 4
+	ld [hl], $78	; Y
+	ld a, [wNumContinues]
+	and a
+	jr z, .noContinues
+	ldh a, [hWinCount]
+	cp a, 2					; after two wins, you don't need 100k points,
+	jr c, .printContinues	; you can just always level select
+	jr .noContinues
+.printContinues
+	ld hl, $0446	; "CONTINUE *"
+	ld de, $99C6
+	ld b, $0A
+.loop
+	ldi a, [hl]
+	ld [de], a
+	inc e
+	dec b
+	jr nz, .loop
+	ld hl, wOAMBuffer
+	ld [hl], $80	; Y
+	inc l
+	ld [hl], $88	; X
+	inc l
+	ld a, [wNumContinues]
+	ld [hl], a
+	inc l
+	ld [hl], 0		; no sprite attributes
+	inc l
+	ld [hl], $80	; Y
+.noContinues
+	inc l
+	ld [hl], $28	; X
+	inc l
+	ld [hl], $AC	; mushroom/mario head
+	xor a
+	ldh [rIF], a	; Clear all interrupts
+	ld a, $C3
+	ldh [rLCDC], a	; Turn on LCD, BG, sprites, and change WIN tile map
+	ei
+	ld a, $0F		; TODO
+	ldh [hGameState], a
+	xor a
+	ldh [$FF00+$F9], a
+	ld a, $28
+	ld [$C0D7], a
+	ldh [$FF00+$9F], a
+	ld hl, $C0DC
+	inc [hl]
+	ld a, [hl]
+	cp a, 3
+	ret nz
+	ld [hl], 0
+	ret
+
+; 446 TODO give a name
+db "continue *"
+INCBIN "baserom.gb", $450, $05CF - $450
+
+FillVRAMWithEmptyTile:: ; 05CF  What a waste
+	ld hl, $9BFF	; TODO... name
+	ld bc, $0400
+.loop
+	ld a, " "
+	ldd [hl], a
+	dec bc
+	ld a, b
+	or c
+	jr nz, .loop
+	ret
 
 CopyData::	; 05DE
 ; Copy BC bytes from HL to DE
@@ -607,9 +774,8 @@ DisplayTimer:: ; 3D6A ; TODO better name?
 
 INCBIN "baserom.gb", $3D97, $3F39 - $3D97
 
-; Display the score at wScore. Print spaces instead of leading zeroes
-; TODO Resuses FFB1?
 DisplayScore:: ; 3F39
+; Display the score at wScore to the top right corner
 	ldh a, [$FF00+$B1]	; Some check to see if the score needs to be  
 	and a				; updated?
 	ret z
@@ -621,6 +787,9 @@ DisplayScore:: ; 3F39
 	ret z
 	ld de, wScore + 2	; Start with the ten and hundred thousands
 	ld hl, $9820		; TODO VRAM layout
+PrintScore::
+; Displays BCD encoded score at DE, DE-1 and DE-2 to the VRAM at HL
+; Print spaces instead of leading zeroes TODO Reuses FFB1?
 	xor a
 	ldh [$FF00+$B1], a	; Start by printing spaces instead of leading zeroes
 	ld c, $03			; Maximum 3 digit pairs
