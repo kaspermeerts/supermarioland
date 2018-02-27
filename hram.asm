@@ -1,6 +1,11 @@
 SECTION "High RAM", HRAM
 
-ds $9A - $80
+ds $85 - $80
+
+hVBlankOccurred::	; $FF85
+	ds 1
+
+ds $9A - $86
 
 hWinCount::		; $FF9A TODO mirrored at C0E1?
 	ds 1

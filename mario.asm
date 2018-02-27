@@ -59,20 +59,20 @@ VBlank:: ; $0060
 	call hDMARoutine
 	call DisplayScore
 	call DisplayTimer
-	call $2401
+	call $2401			; Animated background
 	ld hl, $FFAC
 	inc [hl]
 	ldh a, [hGameState]
 	cp a, $3A			; Game over? TODO
-	jr nz, .jmp_88
+	jr nz, .gameNotOver
 	ld hl, rLCDC
 	set 5, [hl]			; Turn on window
-.jmp_88
+.gameNotOver
 	xor a
 	ldh [rSCX], a
 	ldh [rSCY], a
 	inc a
-	ldh [$FF00+$85], a
+	ldh [hVBlankOccurred], a
 	pop hl
 	pop de
 	pop bc
@@ -83,10 +83,10 @@ VBlank:: ; $0060
 LCDStatus::
 	push af
 	push hl
-.wait
+.waitHBlank
 	ldh a, [rSTAT]
 	and a, $03
-	jr nz, .wait	; Wait for HBlank
+	jr nz, .waitHBlank
 	ld a, [$C0A5]
 	and a
 	jr nz, .jmp_CF
@@ -324,28 +324,28 @@ Init::	; 0185
 	ldh [$FF00+$FD], a
 	ld [MBC1RomBank], a
 	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF91)
-	ldh a, [$FF00+$E1]
+	ldh a, [$FF00+$E1]	; TODO probably the rom for the tiles of this level?
 	ldh [$FF00+$FD], a	; another bank switch
 	ld [MBC1RomBank], a
 	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	jr nz, .jmp_25A
-	call $07DA			; TODO 7E5 reboots if A+B+Start+Select is pressed,
+	call $07DA			; TODO 7E2 reboots if A+B+Start+Select is pressed,
 	ldh a, [$FF00+$B2]	; seems this also starts the game? Checks for Start
 	and a
-	jr nz, .jmp_296
+	jr nz, .halt
 .jmp_25A
 	ld hl, $FFA6		; General purpose state counter?
 	ld b, 2
-.jmp_25F
+.next
 	ld a, [hl]
 	and a
-	jr z, .jmp_264
-	dec [hl]			; FFA6 and FFA7 are timers for frame based animations
-.jmp_264
+	jr z, .skip
+	dec [hl]			; FFA{6,7,8} are timers for frame based animations
+.skip
 	inc l
 	dec b
-	jr nz, .jmp_25F
+	jr nz, .next
 	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	jr z, .jmp_293
@@ -372,13 +372,13 @@ Init::	; 0185
 	ldh [hGameState], a
 .jmp_293
 	call .jmp_2A3		; This will the return address for the imminent rst $28
-.jmp_296
-	halt
-	ldh a, [$FF00+$85]
+.halt
+	halt				; Halt the CPU until an interrupt is fired
+	ldh a, [hVBlankOccurred]
 	and a
-	jr z, .jmp_296
+	jr z, .halt
 	xor a
-	ldh [$FF00+$85], a
+	ldh [hVBlankOccurred], a
 	jr .jmp_226
 .jmp_2A1
 	jr .jmp_2A1 ; Infinite loop??
@@ -408,7 +408,7 @@ dw $3D97 ; 0x12 Go to Bonus game
 dw $3DD7 ; 0x13 Entering Bonus game
 dw $5832 ; 0x14
 dw $5835 ; 0x15 Bonus game
-dw $3EA7 ; 0x16
+dw $3EA7 ; 0x16 Move the ladder
 dw $5838 ; 0x17 Bonus game walking
 dw $583B ; 0x18 Bonus game descending ladder
 dw $583E ; 0x19 Bonus game ascending ladder
@@ -773,7 +773,7 @@ GameState_0F::
 	ld [$DFE0], a
 	ld [$DFF0], a
 	ld [$DFF8], a
-	ld a, $7			; enable timer interrupt
+	ld a, $7			; enable timer interrupt TODO
 	ld [rIE], a
 	ret
 
@@ -882,7 +882,7 @@ CopyData::	; 05DE
 	ret
 
 PrepareHUD::
-	ld hl, DMARoutineEnd	; HUD
+	ld hl, DMARoutineEnd	; TODO HUD
 	ld de, $9800
 	ld b, $02
 .loop
@@ -1114,7 +1114,7 @@ DMARoutine::
 	dec a
 	jr nz, .wait
 	ret
-DMARoutineEnd:
+DMARoutineEnd
 
 ; TODO Give this a name
 db "mario*    world time"
