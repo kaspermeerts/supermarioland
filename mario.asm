@@ -169,7 +169,7 @@ Start::	; 0150
 ; 3EE6 shifts and ands them together. But why?
 ; maybe find scroll coordinates from Mario's position in the level?
 .mystery_153:
-	call $3EE6
+	call call_3EE6
 .wait1
 	ldh a, [rSTAT]
 	and a, $03
@@ -898,7 +898,33 @@ PrepareHUD::
 	jr nz, .loop
 	ret
 
-INCBIN "baserom.gb", $0627, $1C33 - $0627
+; Normal gameplay. Tons of function calls, let's do this later...
+GameState_00::
+INCBIN "baserom.gb", $0627, $06BC - $0627
+
+; 06BC
+GameState_01::
+	ld hl, $FFA6	; definitely a counter or timer
+	ld a, [hl]
+	and a
+	ret nz
+	ld hl, $D100	; enemies
+	ld de, $0010
+	ld b, $0A
+.loop
+	ld [hl], $FF
+	add hl, de
+	dec b
+	jr nz, .loop
+	xor a
+	ldh [$FF99], a	; powerup status
+	dec a
+	ld [$C0A3], a
+	ld a, 2
+	ldh [hGameState], a
+	ret
+
+INCBIN "baserom.gb", $06DC, $1C33 - $06DC
 ; 1C33
 UpdateLives::
 	ldh a, [$FF00+$9F]	; Demo mode?
@@ -945,7 +971,6 @@ UpdateLives::
 	jr .displayLives
 
 INCBIN "baserom.gb", $1C7C, $3D1A - $1C7C
-
 
 ; 3D1A
 	ld hl, $C030	; TODO ? wOAMBuffer + $30 ? used for "dynamic" sprites?
@@ -1039,7 +1064,284 @@ DisplayTimer:: ; 3D6A ; TODO better name?
 	ld [de], a
 	ret
 
-INCBIN "baserom.gb", $3D97, $3F39 - $3D97
+GameState_12::
+; entering bonus game. Clear the background, and print amount of lives
+	ld hl, $DFE8
+	ld a, $09
+	ld [hl], a
+	xor a
+	ldh [rLCDC], a
+	ldh [$FFA4], a
+	ld hl, wOAMBuffer
+	ld b, $A0
+.oamloop			; Remove all sprites
+	ldi [hl], a
+	dec b
+	jr nz, .oamloop
+	ld hl, $9800
+	ld b, $FF
+	ld c, $03
+	ld a, " "
+.tilemapLoop		; Clear the background
+	ldi [hl], a
+	dec b
+	jr nz, .tilemapLoop
+	ld b, $FF
+	dec c
+	jr nz, .tilemapLoop
+	ld de, $988B	; todo
+	ld a, [wNumLives]
+	ld b, a
+	and a, $0F
+	ld [de], a
+	dec e
+	ld a, b
+	and a, $F0
+	swap a
+	ld [de], a		; Print lives at the appropriate position
+	ld a, $83	; todo
+	ld [rLCDC], a	; Turn on LCD, background, sprites
+	ld a, $13	; todo
+	ldh [hGameState], a
+	ret
+
+GameState_13::
+	xor a
+	ldh [rLCDC], a
+	ld hl, $9800
+	ld a, $F5		; Top Left corner
+	ldi [hl], a
+	ld b, $12		; todo screen width or smth?
+	ld a, $9F
+.topLoop			; Top border
+	ldi [hl], a
+	dec b
+	jr nz, .topLoop
+	ld a, $FC
+	ld [hl], a		; Top Right corner
+	ld de, $0020	; todo screen width
+	ld l, e
+	ld b, $10
+	ld c, $02
+	ld a, $F8
+.sideLoop			; Left and right border
+	ld [hl], a
+	add hl, de
+	dec b
+	jr nz, .sideLoop
+	ld l, $33
+	dec h
+	dec h
+	ld b, $10
+	dec c
+	jr nz, .sideLoop
+	ld hl, $9A20
+	ld a, $FF
+	ldi [hl], a		; Bottom Left corner
+	ld b, $12
+	ld a, $9F
+.bottomLoop			; Bottom border
+	ldi [hl], a
+	dec b
+	jr nz, .bottomLoop
+	ld a, $E9
+	ld [hl], a		; Bottom Right corner
+	ld hl, $9845
+	ld a, "b"
+	ldi [hl], a
+	ld a, "o"
+	ldi [hl], a
+	dec a			; n
+	ldi [hl], a
+	ld a, "u"
+	ldi [hl], a
+	ld a, "s"
+	ldi [hl], a
+	inc l			; space
+	ld a, "g"
+	ldi [hl], a
+	ld a, "a"
+	ldi [hl], a
+	ld a, "m"
+	ldi [hl], a
+	ld a, "e"
+	ld [hl], a		; bonus game
+	ld hl, $9887
+	ld a, $E4		; mario head
+	ldi [hl], a
+	inc l
+	ld a, "*"
+	ld [hl], a
+	ld l, $E1
+	ld a, $2D
+	ld b, $12		; todo screen width?
+.topFloor
+	ldi [hl], a
+	dec b
+	jr nz, .topFloor
+	ld l, $D1
+	ld a, "*"
+	ldi [hl], a
+	ld l, $41
+	inc h
+	ld a, $2D
+	ld b, $12		; todo
+.highMidFloor
+	ldi [hl], a
+	dec b
+	jr nz, .highMidFloor
+	ld l, $31
+	ld a, "*"
+	ldi [hl], a
+	ld l, $A1
+	ld a, $2D
+	ld b, $12		; todo
+.lowMidFloor
+	ldi [hl], a
+	dec b
+	jr nz, .lowMidFloor
+	ld l, $91
+	ld a, "*"
+	ldi [hl], a
+	ld l, $01
+	inc h
+	ld a, $2D
+	ld b, $12		; todo
+.bottomFloor
+	ldi [hl], a
+	dec b
+	jr nz, .bottomFloor
+	ld l, $F1
+	dec h
+	ld a, "*"
+	ldi [hl], a
+.prizePermutations					; $E5 is a flower
+	db 0, 1, 2, $E5, 3, 1, 2, $E5	; These happen to be valid opcodes
+	ld de, .prizePermutations		; with no side effects. Neat :) 
+	ldh a, [rDIV]
+	and a, $03
+	inc a				; "Random" number from 1 to 4
+.addAtoDE
+	inc de
+	dec a
+	jr nz, .addAtoDE	; No ADD DE, A instruction
+	ld hl, $98D2		; First prize
+	ld bc, $60			; 3 screen rows
+.displayPrize
+	ld a, [de]
+	ld [hl], a
+	inc de
+	add hl, bc
+	ld a, l
+	cp a, $52
+	jr nz, .displayPrize
+	ld a, $83			; TODO make this a constant
+	ldh [rLCDC], a
+	ld a, $14
+	ldh [hGameState], a
+	ret
+
+GameState_16::
+; draw the ladder
+	ld bc, $0020		; todo screen width
+.drawLadder
+	ld de, $DA23		; TODO name... 4 tile numbers for the ladder
+	ld a, [$DA18]		; high bytes of y position of top of ladder
+	cp $9A
+	jr z, .jmp_3EE0
+	ld h, a
+	ld a, [$DA19]		; low bytes of y position of top of ladder
+	ld l, a
+.drawLadderLoop
+	ld a, [de]
+	ld [hl], a
+	inc de
+	add hl, bc
+	push hl
+	ld hl, $DA28		; loop counter?
+	dec [hl]
+	ld a, [hl]
+	pop hl
+	and a
+	jr nz, .drawLadderLoop
+	ld a, 4				; ladder has four segments
+	ld [$DA28], a
+	push hl
+	ld hl, $DA29
+	dec [hl]
+	ld a, [hl]
+	pop hl
+	and a
+	jr nz, .drawLadder	; why tf are we doing this 3 times?
+	ld a, 3
+	ld [$DA29], a
+.nextState
+	ld a, $15
+	ldh [hGameState], a
+	ret
+.jmp_3EE0				; TODO how could this ever get triggered :/
+	xor a
+	ld [$DA27], a		; ladder position in floors?
+	jr .nextState
+
+; Transform mario's pixel coordinates into the block he's currently standing on
+call_3EE6:: ; 3EE6
+	ldh a, [$FFAD]		; ~Y coordinate in current level block?
+	sub a, $10			; todo mario is 16 pixels tall?
+	srl a
+	srl a
+	srl a				; divide by 8, the number of pixels per tile
+	ld de, $0000
+	ld e, a
+	ld hl, $9800
+	ld b, $20			; todo screen width
+.loopY
+	add hl, de
+	dec b				; would make more sense to loop on a
+	jr nz, .loopY
+	ldh a, [$FFAE]		; ~X coordinate in current level block
+	sub a, $08			; mario stands on the middle of his 16 pixel wide body?
+	srl a
+	srl a
+	srl a
+	ld de, $0000
+	ld e, a
+	add hl, de
+	ld a, h				; "Y"
+	ldh [$FFB0], a
+	ld a, l				; "X"
+	ldh [$FFAF], a		; we've seen these before
+	ret
+
+; called when mario hits a block that "moves" up and down (and once when hit??)
+; FFB0 and FFAF now seem to contain the block above him?
+; FFAD and FFAE now seem to determine where the block-sprite spawns...
+call_3F13::
+	ldh a, [$FFB0]		; hey look at that. goes from 98 to ~9B
+	ld d, a
+	ldh a, [$FFAF]		; 00 to FF?
+	ld e, a
+	ld b, 4
+.loop					; rr uses carry, used for a 16 bit shift by 4
+	rr d
+	rr e
+	dec b
+	jr nz, .loop
+	ld a, e				; contains 2nd and 3rd nibble of the tile index
+	sub a, $84			; 9840 is the top of the screen?
+	and a, $FE			; ignore middle bit because mario is two tiles wide??
+	rlca
+	rlca
+	add a, $08
+	ldh [$FFAD], a		; override mario's y-coordinate?
+	ldh a, [$FFAF]
+	and a, $1F
+	rla
+	rla
+	rla
+	add a, $08
+	ldh [$FFAE], a		; or maybe it's used for the block
+	ret
 
 DisplayScore:: ; 3F39
 ; Display the score at wScore to the top right corner
