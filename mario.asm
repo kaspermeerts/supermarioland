@@ -279,7 +279,7 @@ Init::	; 0185
 	dec b
 	jr nz, .clearHRAMloop
 
-	ld c, LOW($FFB6) ; TODO Name?
+	ld c, LOW(hDMARoutine)
 	ld b, DMARoutineEnd - DMARoutine + 2 ; TODO Bug?
 	ld hl, DMARoutine
 .copyDMAroutine		; No memory can be accessed during DMA other than HRAM,
@@ -790,6 +790,7 @@ FillStartMenuTopRow:
 	ret
 
 GameState_11::
+; start level
 .entryPoint::
 	xor a
 	ldh [rLCDC], a	; turn off LCD
@@ -830,7 +831,7 @@ GameState_11::
 	ld a, $5B
 	ldh [$FFE9], a
 	call $2442
-	call $3D1A
+	call call_3D1A
 	call $1C1B
 	call $1C56
 	ldh a, [$FFB4]
@@ -861,6 +862,7 @@ CopyData::	; 05DE
 	ret
 
 ; 5E7
+; prepare tiles
 	ld hl, $5032
 	ld de, $9000
 	ld bc, $0800
@@ -925,6 +927,7 @@ GameState_01::
 	ret
 
 INCBIN "baserom.gb", $06DC, $1C33 - $06DC
+
 ; 1C33
 UpdateLives::
 	ldh a, [$FF00+$9F]	; Demo mode?
@@ -970,9 +973,72 @@ UpdateLives::
 	sub a, 1			; Subtract one life
 	jr .displayLives
 
-INCBIN "baserom.gb", $1C7C, $3D1A - $1C7C
+Gameplay_39::	; 1C7C
+	ld hl, $9C00			; todo window tile map?
+	ld de, .label_1CD7
+	ld b, $11
+.loop
+	ld a, [de]
+	ld c, a
+.waitHBlank1
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank1
+.waitHBlank2
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank2
+	ld [hl], c
+	inc l
+	inc de
+	dec b
+	jr nz, .loop
+	ld a, $10
+	ld [$DFE8], a
+	ldh a, [$FFB4]			; level on which we were?
+	ld [$C0A8], a			; level on which game overed?
+	ld a, [wScore + 2]
+	and a, $F0				; hundred thousands
+	swap a
+	ld b, a
+	ld a, [wNumContinues]
+	add b					; add a continue for every 100k points
+	cp a, $0A
+	jr c, .nineOrLess
+	ld a, 9					; saturates at nine continues
+.nineOrLess
+	ld [wNumContinues], a
+	ld hl, wOAMBuffer
+	xor a
+	ld b, $A0
+.clearOAM
+	ldi [hl], a
+	dec b
+	jr nz, .clearOAM
+	ld [$DA1D], a			; has to do with time up
+	ldh [rTMA], a
+	ld hl, rWY
+	ld [hl], $8F
+	inc hl					; rWX
+	ld [hl], $07			; left edge of the screen
+	ld a, $FF
+	ldh [$FFFB], a			; probably timer of some sort
+	ld hl, hGameState
+	inc [hl]				; 39 → 3A
+	ret
+.label_1CD7:				; TODO one day i gotta name all this text
+	db	"     game  over  "
 
-; 3D1A
+GameState_3A::
+	ld a, [$C0AD]
+	and a
+	call nz, $1530			; TODO
+	ret
+
+INCBIN "baserom.gb", $1CF0, $3D1A - $1CF0
+
+; called at level start, is some sort of init
+call_3D1A; 3D1A
 	ld hl, $C030	; TODO ? wOAMBuffer + $30 ? used for "dynamic" sprites?
 	ld b, $20
 	xor a

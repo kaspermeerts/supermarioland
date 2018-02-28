@@ -17,5 +17,5 @@ hGameState::	; $FFB3
 
 ds $B6 - $B4
 
-hDMARoutine::
+hDMARoutine::	; $FFB6
 	ds $A
