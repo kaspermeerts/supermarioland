@@ -315,7 +315,7 @@ Init::	; 0185
 	jr nz, .jmp_238
 	ld a, $FF			; Here DA1D is changed from 3 to FF?
 	ld [$DA1D], a
-	call $09F1
+	call $09F1			; kill mario with an animation?
 	call $1736
 .jmp_238
 	ldh a, [$FF00+$FD]	; Again, ROM bank?
@@ -323,15 +323,15 @@ Init::	; 0185
 	ld a, 3
 	ldh [$FF00+$FD], a
 	ld [MBC1RomBank], a
-	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF91)
+	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF81)
 	ldh a, [$FF00+$E1]	; TODO probably the rom for the tiles of this level?
 	ldh [$FF00+$FD], a	; another bank switch
 	ld [MBC1RomBank], a
 	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	jr nz, .jmp_25A
-	call $07DA			; TODO 7E2 reboots if A+B+Start+Select is pressed,
-	ldh a, [$FF00+$B2]	; seems this also starts the game? Checks for Start
+	call call_7DA		; TODO 7E2 reboots if A+B+Start+Select is pressed,
+	ldh a, [hGamePaused]
 	and a
 	jr nz, .halt
 .jmp_25A
@@ -341,15 +341,15 @@ Init::	; 0185
 	ld a, [hl]
 	and a
 	jr z, .skip
-	dec [hl]			; FFA{6,7,8} are timers for frame based animations
+	dec [hl]			; FFA{6,7} are timers for frame based animations
 .skip
 	inc l
 	dec b
 	jr nz, .next
-	ldh a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF00+$9F]	; Equal to 28 in menu and during demo
 	and a
 	jr z, .jmp_293
-	ldh a, [$FF00+$80]		; keys pressed
+	ldh a, [hJoyHeld]
 	bit 3, a			; test for Start
 	jr nz, .jmp_283
 	ldh a, [$FF00+$AC]
@@ -364,12 +364,12 @@ Init::	; 0185
 .jmp_283
 	ldh a, [hGameState]	; 0 corresponds to normal gameplay...
 	and a
-	jr nz, .jmp_293
+	jr nz, .jmp_293		; start the game?
 	ld a, 2
 	ld [MBC1RomBank], a
 	ldh [$FF00+$FD], a
 	ld a, $0E
-	ldh [hGameState], a
+	ldh [hGameState], a	; go back from demo to menu
 .jmp_293
 	call .jmp_2A3		; This will the return address for the imminent rst $28
 .halt
@@ -386,68 +386,68 @@ Init::	; 0185
 	ldh a, [hGameState]
 	rst $28		; Jump Table
 	; 2A6
-dw $0627 ; 0x00 Normal gameplay
-dw $06BC ; 0x01 Dead?
-dw $06DC ; 0x02 Reset to checkpoint
-dw $0B8D ; 0x03 Pre dying
-dw $0BD6 ; 0x04 Dying animation
-dw $0C73 ; 0x05 Explosion/Score counting down
-dw $0CCB ; 0x06 End of level
-dw $0C40 ; 0x07 End of level gate, music
-dw $0D49 ; 0x08
-dw $161B ; 0x09 Going down a pipe
-dw $162F ; 0x0A Warping to underground?
-dw $166C ; 0x0B Going right in a pipe
-dw $16DA ; 0x0C Going up out of a pipe
-dw $2376 ; 0x0D Auto scrolling level
-dw $0322 ; 0x0E Init menu
-dw $04C3 ; 0x0F Start menu
-dw $05CE ; 0x10
-dw $0576 ; 0x11 Level start
-dw $3D97 ; 0x12 Go to Bonus game
-dw $3DD7 ; 0x13 Entering Bonus game
-dw $5832 ; 0x14
-dw $5835 ; 0x15 Bonus game
-dw $3EA7 ; 0x16 Move the ladder
-dw $5838 ; 0x17 Bonus game walking
-dw $583B ; 0x18 Bonus game descending ladder
-dw $583E ; 0x19 Bonus game ascending ladder
-dw $5841 ; 0x1A Getting price
-dw $0DF9 ; 0x1B Leaving Bonus game
-dw $0E15 ; 0x1C Smth with the gate after a boss
-dw $0E31 ; 0x1D
-dw $0E5D ; 0x1E Gate opening
-dw $0E96 ; 0x1F Gate open
-dw $0EA9 ; 0x20 Walk off button
-dw $0ECD ; 0x21 Mario offscreen
-dw $0F12 ; 0x22 Scroll to fake Daisy
-dw $0F33 ; 0x23 Walk to fake Daisy
-dw $0F6A ; 0x24 Fake Daisy speak
-dw $0FFD ; 0x25 Fake Daisy morphing
-dw $1055 ; 0x26 Fake Daisy monster jumping away
-dw $1099 ; 0x27	Tatanga dying
-dw $0EA9 ; 0x28 Tatanga dead, plane moves forward
-dw $1116 ; 0x29
-dw $1165 ; 0x2A Daisy speaking
-dw $1194 ; 0x2B Daisy moving
-dw $11D0 ; 0x2C Daisy kissing
-dw $121B ; 0x2D Daisy quest over
-dw $1254 ; 0x2E Mario credits running
-dw $12A1 ; 0x2F Entering airplane
-dw $12C2 ; 0x30 Airplane taking off
-dw $12F1 ; 0x31 Airplane moving forward
-dw $138E ; 0x32 Airplane leaving hanger?
-dw $13F0 ; 0x33 In between two credits?
-dw $1441 ; 0x34 Credits coming up
-dw $145A ; 0x35 Credits stand still
-dw $1466 ; 0x36 Credits leave
-dw $1488 ; 0x37 Airplane leaving
-dw $14DC ; 0x38 THE END letters flying
-dw $1C7C ; 0x39 Pre game over?
-dw $1CE8 ; 0x3A Game over
-dw $1CF0 ; 0x3B Pre time up
-dw $1D1D ; 0x3C Time up
-dw $06BB ; 0x3D
+dw $0627 ; 0x00   Normal gameplay
+dw $06BC ; 0x01 ✓ Dead?
+dw $06DC ; 0x02   Reset to checkpoint
+dw $0B8D ; 0x03   Pre dying
+dw $0BD6 ; 0x04   Dying animation
+dw $0C73 ; 0x05   Explosion/Score counting down
+dw $0CCB ; 0x06   End of level
+dw $0C40 ; 0x07   End of level gate, music
+dw $0D49 ; 0x08  
+dw $161B ; 0x09   Going down a pipe
+dw $162F ; 0x0A   Warping to underground?
+dw $166C ; 0x0B   Going right in a pipe
+dw $16DA ; 0x0C   Going up out of a pipe
+dw $2376 ; 0x0D   Auto scrolling level
+dw $0322 ; 0x0E ✓ Init menu
+dw $04C3 ; 0x0F ✓ Start menu
+dw $05CE ; 0x10  
+dw $0576 ; 0x11 ✓ Level start
+dw $3D97 ; 0x12 ✓ Go to Bonus game
+dw $3DD7 ; 0x13 ✓ Entering Bonus game
+dw $5832 ; 0x14  
+dw $5835 ; 0x15   Bonus game
+dw $3EA7 ; 0x16 ✓ Move the ladder
+dw $5838 ; 0x17   Bonus game walking
+dw $583B ; 0x18   Bonus game descending ladder
+dw $583E ; 0x19   Bonus game ascending ladder
+dw $5841 ; 0x1A   Getting price
+dw $0DF9 ; 0x1B   Leaving Bonus game
+dw $0E15 ; 0x1C   Smth with the gate after a boss
+dw $0E31 ; 0x1D  
+dw $0E5D ; 0x1E   Gate opening
+dw $0E96 ; 0x1F   Gate open
+dw $0EA9 ; 0x20   Walk off button
+dw $0ECD ; 0x21   Mario offscreen
+dw $0F12 ; 0x22   Scroll to fake Daisy
+dw $0F33 ; 0x23   Walk to fake Daisy
+dw $0F6A ; 0x24   Fake Daisy speak
+dw $0FFD ; 0x25   Fake Daisy morphing
+dw $1055 ; 0x26   Fake Daisy monster jumping away
+dw $1099 ; 0x27   Tatanga dying
+dw $0EA9 ; 0x28   Tatanga dead, plane moves forward
+dw $1116 ; 0x29  
+dw $1165 ; 0x2A   Daisy speaking
+dw $1194 ; 0x2B   Daisy moving
+dw $11D0 ; 0x2C   Daisy kissing
+dw $121B ; 0x2D   Daisy quest over
+dw $1254 ; 0x2E   Mario credits running
+dw $12A1 ; 0x2F   Entering airplane
+dw $12C2 ; 0x30   Airplane taking off
+dw $12F1 ; 0x31   Airplane moving forward
+dw $138E ; 0x32   Airplane leaving hanger?
+dw $13F0 ; 0x33   In between two credits?
+dw $1441 ; 0x34   Credits coming up
+dw $145A ; 0x35   Credits stand still
+dw $1466 ; 0x36   Credits leave
+dw $1488 ; 0x37   Airplane leaving
+dw $14DC ; 0x38   THE END letters flying
+dw $1C7C ; 0x39 ✓ Pre game over?
+dw $1CE8 ; 0x3A ✓ Game over
+dw $1CF0 ; 0x3B ✓ Pre time up
+dw $1D1D ; 0x3C ✓ Time up
+dw $06BB ; 0x3D  
 
 ;322
 GameState_0E::
@@ -502,7 +502,7 @@ GameState_0E::
 	push af
 	ld a, $0C
 	ldh [$FF00+$E4], a
-	call $0807			; Draw level into tile map TODO based on FFE4?
+	call call_807			; Draw level into tile map TODO based on FFE4?
 	pop af
 	ldh [$FF00+$E4], a
 	ld a, $3C
@@ -677,7 +677,7 @@ GameState_0F::
 	ld [hl], a
 	jr .checkLevelSelect
 .entryPoint::
-	ldh a, [$FF81]
+	ldh a, [hJoyPressed]
 	ld b, a
 	bit 3, b		; START button
 	jr nz, .startPressed
@@ -742,10 +742,10 @@ GameState_0F::
 	sla a
 	ld e, a
 	ld d, 0
-	ld hl, $0569	; Demo levels
+	ld hl, .data_569	; Demo levels
 	add hl, de
 	ldi a, [hl]
-	ldh [$FFB4], a
+	ldh [$FFB4], a	; pseudo BCD encoded level
 	ld a, [hl]
 	ldh [$FFE4], a	; level index and encoding
 	ld a, $50
@@ -777,7 +777,8 @@ GameState_0F::
 	ld [rIE], a
 	ret
 
-; TODO more random data... Demo levels
+; TODO more random data... Demo levels: 1-1, 1-2, 3-3
+.data_569:: ; 569
 db $11, $00, $12, $01, $33, $08
 
 ; What kind of garbage is this?
@@ -789,7 +790,7 @@ FillStartMenuTopRow:
 	jr nz, .loop
 	ret
 
-GameState_11::
+GameState_11::	; 576
 ; start level
 .entryPoint::
 	xor a
@@ -799,12 +800,12 @@ GameState_11::
 	and a
 	jr nz, .jmp_58B
 	xor a
-	ld [wScore], a
-	ld [$C0A1], a
-	ld [$C0A2], a
-	ldh [$FFFA], a
+	ld [wScore], a			; ones and tens
+	ld [wScore+1], a		; hundreds and thousands
+	ld [wScore+2], a		; ten and hundred thousands
+	ldh [hCoins], a
 .jmp_58B
-	call $5E7	; todo
+	call call_5E7	; todo
 	call FillTileMapWithEmptyTile
 	ld hl, $9C00
 	ld b, $5F
@@ -831,8 +832,8 @@ GameState_11::
 	ld a, $5B
 	ldh [$FFE9], a
 	call $2442
-	call call_3D1A
-	call $1C1B
+	call call_3D1A		; todo
+	call DisplayCoins
 	call $1C56
 	ldh a, [$FFB4]
 	call $0D6D
@@ -863,6 +864,7 @@ CopyData::	; 05DE
 
 ; 5E7
 ; prepare tiles
+call_5E7::	; the three upper banks have tiles at the same location?
 	ld hl, $5032
 	ld de, $9000
 	ld bc, $0800
@@ -901,7 +903,7 @@ PrepareHUD::
 	ret
 
 ; Normal gameplay. Tons of function calls, let's do this later...
-GameState_00::
+GameState_00::	; 627
 INCBIN "baserom.gb", $0627, $06BC - $0627
 
 ; 06BC
@@ -926,7 +928,99 @@ GameState_01::
 	ldh [hGameState], a
 	ret
 
-INCBIN "baserom.gb", $06DC, $1C33 - $06DC
+; lots of calls to other banks. Later
+Gamestate_02::
+INCBIN "baserom.gb", $06DC, $07DA - $06DC
+
+call_7DA::
+	ldh a, [hJoyHeld]
+	and a, $0F
+	cp a, $0F			; TODO constants
+	jr nz, .noReset
+	jp Init				; if at any point A+B+Start+Select are pressed, reset
+.noReset
+	ldh a, [hJoyPressed]
+	bit 3, a			; todo start button bit. (Un)Pause the game!
+	ret z
+	ldh a, [hGameState]
+	cp a, $0E
+	ret nc				; <= gamestates mostly relating to normal gameplay
+	ld hl, rLCDC
+	ldh a, [hGamePaused]
+	xor a, 1			; (un)pause game
+	ldh [hGamePaused], a
+	jr z, .unpaused
+	set 5, [hl]			; PAUSE status on the window
+	ld a, 1
+.jmp_7FE
+	ldh [$FFDF], a
+	ret
+.unpaused
+	res 5, [hl]
+	ld a, 2
+	jr .jmp_7FE
+
+; this draw the first screen of the level. The rest is dynamically loaded
+call_807::
+	ld hl, $211D
+	ld de, $C200
+	ld b, $51
+.copyLoop				; some sort of initialisation
+	ldi a, [hl]
+	ld [de], a
+	inc de
+	dec b				; What's the point of a CopyData routine,
+	jr nz, .copyLoop	; if you're not going to fucking use it
+	ldh a, [$FF99]		; powerup status
+	and a
+	jr z, .smallMario
+	ld a, $10
+	ld [$C203], a		; animation index. upper nibble is 1 of large mario
+.smallMario				; does weird things in autoscroll
+	ld hl, $FFE6
+	xor a
+	ld b, 6
+.clearLoop
+	ldi [hl], a
+	dec b
+	jr nz, .clearLoop	; clears FFE6-FFEB
+	ldh [$FFA3], a		; switches between 0 and 8, depending on scroll coord
+	ld [$C0AA], a		; and yet another scrolling thing
+	ld a, $40
+	ldh [$FFE9], a		; level index of some sort
+	ld b, $14			; an underground level is only 20 tiles wide, no scroll
+	ldh a, [hGameState]
+	cp a, $0A			; pipe going underground
+	jr z, .drawLoop
+	ldh a, [$FFE4]		; current level or smth
+	cp a, $0C			; start menu doesn't scroll
+	jr z, .drawLoop
+	ld b, $1B			; load 27 tiles (20 visible, 7 preloaded)
+.drawLoop
+	push bc
+	call $21B1			; load a column of the level into C0B0
+	call $2258			; draw it onscreen
+	pop bc
+	dec b
+	jr nz, .drawLoop
+	ret
+
+INCBIN "baserom.gb", $84E, $1C1B - $84E
+
+DisplayCoins::; 1C1B
+	ldh a, [hCoins]
+	ld b, a
+	and a, $0F
+	ld [$982A], a		; coins ones
+	ld a, b
+	and a, $F0
+	swap a
+	ld [$9829], a		; coin tens
+	xor a
+	ldh [$FFFE], a
+	inc a
+	ld [$C0E2], a
+	ret
 
 ; 1C33
 UpdateLives::
@@ -973,7 +1067,7 @@ UpdateLives::
 	sub a, 1			; Subtract one life
 	jr .displayLives
 
-Gameplay_39::	; 1C7C
+GameState_39::	; 1C7C
 	ld hl, $9C00			; todo window tile map?
 	ld de, .label_1CD7
 	ld b, $11
@@ -995,7 +1089,7 @@ Gameplay_39::	; 1C7C
 	jr nz, .loop
 	ld a, $10
 	ld [$DFE8], a
-	ldh a, [$FFB4]			; level on which we were?
+	ldh a, [$FFB4]			; level on which we were? BCD encoded
 	ld [$C0A8], a			; level on which game overed?
 	ld a, [wScore + 2]
 	and a, $F0				; hundred thousands
@@ -1029,13 +1123,49 @@ Gameplay_39::	; 1C7C
 .label_1CD7:				; TODO one day i gotta name all this text
 	db	"     game  over  "
 
-GameState_3A::
+; game over animation and wait until menu
+GameState_3A:: ; 1CE8
 	ld a, [$C0AD]
 	and a
 	call nz, $1530			; TODO
 	ret
 
-INCBIN "baserom.gb", $1CF0, $3D1A - $1CF0
+; prepare time up
+GameState_3B:: ; 1CF0
+	ld hl, $9C00			; tile map for window
+	ld de, .data_1D14
+	ld c, 9
+.loop
+	ld a, [de]
+	ld b, a
+.waitHBlank
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank
+	ld [hl], b
+	inc l
+	inc de
+	dec c
+	jr nz, .loop	; copy the words "time up" into vram
+	ld hl, rLCDC
+	set 5, [hl]		; turn on window
+	ld a, $A0
+	ldh [$FFA6], a		; definitely some sort of counter
+	ld hl, hGameState
+	inc [hl]		; 3B → 3C
+	ret
+.data_1D14
+	db " time up "
+
+GameState_3C:: ; 1D1D
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ld a, $01;		; dead
+	ldh [hGameState], a
+	ret
+
+INCBIN "baserom.gb", $1D26, $3D1A - $1D26
 
 ; called at level start, is some sort of init
 call_3D1A; 3D1A
@@ -1379,7 +1509,7 @@ call_3EE6:: ; 3EE6
 	ldh [$FFAF], a		; we've seen these before
 	ret
 
-; called when mario hits a block that "moves" up and down (and once when hit??)
+; called when mario hits a block that "moves" up and down
 ; FFB0 and FFAF now seem to contain the block above him?
 ; FFAD and FFAE now seem to determine where the block-sprite spawns...
 call_3F13::
@@ -1489,7 +1619,7 @@ db "mario*    world time"
 db "       $*   1-1  000"
 
 ; TODO contains the flickering candle from world 1-3, the waves from 2-1
-; maybe more animated sprites
+; maybe more animated sprites. 1BPP encoded?
 INCBIN "baserom.gb", $3FC4, $4000 - $3FC4
 
 SECTION "bank1", ROMX, BANK[1]
