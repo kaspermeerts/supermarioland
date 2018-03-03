@@ -11,12 +11,20 @@ ds $85 - $82
 hVBlankOccurred::	; FF85
 	ds 1
 
-ds $9A - $86
+ds $99 - $86
+
+hSuperStatus:: ; FF99 TODO constants
+	ds 1
 
 hWinCount::		; FF9A TODO mirrored at C0E1?
 	ds 1
 
-ds $B2 - $9B
+ds $AC - $9B
+
+hFrameCounter::
+	ds 1
+
+ds $B2 - $AD
 
 hGamePaused::	; FFB2
 	ds 1
@@ -24,12 +32,26 @@ hGamePaused::	; FFB2
 hGameState::	; FFB3
 	ds 1
 
-ds $B6 - $B4
+hWorldAndLevel::; FFB4
+	ds 1
+
+ds $B6 - $B5
 
 hDMARoutine::	; FFB6
 	ds $A
 hDMARoutineEnd:: ; TODO temporary
 
-ds $FA - $C0
+ds $DF - $C0
+
+hPauseMusic::	; FFDF
+	ds 1
+
+ds $E4 - $E0
+
+hLevelIndex::	; FFE4
+	ds 1
+
+ds $FA - $E5
+
 hCoins::		; FFFA
 	ds 1

@@ -59,8 +59,8 @@ VBlank:: ; $0060
 	call hDMARoutine
 	call DisplayScore
 	call DisplayTimer
-	call $2401			; Animated background
-	ld hl, $FFAC
+	call AnimateBackground
+	ld hl, hFrameCounter
 	inc [hl]
 	ldh a, [hGameState]
 	cp a, $3A			; Game over? TODO
@@ -330,7 +330,7 @@ Init::	; 0185
 	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	jr nz, .jmp_25A
-	call call_7DA		; TODO 7E2 reboots if A+B+Start+Select is pressed,
+	call pauseOrReset
 	ldh a, [hGamePaused]
 	and a
 	jr nz, .halt
@@ -352,7 +352,7 @@ Init::	; 0185
 	ldh a, [hJoyHeld]
 	bit 3, a			; test for Start
 	jr nz, .jmp_283
-	ldh a, [$FF00+$AC]
+	ldh a, [hFrameCounter] ; todo
 	and a, $0F
 	jr nz, .jmp_293
 	ld hl, $C0D7
@@ -394,7 +394,7 @@ dw $0BD6 ; 0x04   Dying animation
 dw $0C73 ; 0x05   Explosion/Score counting down
 dw $0CCB ; 0x06   End of level
 dw $0C40 ; 0x07   End of level gate, music
-dw $0D49 ; 0x08  
+dw $0D49 ; 0x08 ✓ Increment Level, load tiles
 dw $161B ; 0x09   Going down a pipe
 dw $162F ; 0x0A   Warping to underground?
 dw $166C ; 0x0B   Going right in a pipe
@@ -461,7 +461,7 @@ GameState_0E::
 	ldi [hl], a
 	dec b
 	jr nz, .clearOAMBufferLoop
-	ldh [$FF99], a
+	ldh [hSuperStatus], a
 	ld [$C0A5], a	; these are in the hblank routine as well
 	ld [$C0AD], a
 	ld hl, $C0D8
@@ -617,7 +617,7 @@ GameState_0F::
 	dec a
 	ld [wNumContinues], a
 	ld a, [$C0A8]			; TODO BCD level on which you game overed?
-	ldh [$FFB4], a
+	ldh [hWorldAndLevel], a
 	ld e, 0
 	cp a, $11				; Convert BCD level to index
 	jr z, .startLevelInE
@@ -655,7 +655,7 @@ GameState_0F::
 .startLevelInE
 	ld a, e
 .storeAndStartLevel
-	ld [$FFE4], a
+	ldh [hLevelIndex], a
 	jp .jmp_53D
 .dontContinue
 	xor a
@@ -664,7 +664,7 @@ GameState_0F::
 	cp a, 2
 	jp nc, .jmp_53D
 	ld a, $11
-	ldh [$FFB4], a
+	ldh [hWorldAndLevel], a
 	xor a
 	jr .storeAndStartLevel
 .selectPressed
@@ -689,7 +689,7 @@ GameState_0F::
 	jr c, .checkDemoTimer
 	bit 0, b		; A button
 	jr z, .drawLevelSelect
-	ldh a, [$FFB4]	; increment the level select
+	ldh a, [hWorldAndLevel]	; increment the level select
 	inc a			; Level
 	ld b, a
 	and a, $0F
@@ -698,19 +698,19 @@ GameState_0F::
 	jr nz, .skip
 	add a, $10 - 3	; to increment the upper nibble, the world
 .skip
-	ldh [$FFB4], a
-	ldh a, [$FFE4]
+	ldh [hWorldAndLevel], a
+	ldh a, [hLevelIndex]
 	inc a
 	cp a, $0C		; 12 levels in total
 	jr nz, .drawNewLevelSelect
 	ld a, $11		; go back to 1-1
-	ldh [$FFB4], a
+	ldh [hWorldAndLevel], a
 	xor a
 .drawNewLevelSelect
-	ldh [$FFE4], a
+	ldh [hLevelIndex], a
 .drawLevelSelect	; with sprites
 	ld hl, $C008
-	ldh a, [$FFB4]	; nibble encoded
+	ldh a, [hWorldAndLevel]	; nibble encoded
 	ld b, $78		; Y coordinate
 	ld c, a
 	and a, $F0		; world
@@ -745,9 +745,9 @@ GameState_0F::
 	ld hl, .data_569	; Demo levels
 	add hl, de
 	ldi a, [hl]
-	ldh [$FFB4], a	; pseudo BCD encoded level
+	ldh [hWorldAndLevel], a	; pseudo BCD encoded level
 	ld a, [hl]
-	ldh [$FFE4], a	; level index and encoding
+	ldh [hLevelIndex], a	; level index and encoding
 	ld a, $50
 	ld [$C0D7], a	; timer
 	ld a, $11		; TODO
@@ -831,12 +831,12 @@ GameState_11::	; 576
 	ldh [$FFB1], a
 	ld a, $5B
 	ldh [$FFE9], a
-	call $2442
+	call $2442			; superfluous? happens in GameState_08.loadWorldTiles?
 	call call_3D1A		; todo
 	call DisplayCoins
-	call $1C56
-	ldh a, [$FFB4]
-	call $0D6D
+	call UpdateLives.displayLives
+	ldh a, [hWorldAndLevel]
+	call GameState_08.loadWorldTiles
 	ret
 
 FillTileMapWithEmptyTile:: ; 05CF  What a waste
@@ -874,7 +874,7 @@ call_5E7::	; the three upper banks have tiles at the same location?
 	ld bc, $1000
 	call CopyData
 	ld hl, $5603
-	ld de, $C600
+	ld de, $C600	; copy of the animated background tile...
 	ld b, $08
 .loop
 	ldi a, [hl]
@@ -921,9 +921,9 @@ GameState_01::
 	dec b
 	jr nz, .loop
 	xor a
-	ldh [$FF99], a	; powerup status
+	ldh [hSuperStatus], a
 	dec a
-	ld [$C0A3], a
+	ld [wLivesEarnedLost], a	; FF = -1
 	ld a, 2
 	ldh [hGameState], a
 	ret
@@ -932,7 +932,7 @@ GameState_01::
 Gamestate_02::
 INCBIN "baserom.gb", $06DC, $07DA - $06DC
 
-call_7DA::
+pauseOrReset::
 	ldh a, [hJoyHeld]
 	and a, $0F
 	cp a, $0F			; TODO constants
@@ -950,15 +950,15 @@ call_7DA::
 	xor a, 1			; (un)pause game
 	ldh [hGamePaused], a
 	jr z, .unpaused
-	set 5, [hl]			; PAUSE status on the window
-	ld a, 1
-.jmp_7FE
-	ldh [$FFDF], a
+	set 5, [hl]			; Display window with pause
+	ld a, 1				; Pause music
+.pauseMusic
+	ldh [hPauseMusic], a
 	ret
 .unpaused
 	res 5, [hl]
-	ld a, 2
-	jr .jmp_7FE
+	ld a, 2				; Unpause music
+	jr .pauseMusic
 
 ; this draw the first screen of the level. The rest is dynamically loaded
 call_807::
@@ -971,7 +971,7 @@ call_807::
 	inc de
 	dec b				; What's the point of a CopyData routine,
 	jr nz, .copyLoop	; if you're not going to fucking use it
-	ldh a, [$FF99]		; powerup status
+	ldh a, [hSuperStatus]
 	and a
 	jr z, .smallMario
 	ld a, $10
@@ -992,7 +992,7 @@ call_807::
 	ldh a, [hGameState]
 	cp a, $0A			; pipe going underground
 	jr z, .drawLoop
-	ldh a, [$FFE4]		; current level or smth
+	ldh a, [hLevelIndex]		; current level or smth
 	cp a, $0C			; start menu doesn't scroll
 	jr z, .drawLoop
 	ld b, $1B			; load 27 tiles (20 visible, 7 preloaded)
@@ -1005,8 +1005,176 @@ call_807::
 	jr nz, .drawLoop
 	ret
 
-INCBIN "baserom.gb", $84E, $1C1B - $84E
+INCBIN "baserom.gb", $84E, $D39 - $84E
 
+GameState_08::
+.world1Tiles
+	di
+	ld a, c
+	ld [MBC1RomBank], a
+	ldh [$FFFD], a	; todo
+	xor a
+	ldh [rLCDC], a		; turn off LCD
+	call call_5E7		; again? why????
+	jp .out
+.entryPoint:: ; D49
+	ld hl, $FFA6		; timer thingy
+	ld a, [hl]
+	and a
+	ret nz
+	ld a, [$DFF9]
+	and a
+	ret nz
+	ldh a, [hLevelIndex]
+	inc a
+	cp a, $0C			; 4*3 levels + credits?
+	jr nz, .incrementLevel
+	xor a
+.incrementLevel
+	ldh [hLevelIndex], a
+	ldh a, [hWorldAndLevel]
+	inc a
+	ld b, a
+	and a, $0F
+	cp a, $04
+	ld a, b
+	jr nz, .notNextWorld
+	add a, $10 - 3			; Add one to the World after 3 Levels
+.notNextWorld
+	ldh [hWorldAndLevel], a
+.loadWorldTiles
+	and a, $F0			; upper nibble is the world
+	swap a
+	cp a, 1
+	ld c, 2				; world 1 tiles are in rom bank 2
+.jmp_D75
+	jr z, .world1Tiles	; if world 1, redo work, and in a different subroutine?
+	cp a, 2
+	ld c, 1				; world 2 tiles are in rom bank 1
+	jr z, .jmp_D85
+	cp a, 3				; world 3 tiles are in rom bank 3
+	ld c, 3
+	jr z, .jmp_D85
+	ld c, 1				; world 4 tiles are in rom bank 1
+.jmp_D85
+	ld b, a
+	di
+	ld a, c
+	ld [MBC1RomBank], a
+	ldh [$FFFD], a ; todo
+	xor a
+	ldh [rLCDC], a
+	ld a, b
+	dec a
+	dec a
+	sla a				; world 2 → 0, world 3 → 2, world 4 → 4. Index in table
+	ld d, 0				; Probably because world 2 and world 4 tiles
+	ld e, a				; are in the same bank
+	ld hl, .enemyTileOffset
+	push de
+	add hl, de
+	ld e, [hl]
+	inc hl
+	ld d, [hl]
+	ld hl, $8A00	; todo vram?
+.enemyTileLoop
+	ld a, [de]
+	ldi [hl], a
+	inc de
+	push hl
+	ld bc, $10000-$8DD0
+	add hl, bc
+	pop hl
+	jr nc, .enemyTileLoop	; fill from 8A00 to 8DD0. World specific enemies
+	pop de
+	ld hl, .backdropTileOffset
+	add hl, de
+	ld e, [hl]
+	inc hl
+	ld d, [hl]
+	push de
+	ld hl, $9310
+.backdropTileLoop
+	ld a, [de]
+	ldi [hl], a
+	inc de
+	ld a, h
+	cp a, $97
+	jr nz, .backdropTileLoop	; fill from 9310 to 9700. Backdrop
+	pop hl
+	ld de, $02C1			; Tile 2C is the animated tile
+	add hl, de
+	ld de, $C600			; animated tile backup
+	ld b, 8
+.animatedTileLoop
+	ldi a, [hl]
+	ld [de], a
+	inc hl				; Skip every first byte of a pair, which is always 00
+	inc de				; It's 1BPP encoded, with padding
+	dec b
+	jr nz, .animatedTileLoop
+.out
+	xor a
+	ldh [rIF], a
+	ld a, $C3
+	ldh [rLCDC], a	; TODO
+	ei
+	ld a, $03
+	ldh [$FFE5], a
+	xor a
+	ld [$C0D2], a
+	ldh [$FFF9], a
+	ld a, $02
+	ldh [hGameState], a
+	call $2442
+	ret
+
+; todo
+.enemyTileOffset
+	dw $4032, $4032, $47F2
+.backdropTileOffset
+	dw $4402, $4402, $4BC2
+
+; leaving bonus game?
+GameState_1B:: ; DF9
+	di
+	xor a
+	ldh [rLCDC], a	; turn off lcd
+	call PrepareHUD
+	call DisplayCoins
+	call UpdateLives.displayLives
+	xor a
+	ldh [rIF], a
+	ld a, $C3
+	ldh [rLCDC], a
+	ei
+	ld a, $08
+	ldh [hGameState], a
+	ldh [$FFB1], a
+	ret
+
+INCBIN "baserom.gb", $E15, $1BFF - $E15
+
+
+; add one coin. Earns a life is 100 are collected
+AddCoin:: ; 1BFF
+	ldh a, [$FF9F]
+	and a
+	ret nz
+	push de
+	push hl
+	ld de, $0100
+	call AddScore
+	pop hl
+	pop de
+	ldh a, [hCoins]
+	add a, 1
+	daa
+	ldh [hCoins], a
+	and a
+	jr nz, DisplayCoins
+	inc a
+	ld [wLivesEarnedLost], a		; award a life for collecting 100 coins
 DisplayCoins::; 1C1B
 	ldh a, [hCoins]
 	ld b, a
@@ -1027,8 +1195,8 @@ UpdateLives::
 	ldh a, [$FF00+$9F]	; Demo mode?
 	and a
 	ret nz
-	ld a, [$C0A3]		; FF removes one life, any other non-zero value adds one
-	or a
+	ld a, [wLivesEarnedLost]		; FF removes one life, 
+	or a							; any other non-zero value adds one
 	ret z
 	cp a, $FF			; FF = -1
 	ld a, [wNumLives]
@@ -1041,9 +1209,10 @@ UpdateLives::
 	ldh [$FF00+$D3], a
 	pop af
 	add a, 1			; Add one life
-.displayLives
+.displayUpdatedLives
 	daa
 	ld [wNumLives], a
+.displayLives
 	ld a, [wNumLives]	; Huh? Bug?
 	ld b, a
 	and a, $0F
@@ -1054,7 +1223,7 @@ UpdateLives::
 	ld [$9806], a		; TODO Gives these fellas a name
 .out
 	xor a
-	ld [$C0A3], a
+	ld [wLivesEarnedLost], a
 	ret
 .gameOver
 	ld a, $39			; TODO Game over :'(
@@ -1065,7 +1234,7 @@ UpdateLives::
 	and a
 	jr z, .gameOver		; No lives anymore
 	sub a, 1			; Subtract one life
-	jr .displayLives
+	jr .displayUpdatedLives
 
 GameState_39::	; 1C7C
 	ld hl, $9C00			; todo window tile map?
@@ -1089,7 +1258,7 @@ GameState_39::	; 1C7C
 	jr nz, .loop
 	ld a, $10
 	ld [$DFE8], a
-	ldh a, [$FFB4]			; level on which we were? BCD encoded
+	ldh a, [hWorldAndLevel]			; level on which we were? BCD encoded
 	ld [$C0A8], a			; level on which game overed?
 	ld a, [wScore + 2]
 	and a, $F0				; hundred thousands
@@ -1165,7 +1334,49 @@ GameState_3C:: ; 1D1D
 	ldh [hGameState], a
 	ret
 
-INCBIN "baserom.gb", $1D26, $3D1A - $1D26
+INCBIN "baserom.gb", $1D26, $2401 - $1D26
+
+AnimateBackground::
+	ld a, [$D014] 		; boolean?
+	and a
+	ret z
+	ldh a, [hGameState]
+	cp a, $0D			; For some reason, the background is only animated
+	ret nc				; in gamestates < 0D. This is mostly normal gameplay
+	ldh a, [hFrameCounter]
+	and a, $07			; Animate every 7 frames
+	ret nz
+	ldh a, [hFrameCounter]
+	bit 3, a
+	jr z, .secondFrame
+	ld hl, $C600		; copied to here from where?
+	jr .copyTile
+.secondFrame
+	ld hl, Data_3FC4 ; todo
+	ldh a, [hWorldAndLevel]
+	and a, $F0
+	sub a, $10			; A is 8 * (world - 1)
+	rrca
+	ld d, 0
+	ld e, a
+	add hl, de
+.copyTile
+	ld de, $95D1		; only this tile is animated
+	ld b, $08
+.loop
+	ldi a, [hl]
+	ld [de], a
+	inc de
+	inc de				; 1BPP encoded?
+	dec b
+	jr nz, .loop
+	ret
+
+; Levels with or without animated background tile. Pointless
+Data_2436::
+	db 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0
+
+INCBIN "baserom.gb", $2442, $3D1A - $2442
 
 ; called at level start, is some sort of init
 call_3D1A; 3D1A
@@ -1620,7 +1831,18 @@ db "       $*   1-1  000"
 
 ; TODO contains the flickering candle from world 1-3, the waves from 2-1
 ; maybe more animated sprites. 1BPP encoded?
-INCBIN "baserom.gb", $3FC4, $4000 - $3FC4
+; TODO put these in files
+Data_3FC4::
+	db $00, $00, $00, $10, $38, $38, $28, $10
+	db $00, $E0, $B1, $5B, $FF, $FF, $FF, $FF
+	db $7E, $3C, $18, $00, $00, $81, $42, $A5
+	db $00, $E1, $33, $DE, $FF, $E7, $DB, $FF
+
+	ds 26
+
+	db $D3	; ....
+
+	ds 1
 
 SECTION "bank1", ROMX, BANK[1]
 INCBIN "baserom.gb", $4000, $4000

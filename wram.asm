@@ -6,7 +6,8 @@ wOAMBuffer::
 wScore::	; C0A0
 	ds 3
 
-ds 1		; C0A3
+wLivesEarnedLost::
+	ds 1	; C0A3
 ds 1		; C0A4
 ds 1		; C0A5
 
