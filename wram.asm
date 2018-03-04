@@ -21,5 +21,11 @@ wTopScore:: ; C0C0
 
 ; D100 - D190: enemies
 
-ds $DA15 - $C0C3
+ds $D014 - $C0C3
+
+wBackgroundAnimated::	; D014
+	ds 1
+
+ds $DA15 - $D015
+
 wNumLives::	db	; $DA15

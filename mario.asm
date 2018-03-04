@@ -170,15 +170,15 @@ Start::	; 0150
 ; maybe find scroll coordinates from Mario's position in the level?
 .mystery_153:
 	call call_3EE6
-.wait1
+.waitHBlank1
 	ldh a, [rSTAT]
 	and a, $03
-	jr nz, .wait1
+	jr nz, .waitHBlank1
 	ld b, [hl]
-.wait2
+.waitHBlank2
 	ldh a, [rSTAT]
 	and a, $03
-	jr nz, .wait2
+	jr nz, .waitHBlank2
 	ld a, [hl]
 	and b
 	ret
@@ -389,11 +389,11 @@ Init::	; 0185
 dw $0627 ; 0x00   Normal gameplay
 dw $06BC ; 0x01 ✓ Dead?
 dw $06DC ; 0x02   Reset to checkpoint
-dw $0B8D ; 0x03   Pre dying
-dw $0BD6 ; 0x04   Dying animation
+dw $0B8D ; 0x03 ✓ Pre dying
+dw $0BD6 ; 0x04 ✓ Dying animation
 dw $0C73 ; 0x05   Explosion/Score counting down
 dw $0CCB ; 0x06   End of level
-dw $0C40 ; 0x07   End of level gate, music
+dw $0C40 ; 0x07 ✓ End of level gate, music
 dw $0D49 ; 0x08 ✓ Increment Level, load tiles
 dw $161B ; 0x09   Going down a pipe
 dw $162F ; 0x0A   Warping to underground?
@@ -932,7 +932,7 @@ GameState_01::
 Gamestate_02::
 INCBIN "baserom.gb", $06DC, $07DA - $06DC
 
-pauseOrReset::
+pauseOrReset:: ; 7DA
 	ldh a, [hJoyHeld]
 	and a, $0F
 	cp a, $0F			; TODO constants
@@ -1005,9 +1005,140 @@ call_807::
 	jr nz, .drawLoop
 	ret
 
-INCBIN "baserom.gb", $84E, $D39 - $84E
+INCBIN "baserom.gb", $84E, $B8D - $84E
 
-GameState_08::
+; prepare Mario's dying sprites. And some variables
+GameState_03:: ; B8D
+	ld hl, wOAMBuffer + $0C	; Mario's 4 sprites todo
+	ld a, [$C0DD]		; death Y position?
+	ld c, a
+	sub a, $08
+	ld d, a
+	ld [hl], a			; Y position
+	inc l
+	ld a, [$C202]		; Mario's screen x position
+	add a, $F8			; or subtract 8
+	ld b, a
+	ldi [hl], a			; X position
+	ld [hl], $0F		; todo mario dying sprite top
+	inc l
+	ld [hl], $00		; TODO OAM bits
+	inc l
+	ld [hl], c			; Y position
+	inc l
+	ld [hl], b			; X position
+	inc l
+	ld [hl], $1F		; bottom dying sprite
+	inc l
+	ld [hl], $00		; OAM, flip
+	inc l
+	ld [hl], d			; Y position
+	inc l
+	ld a, b
+	add a, $08
+	ld b, a
+	ldi [hl], a			; X position
+	ld [hl], $0F		; top right dying mario sprite (mirrored)
+	inc l
+	ld [hl], $20		; OAM X flip
+	inc l
+	ld [hl], c			; Y
+	inc l
+	ld [hl], b			; X
+	inc l
+	ld [hl], $1F		; bottom dying sprite
+	inc l
+	ld [hl], $20		; OAM X flip
+	ld a, $04			; dying animation
+	ldh [hGameState], a
+	xor a
+	ld [$C0AC], a
+	ldh [hSuperStatus], a
+	ldh [$FFF4], a
+	call Call_1ED4
+	ret
+
+; Dying animation
+GameState_04:: ; BD6
+	ld a, [$C0AC]		; death animation counter
+	ld e, a				; use DE as an offset in the table
+	inc a
+	ld [$C0AC], a
+	ld d, 0
+	ld hl, Data_C19
+	add hl, de
+	ld b, [hl]			; b = Y speed
+	ld a, b
+	cp a, $7F			; sentinel
+	jr nz, .next
+	ld a, [$C0AC]
+	dec a
+	ld [$C0AC], a
+	ld b, 2				; coast with the same speed of 2
+.next
+	ld hl, wOAMBuffer + 3 * 4		; 3rd sprite, first mario sprite
+	ld de, 4						; 4 bytes per sprite
+	ld c, 4							; 4 sprites in total
+.loop
+	ld a, b
+	add [hl]
+	ld [hl], a						; first byte is Y position
+	add hl, de						; next sprite
+	dec c
+	jr nz, .loop
+	cp a, $B4						; end animation when he goes low enough
+	ret c
+	ld a, [$DA1D]
+	cp a, $FF
+	jr nz, .deathState
+	ld a, $3B						; Prepare time up
+	jr .out
+.deathState
+	ld a, $90
+	ldh [$FFA6], a					; 90 frames, 1.5 seconds
+	ld a, $01
+.out
+	ldh [hGameState], a
+	ret
+
+Data_C19::
+	db -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, -1, 0, 0, -1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, $7F
+
+GameState_07:: ; C40
+	ld hl, $FFA6
+	ld a, [hl]
+	and a
+	jr z, .jmp_C4B
+	call $1736
+	ret
+.jmp_C4B
+	ld a, [$D007]
+	and a
+	jr nz, .jmp_C55
+	ld a, $40
+	ldh [$FFA6], a
+.jmp_C55
+	ld a, $05				; score counting down
+	ldh [hGameState], a
+	xor a
+	ld [$DA1D], a
+	ldh [rTMA], a
+	ldh a, [hWorldAndLevel]
+	and a, $0F				; select just the level
+	cp a, 3
+	ret nz
+	call $2B2A				; if there was a boss fight. explode enemies?
+	ldh a, [hWorldAndLevel]
+	cp a, $43				; last level
+	ret nz
+	ld a, $06				; no counting down on the last level
+	ldh [hGameState], a
+	ret
+
+GameState_05::
+INCBIN "baserom.gb", $C73, $D39 - $C73
+
+GameState_08:: ; D49
 .world1Tiles
 	di
 	ld a, c
@@ -1334,10 +1465,156 @@ GameState_3C:: ; 1D1D
 	ldh [hGameState], a
 	ret
 
-INCBIN "baserom.gb", $1D26, $2401 - $1D26
+INCBIN "baserom.gb", $1D26, $1ED4 - $1D26
+
+; Clears sprites 0-3, 7 to 20. Projectiles, fragments of blocks, score
+; TODO name
+Call_1ED4::
+	push hl
+	push bc
+	push de
+	ld hl, wOAMBuffer + $7 * 4
+	ld b, $D * 4
+	xor a
+.clearLoop
+	ldi [hl], a
+	dec b
+	jr nz, .clearLoop
+	ld hl, wOAMBuffer + 0
+	ld b, $0B			; 2 sprites and 3/4th of one ? Bug?
+.clearLoop2
+	ldi [hl], a
+	dec b
+	jr nz, .clearLoop2
+	ldh [$FFA9], a		; projectile status
+	ldh [$FFAA], a
+	ldh [$FFAB], a
+	ld hl, $C210		; todo with fragments of blocks
+	ld de, $0010
+	ld b, $04
+	ld a, $80
+.clearLoop3
+	ld [hl], a
+	add hl, de
+	dec b
+	jr nz, .clearLoop3
+	pop de
+	pop bc
+	pop hl
+	ret
+
+INCBIN "baserom.gb", $1F03, $2258 - $1F03
+
+; draw a column in the tile map
+Call_2258::
+	ldh a, [$FFEA]		; 01 if a new column needs to be loaded, 03 if we're 
+	cp a, $01			; still standing on that spot, but we don't need a new 
+	ret nz				; one, 00 otherwise. or more complicated...
+	ldh a, [$FFE9]		; FFE9 holds the lower byte of the address of the first
+	ld l, a				; column not yet loaded. Upper byte is always 98
+	inc a
+	cp a, $60			; todo constants. VRAM is $60 - $40 tiles wide
+	jr nz, .noWrapAround
+	ld a, $40
+.noWrapAround
+	ldh [$FFE9], a
+	ld h, $98
+	ld de, $C0B0		; the next column is preloaded here by something
+	ld b, $10			; 16 tiles high
+.nextRow
+	push hl
+	ld a, h
+	add a, $30
+	ld h, a
+	ld [hl], 0
+	pop hl
+	ld a, [de]
+	ld [hl], a			; set the tile in the tilemap
+	cp a, $70			; pipe opening
+	jr nz, .notPipe
+	call Call_22FD
+	jr .incrementRow
+.notPipe
+	cp a, $80			; breakable block
+	jr nz, .notBreakableBlock
+	call Call_2363
+	jr .incrementRow
+.notBreakableBlock
+	cp a, $5F			; hidden block
+	jr nz, .notHiddenBlock
+	call Call_2363
+	jr .incrementRow
+.notHiddenBlock
+	cp a, $81			; coin block
+	call z, Call_2363
+.incrementRow
+	inc e
+	push de
+	ld de, $0020		; todo screenwidth or w/e
+	add hl, de
+	pop de
+	dec b
+	jr nz, .nextRow
+	ld a, $02
+	ldh [$FFEA], a
+	ret
+
+; Iunno
+INCBIN "baserom.gb", $22A9, $22FD - $22A9
+
+; hl contains the location in VRAM of the pipe?
+Call_22FD::
+	ldh a, [$FFF4]	; is 1 in underground, or when nearing a pipe?
+	and a
+	ret z
+	push hl
+	push de
+	ld de, $FFE0
+	push af
+	ld a, h
+	add a, $30		; C8.. is an "overlay" of VRAM, with warps/hidden blocks/...
+	ld h, a			; indicated
+	pop af
+	ld [hl], a
+	ldh a, [$FFF5]
+	add hl, de
+	ld [hl], a
+	ldh a, [$FFF6]
+	add hl, de
+	ld [hl], a
+	ldh a, [$FFF7]
+	add hl, de
+	ld [hl], a
+	xor a
+	ldh [$FFF4], a
+	ldh [$FFF5], a
+	pop de
+	pop hl
+	ret
+
+INCBIN "baserom.gb", $2321, $2363 - $2321
+
+; stores the content of the block in overlay?
+Call_2363::
+	ld a, [$C0CD]
+	and a
+	ret z
+	push hl
+	push af
+	ld a, h
+	add a, $30		; again to the C8.. overlay?
+	ld h, a
+	pop af
+	ld [hl], a
+	xor a
+	ld [$C0CD], a
+	pop hl
+	ret
+
+INCBIN "baserom.gb", $2376, $2401 - $2376
 
 AnimateBackground::
-	ld a, [$D014] 		; boolean?
+	ld a, [wBackgroundAnimated]
 	and a
 	ret z
 	ldh a, [hGameState]
@@ -1373,10 +1650,27 @@ AnimateBackground::
 	ret
 
 ; Levels with or without animated background tile. Pointless
+; todo name
 Data_2436::
 	db 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0
 
-INCBIN "baserom.gb", $2442, $3D1A - $2442
+; wBackgroundAnimated is clear. But what are the other variables?
+Call_2442::
+	ld a, $0C
+	ld [$C0AB], a
+	call $245C
+	xor a
+	ld [$D007], a
+	ld hl, Data_2436
+	ldh a, [hLevelIndex]
+	ld d, 0
+	ld e, a
+	add hl, de
+	ld a, [hl]
+	ld [wBackgroundAnimated], a
+	ret
+
+INCBIN "baserom.gb", $245C, $3D1A - $245C
 
 ; called at level start, is some sort of init
 call_3D1A; 3D1A
