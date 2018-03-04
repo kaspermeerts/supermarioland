@@ -26,6 +26,11 @@ ds $D014 - $C0C3
 wBackgroundAnimated::	; D014
 	ds 1
 
-ds $DA15 - $D015
+ds $DA00 - $D015
+
+wTimer:: ; DA00-DA02
+	ds 3
+
+ds $DA15 - $DA03
 
 wNumLives::	db	; $DA15

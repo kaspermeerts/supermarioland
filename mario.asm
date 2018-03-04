@@ -391,8 +391,8 @@ dw $06BC ; 0x01 ✓ Dead?
 dw $06DC ; 0x02   Reset to checkpoint
 dw $0B8D ; 0x03 ✓ Pre dying
 dw $0BD6 ; 0x04 ✓ Dying animation
-dw $0C73 ; 0x05   Explosion/Score counting down
-dw $0CCB ; 0x06   End of level
+dw $0C73 ; 0x05 ✓ Explosion/Score counting down
+dw $0CCB ; 0x06 ✓ End of level
 dw $0C40 ; 0x07 ✓ End of level gate, music
 dw $0D49 ; 0x08 ✓ Increment Level, load tiles
 dw $161B ; 0x09   Going down a pipe
@@ -1135,8 +1135,117 @@ GameState_07:: ; C40
 	ldh [hGameState], a
 	ret
 
-GameState_05::
-INCBIN "baserom.gb", $C73, $D39 - $C73
+; explode enemies, count down timer and add to score
+GameState_05:: ; C73
+	ldh a, [hWorldAndLevel]
+	and a, $0F
+	cp a, 3
+	jr nz, .countdown
+	xor a
+	ld [$C0AB], a
+	call $2491		; explodes the enemies?
+.countdown
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ld hl, wTimer + 1
+	ldi a, [hl]			; ones and tens
+	ld b, [hl]			; hundreds
+	or b
+	jr z, .endLevel
+	ld a, 1
+	ld [wTimer], a
+	ldh a, [$FFFD]
+	ldh [$FFE1], a
+	ld a, 2
+	ldh [$FFFD], a
+	ld  [MBC1RomBank], a
+	call $5844			; counts the timer down. For some reason in bank 2
+	ldh a, [$FFE1]
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	ld de, $0010
+	call AddScore
+	ld a, 1
+	ldh [$FFA6], a
+	xor a
+	ld [$DA1D], a
+	ld a, [wTimer + 1]
+	and a, 1
+	ret nz
+	ld a, $0A
+	ld [$DFE0], a
+	ret
+.endLevel
+	ld a, $06
+	ldh [hGameState], a
+	ld a, $26
+	ldh [$FFA6], a
+	ret
+
+GameState_06:: ; CCB
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	xor a
+	ld [$DA1D], a
+	ldh [rTMA], a
+	ldh a, [hWorldAndLevel]
+	and a, $0F
+	cp a, 3			; boss level
+	ld a, $1C		; smth to do with the gate to Daisy
+	jr z, .bossLevel
+	ld a, [$C201]	; mario on screen Y position
+	cp a, $60
+	jr c, .bonusGame
+	cp a, $A0
+	jr nc, .bonusGame
+	ld a, $08		; increment level
+	jr .changeState
+.bonusGame
+	ld a, 2			; bonus game is stored in bank 2
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	ld a, $12		; bonus game state
+.changeState
+	ldh [hGameState], a
+	ret
+.bossLevel
+	ldh [hGameState], a
+	ld a, 3
+	ld [MBC1RomBank], a
+	ldh [$FFFD], a
+	ld hl, hLevelIndex
+	ld a, [hl]
+	ldh [$FFFB], a
+	ld [hl], $0C
+	inc l
+	xor a
+	ldi [hl], a
+	ldi [hl], a
+	ldh [$FFA3], a
+	inc l
+	inc l
+	ld a, [hl]
+	ldh [$FFE0], a
+	ld a, $06
+	ldh [$FFA6], a
+	ldh a, [hWorldAndLevel]
+	and a, $F0
+	cp a, $40
+	ret nz
+	xor a
+	ldh [$FFFB], a
+	ld a, $01
+	ld [$C0DE], a
+	ld a, $BF
+	ldh [$FFFC], a
+	ld a, $FF
+	ldh [$FFA6], a
+	ld a, $27			; tatanga dying
+	ldh [hGameState], a
+	call $7FF3
+	ret
 
 GameState_08:: ; D49
 .world1Tiles
