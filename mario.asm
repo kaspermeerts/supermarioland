@@ -42,7 +42,7 @@ SECTION "Interrupt Timer", ROM0[$0050]
 	ld a, $03
 	ld [MBC1RomBank], a
 	call $7FF0 ; TODO
-	ldh a, [$FF00+$FD] ; Some sort of last active ROM bank?
+	ldh a, [$FFFD] ; Some sort of last active ROM bank?
 	ld [MBC1RomBank], a
 	pop af
 	reti
@@ -90,7 +90,7 @@ LCDStatus::
 	ld a, [$C0A5]
 	and a
 	jr nz, .jmp_CF
-	ldh a, [$FF00+$A4]
+	ldh a, [$FFA4]
 	ldh [rSCX], a
 	ld a, [$C0DE]
 	and a
@@ -126,11 +126,11 @@ LCDStatus::
 	jr .jmp_CC
 .jmp_DE
 	push af
-	ldh a, [$FF00+$FB]
+	ldh a, [$FFFB]
 	and a
 	jr z, .jmp_EA
 	dec a
-	ldh [$FF00+$FB], a
+	ldh [$FFFB], a
 .jmp_E7
 	pop af
 	jr .jmp_C5
@@ -186,7 +186,7 @@ Start::	; 0150
 ; Add BCD encoded DE to the score. Signal that the displayed version
 ; needs to be updated
 AddScore:: ; 0166
-	ldh a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF9F]	; Demo mode?
 	and a
 	ret nz
 	ld a, e
@@ -203,7 +203,7 @@ AddScore:: ; 0166
 	daa
 	ld [hl], a
 	ld a, 1
-	ldh [$FF00+$B1], a	; TODO We've seen this address before
+	ldh [$FFB1], a		; TODO We've seen this address before
 	ret nc
 	ld a, $99			; Score saturates at 999999
 	ldd [hl], a
@@ -290,9 +290,9 @@ Init::	; 0185
 	jr nz, .copyDMAroutine
 
 	xor a
-	ldh [$FF00+$E4], a
+	ldh [hLevelIndex], a
 	ld a, $11
-	ldh [$FF00+$B4], a
+	ldh [$FFB4], a
 	ld [$C0A8], a
 	ld a, 2
 	ld [$C0DC], a
@@ -307,7 +307,7 @@ Init::	; 0185
 	call $7FF3			; This seems to set up sound
 	ld a, 2
 	ld [MBC1RomBank], a
-	ldh [$FF00+$FD], a	; TODO Stores the ROM bank?? We've been over this
+	ldh [$FFFD], a	; TODO Stores the ROM bank?? We've been over this
 
 .jmp_226				; MAIN LOOP (well, i think)
 	ld a, [$DA1D]		; TODO DA1D is 0 in normal play, 1 if time < 100
@@ -318,16 +318,16 @@ Init::	; 0185
 	call $09F1			; kill mario with an animation?
 	call $1736
 .jmp_238
-	ldh a, [$FF00+$FD]	; Again, ROM bank?
-	ldh [$FF00+$E1], a	; temporarily store for some reason
+	ldh a, [$FFFD]	; Again, ROM bank?
+	ldh [$FFE1], a	; temporarily store for some reason
 	ld a, 3
-	ldh [$FF00+$FD], a
+	ldh [$FFFD], a
 	ld [MBC1RomBank], a
 	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF81)
-	ldh a, [$FF00+$E1]	; TODO probably the rom for the tiles of this level?
-	ldh [$FF00+$FD], a	; another bank switch
+	ldh a, [$FFE1]	; TODO probably the rom for the tiles of this level?
+	ldh [$FFFD], a	; another bank switch
 	ld [MBC1RomBank], a
-	ldh a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF9F]	; Demo mode?
 	and a
 	jr nz, .jmp_25A
 	call pauseOrReset
@@ -346,7 +346,7 @@ Init::	; 0185
 	inc l
 	dec b
 	jr nz, .next
-	ldh a, [$FF00+$9F]	; Equal to 28 in menu and during demo
+	ldh a, [$FF9F]	; Equal to 28 in menu and during demo
 	and a
 	jr z, .jmp_293
 	ldh a, [hJoyHeld]
@@ -367,7 +367,7 @@ Init::	; 0185
 	jr nz, .jmp_293		; start the game?
 	ld a, 2
 	ld [MBC1RomBank], a
-	ldh [$FF00+$FD], a
+	ldh [$FFFD], a
 	ld a, $0E
 	ldh [hGameState], a	; go back from demo to menu
 .jmp_293
@@ -395,14 +395,14 @@ dw $0C73 ; 0x05 ✓ Explosion/Score counting down
 dw $0CCB ; 0x06 ✓ End of level
 dw $0C40 ; 0x07 ✓ End of level gate, music
 dw $0D49 ; 0x08 ✓ Increment Level, load tiles
-dw $161B ; 0x09   Going down a pipe
-dw $162F ; 0x0A   Warping to underground?
-dw $166C ; 0x0B   Going right in a pipe
-dw $16DA ; 0x0C   Going up out of a pipe
+dw $161B ; 0x09 ✓ Going down a pipe
+dw $162F ; 0x0A ✓ Warping to underground?
+dw $166C ; 0x0B ✓ Going right in a pipe
+dw $16DA ; 0x0C ✓ Going up out of a pipe
 dw $2376 ; 0x0D   Auto scrolling level
 dw $0322 ; 0x0E ✓ Init menu
 dw $04C3 ; 0x0F ✓ Start menu
-dw $05CE ; 0x10  
+dw $05CE ; 0x10 ✓ Unused? todo
 dw $0576 ; 0x11 ✓ Level start
 dw $3D97 ; 0x12 ✓ Go to Bonus game
 dw $3DD7 ; 0x13 ✓ Entering Bonus game
@@ -454,7 +454,7 @@ GameState_0E::
 	xor a
 	ldh [rLCDC], a	; Turn off LCD
 	di
-	ldh [$FF00+$A4], a	; smth to do with the map scrolling
+	ldh [$FFA4], a	; smth to do with the map scrolling
 	ld hl, wOAMBuffer
 	ld b, $9F
 .clearOAMBufferLoop
@@ -497,14 +497,14 @@ GameState_0E::
 	call CopyData	; same, but to the other tile data bank
 	call FillTileMapWithEmptyTile
 	xor a
-	ldh [$FF00+$E5], a	; Level block TODO
-	ldh a, [$FF00+$E4]
+	ldh [$FFE5], a	; Level block TODO
+	ldh a, [hLevelIndex]
 	push af
 	ld a, $0C
-	ldh [$FF00+$E4], a
-	call call_807			; Draw level into tile map TODO based on FFE4?
+	ldh [hLevelIndex], a
+	call Call_807			; Draw level into tile map TODO based on FFE4?
 	pop af
-	ldh [$FF00+$E4], a
+	ldh [hLevelIndex], a
 	ld a, $3C
 	ld hl, $9800		; tile map
 	call FillStartMenuTopRow	; usually hidden by the HUD
@@ -592,10 +592,10 @@ GameState_0E::
 	ld a, $0F		; TODO
 	ldh [hGameState], a
 	xor a
-	ldh [$FF00+$F9], a
+	ldh [$FFF9], a
 	ld a, $28
 	ld [$C0D7], a
-	ldh [$FF00+$9F], a
+	ldh [$FF9F], a
 	ld hl, $C0DC
 	inc [hl]
 	ld a, [hl]
@@ -837,6 +837,7 @@ GameState_11::	; 576
 	call UpdateLives.displayLives
 	ldh a, [hWorldAndLevel]
 	call GameState_08.loadWorldTiles
+GameState_10:: ;5CE Huh? Unused?
 	ret
 
 FillTileMapWithEmptyTile:: ; 05CF  What a waste
@@ -961,7 +962,7 @@ pauseOrReset:: ; 7DA
 	jr .pauseMusic
 
 ; this draw the first screen of the level. The rest is dynamically loaded
-call_807::
+Call_807::
 	ld hl, $211D
 	ld de, $C200
 	ld b, $51
@@ -1131,7 +1132,7 @@ GameState_07:: ; C40
 	ldh a, [hWorldAndLevel]
 	cp a, $43				; last level
 	ret nz
-	ld a, $06				; no counting down on the last level
+	ld a, $06				; n
 	ldh [hGameState], a
 	ret
 
@@ -1160,7 +1161,7 @@ GameState_05:: ; C73
 	ld a, 2
 	ldh [$FFFD], a
 	ld  [MBC1RomBank], a
-	call $5844			; counts the timer down. For some reason in bank 2
+	call $5844		; counts the timer down. For some reason in bank 2
 	ldh a, [$FFE1]
 	ldh [$FFFD], a
 	ld [MBC1RomBank], a
@@ -1393,8 +1394,208 @@ GameState_1B:: ; DF9
 	ldh [$FFB1], a
 	ret
 
-INCBIN "baserom.gb", $E15, $1BFF - $E15
+INCBIN "baserom.gb", $E15, $161B - $E15
 
+; go down pipe
+GameState_09:: ; 161B
+	ld hl, $C201		; Mario Y position
+	ldh a, [$FFF8]		; Y position of block under pipe? Y target at least
+	cp [hl]
+	jr z, .toUnderground
+	inc [hl]			; Y coord increases going down
+	call Call_16F5		; animate or so
+	ret
+.toUnderground
+	ld a, $0A
+	ldh [hGameState], a	; warp to underground
+	ldh [$FFF9], a
+	ret
+
+; warp to underground
+GameState_0A:: ; 162F
+	di
+	xor a
+	ldh [rLCDC], a
+	ldh [$FFE6], a
+	call Call_1ED4		; clears sprites that aren't player, enemy or platform?
+	call .call_165E
+	ldh a, [$FFF4]
+	ldh [$FFE5], a		; "block" in level?
+	call Call_807		; draws the first screen of the "level"
+	call $245C
+	ld hl, $C201		; Mario Y position
+	ld [hl], $20		; up high
+	inc l				; Mario X position
+	ld [hl], $1D		; a little to the left
+	inc l
+	inc l
+	ld [hl], $00		; direction mario is facing
+	xor a
+	ldh [rIF], a
+	ldh [hGameState], a
+	ldh [$FFA4], a
+	ld a, $C3			; todo
+	ld [rLCDC], a
+	ei
+	ret
+
+; clear some sort of overlay?
+.call_165E ; 165E
+	ld hl, $CA3F		; the bottom rightmost tile of the total area
+	ld bc, $0240
+.clearLoop
+	xor a
+	ldd [hl], a
+	dec bc
+	ld a, b
+	or c
+	jr nz, .clearLoop	; you've got to be fucking kidding me
+	ret
+
+; going in pipe out of underground
+GameState_0B:: ; 166C
+	ldh a, [hFrameCounter]
+	and a, $01			; slow down mario by half
+	ret z
+	ld hl, $C202		; screen X position
+	ldh a, [$FFF8]		; goal X value?
+	cp [hl]
+	jr c, .toOverworld		; warp out? todo
+	inc [hl]
+	ld hl, $C20B		; how many frames a direction is held. For animation?
+	inc [hl]
+	call Call_16F5		; animate mario?
+	ret
+.toOverworld
+	di
+	ldh a, [$FFF5]		; (one less than) the block we went in?
+	ldh [$FFE5], a
+	xor a
+	ldh [rLCDC], a		; turn off lcd
+	ldh [$FFE6], a		; offset in block?
+	call GameState_0A.call_165E	; A is zero after this
+	ld hl, $FFF4
+	ldi [hl], a
+	ldi [hl], a
+	ldh a, [$FFF7]		; FFF6 and FFF7 contain the coords where Mario will
+	ld d, a				; come out of the pipe
+	ldh a, [$FFF6]
+	ld e, a
+	push de
+	call Call_807		; draw the level
+	pop de
+	ld a, $80
+	ld [$C204], a
+	ld hl, $C201		; mario Y
+	ld a, d
+	ldi [hl], a
+	sub a, $12			; target position is 12 units above spawn? right on top
+	ldh [$FFF8], a		; of pipe?
+	ld a, e
+	ld [hl], a
+	ldh a, [$FFE5]		; level block
+	sub a, $04
+	ld b, a
+	rlca
+	rlca
+	rlca
+	add b
+	add b
+	add a, $0C			; a = ($FFFE4 - 4) * 10 - 28....?
+	ld [$C0AB], a		; sort of progress in the level in columns? But there's
+	xor a				; 20 columns per block or so
+	ldh [rIF], a
+	ldh [$FFA4], a		; smth to do with SCX
+	ld a, $5B
+	ldh [$FFE9], a		; first col not yet loaded in. IMO $807 should do this
+	call $245C
+	call Call_1ED4		; clears sprites
+	ld a, $C3
+	ldh [rLCDC], a
+	ld a, $0C
+	ldh [hGameState], a
+	call $7A3			; smth inside gamestate 02, reset to checkpoint
+	ei
+	ret
+
+; coming up out of pipe
+Gamestate_0C:: ; 16DA
+	ldh a, [hFrameCounter]
+	and a, $01				; slow down animation by 2
+	ret z
+	ld hl, $C201			; y position
+	ldh a, [$FFF8]			; y target?
+	cp [hl]
+	jr z, .outOfPipe
+	dec [hl]				; Y coordinate decrease going up
+	call Call_16F5			; animate?
+	ret
+.outOfPipe
+	xor a
+	ldh [hGameState], a
+	ld [$C204], a			; smth to do with mario having control?
+	ldh [$FFF9], a
+	ret
+
+Call_16F5:: ; 16F5 Animate mario?
+	call $1736
+	ld a, [$C20A]
+	and a
+	jr z, .jmp_172C
+	ld a, [$C203]
+	and a, $0F				; animation index
+	cp a, $0A
+	jr nc, .jmp_172C
+	ld hl, $C20B
+	ld a, [$C20E]			; maximum air speed?
+	cp a, $23
+	ld a, [hl]
+	jr z, .jmp_1730
+	and a, $03
+	jr nz, .jmp_172C
+.jmp_1716
+	ld hl, $C203
+	ld a, [hl]
+	cp a, $18
+	jr z, .jmp_172C
+	inc [hl]
+	ld a, [hl]
+	and a, $0F
+	cp a, $04
+	jr c, .jmp_172C
+	ld a, [hl]
+	and a, $F0
+	or a, $01
+	ld [hl], a
+.jmp_172C
+	call $1D26
+	ret
+.jmp_1730
+	and a, $01
+	jr nz, .jmp_172C
+	jr .jmp_1716
+
+; animate mario?
+Call_1736::
+	ld a, $0C
+	ldh [$FF8E], a	; oh joy, new variables..
+	ld hl, $C200
+	ld a, $C0
+	ldh [$FF8D], a
+	ld a, $05
+	ldh [$FF8F], a
+	ldh a, [$FFFD]
+	ldh [$FFE1], a
+	ld a, 3
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	call $4823
+	ldh a, [$FFE1]
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	ret
+
+INCBIN "baserom.gb", $175B, $1BFF - $175B
 
 ; add one coin. Earns a life is 100 are collected
 AddCoin:: ; 1BFF
@@ -1432,7 +1633,7 @@ DisplayCoins::; 1C1B
 
 ; 1C33
 UpdateLives::
-	ldh a, [$FF00+$9F]	; Demo mode?
+	ldh a, [$FF9F]	; Demo mode?
 	and a
 	ret nz
 	ld a, [wLivesEarnedLost]		; FF removes one life, 
@@ -1446,7 +1647,7 @@ UpdateLives::
 	push af
 	ld a, $08
 	ld [$DFE0], a
-	ldh [$FF00+$D3], a
+	ldh [$FFD3], a
 	pop af
 	add a, 1			; Add one life
 .displayUpdatedLives
@@ -2155,13 +2356,13 @@ call_3F13::
 
 DisplayScore:: ; 3F39
 ; Display the score at wScore to the top right corner
-	ldh a, [$FF00+$B1]	; Some check to see if the score needs to be  
+	ldh a, [$FFB1]	; Some check to see if the score needs to be  
 	and a				; updated?
 	ret z
 	ld a, [$C0E2]
 	and a
 	ret nz
-	ldh a, [$FF00+$EA]
+	ldh a, [$FFEA]
 	cp a, 02
 	ret z
 	ld de, wScore + 2	; Start with the ten and hundred thousands
@@ -2170,7 +2371,7 @@ PrintScore::
 ; Displays BCD encoded score at DE, DE-1 and DE-2 to the VRAM at HL
 ; Print spaces instead of leading zeroes TODO Reuses FFB1?
 	xor a
-	ldh [$FF00+$B1], a	; Start by printing spaces instead of leading zeroes
+	ldh [$FFB1], a	; Start by printing spaces instead of leading zeroes
 	ld c, $03			; Maximum 3 digit pairs
 .printDigitPair
 	ld a, [de]
@@ -2178,7 +2379,7 @@ PrintScore::
 	swap a				; Start with the more significant digit
 	and a, $0F
 	jr nz, .startNumber1
-	ldh a, [$FF00+$B1]	; If it's zero, check if the number has already started
+	ldh a, [$FFB1]	; If it's zero, check if the number has already started
 	and a
 	ld a, "0"
 	jr nz, .printFirstDigit
@@ -2188,7 +2389,7 @@ PrintScore::
 	ld a, b				; Now the lesser significant digit
 	and a, $0F
 	jr nz, .startNumber2; If non-zero, number has started (or already is)
-	ldh a, [$FF00+$B1]
+	ldh a, [$FFB1]
 	and a				; If zero, check if already started
 	ld a, "0"
 	jr nz, .printSecondDigit
@@ -2203,18 +2404,18 @@ PrintScore::
 	dec c				; Which is less significant
 	jr nz, .printDigitPair
 	xor a
-	ldh [$FF00+$B1], a
+	ldh [$FFB1], a
 	ret
 .startNumber1
 	push af
 	ld a, 1
-	ldh [$FF00+$B1], a	; Number has start, print "0" instead of " "
+	ldh [$FFB1], a	; Number has start, print "0" instead of " "
 	pop af
 	jr .printFirstDigit
 .startNumber2
 	push af
 	ld a, 1
-	ldh [$FF00+$B1], a	; Number has start, print "0" instead of " "
+	ldh [$FFB1], a	; Number has start, print "0" instead of " "
 	pop af
 	jr .printSecondDigit
 
