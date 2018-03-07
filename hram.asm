@@ -51,7 +51,19 @@ ds $E4 - $E0
 hLevelIndex::	; FFE4
 	ds 1
 
-ds $FA - $E5
+hLevelBlock::	; FFE5
+	ds 1
+
+hColumnIndex::	; FFE6
+	ds 1
+
+hColumnPointerHi::	; FFE7
+	ds 1
+
+hColumnPointerLo:: ; FFE8
+	ds 1
+
+ds $FA - $E9
 
 hCoins::		; FFFA
 	ds 1

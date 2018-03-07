@@ -53,7 +53,7 @@ VBlank:: ; $0060
 	push bc
 	push de
 	push hl
-	call $2258			; Loading in new areas of the map
+	call Call_2258		; Loading in new areas of the map
 	call $1B86			; Collision with coins, coin blocks, etc...?
 	call UpdateLives
 	call hDMARoutine
@@ -168,7 +168,7 @@ Start::	; 0150
 ; FFAF least significant 5 bits are x, rest 3 are y??
 ; 3EE6 shifts and ands them together. But why?
 ; maybe find scroll coordinates from Mario's position in the level?
-.mystery_153:
+Mystery_153::
 	call call_3EE6
 .waitHBlank1
 	ldh a, [rSTAT]
@@ -315,8 +315,8 @@ Init::	; 0185
 	jr nz, .jmp_238
 	ld a, $FF			; Here DA1D is changed from 3 to FF?
 	ld [$DA1D], a
-	call $09F1			; kill mario with an animation?
-	call $1736
+	call Call_9F1		; kill mario with an animation?
+	call Call_1736
 .jmp_238
 	ldh a, [$FFFD]	; Again, ROM bank?
 	ldh [$FFE1], a	; temporarily store for some reason
@@ -497,7 +497,7 @@ GameState_0E::
 	call CopyData	; same, but to the other tile data bank
 	call FillTileMapWithEmptyTile
 	xor a
-	ldh [$FFE5], a	; Level block TODO
+	ldh [hLevelBlock], a
 	ldh a, [hLevelIndex]
 	push af
 	ld a, $0C
@@ -978,7 +978,7 @@ Call_807::
 	ld a, $10
 	ld [$C203], a		; animation index. upper nibble is 1 of large mario
 .smallMario				; does weird things in autoscroll
-	ld hl, $FFE6
+	ld hl, hColumnIndex
 	xor a
 	ld b, 6
 .clearLoop
@@ -999,14 +999,33 @@ Call_807::
 	ld b, $1B			; load 27 tiles (20 visible, 7 preloaded)
 .drawLoop
 	push bc
-	call $21B1			; load a column of the level into C0B0
-	call $2258			; draw it onscreen
+	call Call_21B1			; load a column of the level into C0B0
+	call Call_2258		; draw it onscreen
 	pop bc
 	dec b
 	jr nz, .drawLoop
 	ret
 
-INCBIN "baserom.gb", $84E, $B8D - $84E
+INCBIN "baserom.gb", $84E, $9F1 - $84E
+
+Call_9F1:: ; 9F1
+	ld a, [$D007]
+	and a
+	ret nz
+	ld a, $03				; pre dying
+	ldh [hGameState], a
+	xor a
+	ldh [$FFB5], a
+	ldh [rTMA], a
+	ld a, $02
+	ld [$DFE8], a
+	ld a, $80
+	ld [$C200], a
+	ld a, [$C201]			; Mario Y pos
+	ld [$C0DD], a			; death Y pos?
+	ret
+
+INCBIN "baserom.gb", $A10, $B8D - $A10
 
 ; prepare Mario's dying sprites. And some variables
 GameState_03:: ; B8D
@@ -1105,12 +1124,13 @@ GameState_04:: ; BD6
 Data_C19::
 	db -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, -1, 0, 0, -1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, $7F
 
+; end of level gate, music
 GameState_07:: ; C40
 	ld hl, $FFA6
 	ld a, [hl]
 	and a
 	jr z, .jmp_C4B
-	call $1736
+	call Call_1736
 	ret
 .jmp_C4B
 	ld a, [$D007]
@@ -1361,7 +1381,7 @@ GameState_08:: ; D49
 	ldh [rLCDC], a	; TODO
 	ei
 	ld a, $03
-	ldh [$FFE5], a
+	ldh [hLevelBlock], a	; do all levels start on block 3 todo
 	xor a
 	ld [$C0D2], a
 	ldh [$FFF9], a
@@ -1416,11 +1436,11 @@ GameState_0A:: ; 162F
 	di
 	xor a
 	ldh [rLCDC], a
-	ldh [$FFE6], a
+	ldh [hColumnIndex], a
 	call Call_1ED4		; clears sprites that aren't player, enemy or platform?
 	call .call_165E
 	ldh a, [$FFF4]
-	ldh [$FFE5], a		; "block" in level?
+	ldh [hLevelBlock], a
 	call Call_807		; draws the first screen of the "level"
 	call $245C
 	ld hl, $C201		; Mario Y position
@@ -1469,10 +1489,10 @@ GameState_0B:: ; 166C
 .toOverworld
 	di
 	ldh a, [$FFF5]		; (one less than) the block we went in?
-	ldh [$FFE5], a
+	ldh [hLevelBlock], a
 	xor a
 	ldh [rLCDC], a		; turn off lcd
-	ldh [$FFE6], a		; offset in block?
+	ldh [hColumnIndex], a
 	call GameState_0A.call_165E	; A is zero after this
 	ld hl, $FFF4
 	ldi [hl], a
@@ -1493,7 +1513,7 @@ GameState_0B:: ; 166C
 	ldh [$FFF8], a		; of pipe?
 	ld a, e
 	ld [hl], a
-	ldh a, [$FFE5]		; level block
+	ldh a, [hLevelBlock]
 	sub a, $04
 	ld b, a
 	rlca
@@ -1501,7 +1521,7 @@ GameState_0B:: ; 166C
 	rlca
 	add b
 	add b
-	add a, $0C			; a = ($FFFE4 - 4) * 10 - 28....?
+	add a, $0C			; a = hLevelBlock * 10 - 28....?
 	ld [$C0AB], a		; sort of progress in the level in columns? But there's
 	xor a				; 20 columns per block or so
 	ldh [rIF], a
@@ -1538,37 +1558,37 @@ Gamestate_0C:: ; 16DA
 	ret
 
 Call_16F5:: ; 16F5 Animate mario?
-	call $1736
-	ld a, [$C20A]
+	call Call_1736
+	ld a, [$C20A]			; 1 if mario on the ground
 	and a
 	jr z, .jmp_172C
-	ld a, [$C203]
-	and a, $0F				; animation index
+	ld a, [$C203]			; animation index
+	and a, $0F				; low nibble
 	cp a, $0A
-	jr nc, .jmp_172C
-	ld hl, $C20B
-	ld a, [$C20E]			; maximum air speed?
+	jr nc, .jmp_172C		; JR if animation index is >= 0xA, which is sub and airplane stuff
+	ld hl, $C20B			; animation frame counter?
+	ld a, [$C20E]			; 2 when walking, 4 when stuff
 	cp a, $23
 	ld a, [hl]
-	jr z, .jmp_1730
+	jr z, .jmp_1730			; wait, can this ever happen... Bug?
 	and a, $03
-	jr nz, .jmp_172C
+	jr nz, .jmp_172C		; any 3 movement frames, change animation
 .jmp_1716
 	ld hl, $C203
 	ld a, [hl]
-	cp a, $18
+	cp a, $18				; crouching Super Mario
 	jr z, .jmp_172C
 	inc [hl]
 	ld a, [hl]
 	and a, $0F
-	cp a, $04
+	cp a, $04				; 3 sprites in the walking animation
 	jr c, .jmp_172C
 	ld a, [hl]
 	and a, $F0
 	or a, $01
 	ld [hl], a
 .jmp_172C
-	call $1D26
+	call Call_1D26			; check movement keys, move mario?
 	ret
 .jmp_1730
 	and a, $01
@@ -1764,9 +1784,10 @@ GameState_3B:: ; 1CF0
 	ld hl, hGameState
 	inc [hl]		; 3B → 3C
 	ret
-.data_1D14
+.data_1D14	; todo
 	db " time up "
 
+; time up. Run out frame timer
 GameState_3C:: ; 1D1D
 	ldh a, [$FFA6]
 	and a
@@ -1775,11 +1796,281 @@ GameState_3C:: ; 1D1D
 	ldh [hGameState], a
 	ret
 
-INCBIN "baserom.gb", $1D26, $1ED4 - $1D26
+; called every frame
+Call_1D26::
+	ld hl, $C20D		; mario going left (20) or right (10), changing dir (01)??
+	ld a, [hl]
+	cp a, $01			; changing direction?
+	jr nz, .notReversing
+	dec l				; C20C, momentum?
+	ld a, [hl]
+	and a
+	jr nz, .jmp_1D38
+	inc l
+	ld [hl], $00		; C20D again
+	jr .jmp_1D71
+.jmp_1D38
+	dec [hl]			; decrease C20C, momentum?
+	ret
+.notReversing
+	ld hl, $C20C		; momentum?
+	ldi a, [hl]
+	cp a, $06			; max momentum
+	jr nz, .jmp_1D49
+	inc l				; C20E. 02 when walking, 04 when running
+	ld a, [hl]
+	and a
+	jr nz, .jmp_1D49
+	ld [hl], $02		; at max momentum, go from 0 to 2?
+.jmp_1D49
+	ld de, $C207		; jump status. 00 on ground, 01 ascending, 02 descending
+	ldh a, [hJoyHeld]
+	bit 7, a			; todo constants, down button
+	jr nz, .downButton
+.jmp_1D52
+	bit 4, a			; right button
+	jr nz, .rightButton
+	bit 5, a			; left button
+	jp nz, .leftButton
+	ld hl, $C20C		; speed?
+	ld a, [hl]
+	and a
+	jr z, .jmp_1D6B
+	xor a				; from here on we have a non-zero speed, and the movement buttons are not pressed. I think
+	ld [$C20E], a		; 02 walking 04 running
+	dec [hl]
+	inc l				; C20B
+	ld a, [hl]
+	jr .jmp_1D52		; keep checking for left-right keys until C20C is 0
+.jmp_1D6B
+	inc l				; C20D
+	ld [hl], 0
+	ld a, [de]
+	and a
+	ret nz
+.jmp_1D71
+	ld a, [$C207]		; jump status
+	and a
+	ret nz				; no animation in the air
+	ld hl, $C203		; animation index
+	ld a, [hl]
+	and a, $F0			; upper nibble is super status
+	ld [hl], a			; stand still animation
+	ld a, $01
+	ld [$C20B], a		; animation frame counter
+	xor a
+	ld [$C20E], a		; walking nor runnning
+	ret
+.downButton
+	push af
+	ldh a, [hSuperStatus]
+	cp a, $02			; full grown super mario
+	jr nz, .skipCrouch	; small mario can't crouch
+	ld a, [de]			; de is C207
+	and a
+	jr nz, .skipCrouch	; cannot crouch when jumping
+	ld a, $18
+	ld [$C203], a		; crouching mario, hidden daisy
+	ldh a, [hJoyHeld]
+	and a, $30			; test bits left and right button
+	jr nz, .jmp_1DA6
+	ld a, [$C20C]		; momentum?
+	and a
+	jr z, .jmp_1DA6
+.skipCrouch
+	pop af
+	jr .jmp_1D52		; neither left nor right are being held
+.jmp_1DA6
+	xor a				; no stopping animation going into crouch?
+	ld [$C20C], a		; speed?
+	pop af
+	ret
+
+.rightButton
+	ld hl, $C20D		; walking dir
+	ld a, [hl]
+	cp a, $20
+	jr nz, .skip
+	jp .reverseDirection	; too far to do a JR
+.skip
+	ld hl, $C205		; dir facing
+	ld [hl], $00		; facing right
+	call $1AAD
+	and a
+	ret nz
+.jmp_1DC1
+	ldh a, [hJoyHeld]
+	bit 4, a			; right
+	jr z, .jmp_1DE4
+	ld a, [$C203]		; animation index
+	cp a, $18			; crouching
+	jr nz, .jmp_1DD8
+	ld a, [$C203]		; why
+	and a, $F0
+	or a, $01
+	ld [$C203], a		; first animation?
+.jmp_1DD8
+	ld hl, $C20C		; ...
+	ld a, [hl]
+	cp a, $06
+	jr z, .jmp_1DE4
+	inc [hl]			; increase momentum
+	inc l				; $C20D left right changing dir
+	ld [hl], $10		; going right
+.jmp_1DE4
+	ld hl, $C202		; on screen X pos
+	ldh a, [$FFF9]
+	and a
+	jr nz, .jmp_1E21
+	ld a, [$C0D2]
+	cp a, $07
+	jr c, .jmp_1DF9
+	ldh a, [$FFA4]		; scroll coord
+	and a, $0C			; %1100
+	jr z, .jmp_1E21
+.jmp_1DF9
+	ld a, $50			; ~ middle of screen
+	cp [hl]				; C202?
+	jr nc, .jmp_1E21	; JR if mario screen X <= 50
+	call .call_1EB4		; determine walking speed
+	ld b, a
+	ld hl, $FFA4
+	add [hl]			; scroll screen if Mario is in the middle
+	ld [hl], a
+	call .call_1EA4		; shift sprites
+	call $2C9F
+	ld hl, $C001		; projectile X positions
+	ld de, $0004		; 4 bytes per sprite
+	ld c, $03			; 3 projectiles
+.shiftProjectiles		; todo name
+	ld a, [hl]
+	sub b
+	ld [hl], a
+	add hl, de
+	dec c
+	jr nz, .shiftProjectiles
+.jmp_1E1C
+	ld hl, $C20B		; frames a dir is held?
+	inc [hl]
+	ret
+.jmp_1E21				; right button held, mario in middle of screen
+	call .call_1EB4
+	add [hl]
+	ld [hl], a
+	ldh a, [hGameState]
+	cp a, $0D			; autoscroll
+	jr z, .jmp_1E1C
+	ld a, [$C0D2]
+	and a
+	jr z, .jmp_1E1C
+	ldh a, [$FFA4]		; scroll coord or smth
+	and a, ~%11
+	ldh [$FFA4], a
+	ld a, [hl]
+	cp a, $A0
+	jr c, .jmp_1E1C
+	jp $1B45			; huh?
+
+.leftButton
+	ld hl, $C20D		; walking dir
+	ld a, [hl]
+	cp a, $10			; walking right
+	jr nz, .jmp_1E61
+.reverseDirection
+	ld [hl], $01		; reverse dir?
+	dec l
+	ld [hl], $08		; C20C speed? momentum?
+	ld a, [$C207]		; jump status
+	and a
+	ret nz				; nz if in air
+	ld hl, $C203		; animation
+	ld a, [hl]
+	and a, $F0
+	or a, $05			; reversing animation
+	ld [hl], a
+	ld a, $01
+	ld [$C20B], a		; restart animation counter
+	ret
+.jmp_1E61
+	ld hl, $C205		; dir facing
+	ld [hl], $20		; facing left
+	call $1AAD
+	and a
+	ret nz
+	ld hl, $C202		; mario x pos
+	ld a, [hl]
+	cp a, $0F
+	jr c, .jmp_1E9F		; jump if X < 0x0F
+	push hl
+	ldh a, [hJoyHeld]
+	bit 5, a			; todo left button
+	jr z, .jmp_1E97
+	ld a, [$C203]
+	cp a, $18			; crouching
+	jr nz, .jmp_1E8B
+	ld a, [$C203]
+	and a, $F0
+	or a, $01
+	ld [$C203], a
+.jmp_1E8B
+	ld hl, $C20C		; speed?
+	ld a, [hl]
+	cp a, $06
+	jr z, .jmp_1E97
+	inc [hl]
+	inc l				; C20D
+	ld [hl], $20		; walking left
+.jmp_1E97
+	pop hl				; hl = C202, mario's x pos
+	call .call_1EB4
+	cpl
+	inc a
+	add [hl]
+	ld [hl], a
+.jmp_1E9F
+	ld hl, $C20B
+	dec [hl]
+	ret
+
+; subtract B from X coord of sprites 0x0C to 0x14?
+.call_1EA4
+	ld hl, wOAMBuffer + $C * 4 + 1
+	ld de, $0004
+	ld c, 8
+.loop
+	ld a, [hl]
+	sub b
+	ld [hl], a
+	add hl, de
+	dec c
+	jr nz, .loop
+	ret
+
+.call_1EB4
+	push de
+	push hl
+	ld hl, .data_1ECE
+	ld a, [$C20E]		; 02 walking 04 running
+	ld e, a
+	ld d, $00
+	ld a, [$C20F]		; 01 standing still, flips between 1 and 0 walking
+	xor a, 1
+	ld [$C20F], a
+	add e
+	ld e, a
+	add hl, de
+	ld a, [hl]
+	pop hl
+	pop de
+	ret
+
+.data_1ECE
+	;  0  x  2  x  4  x
+	db 0, 1, 1, 1, 1, 2
 
 ; Clears sprites 0-3, 7 to 20. Projectiles, fragments of blocks, score
 ; TODO name
-Call_1ED4::
+Call_1ED4:: ; 1ED4
 	push hl
 	push bc
 	push de
@@ -1813,7 +2104,129 @@ Call_1ED4::
 	pop hl
 	ret
 
-INCBIN "baserom.gb", $1F03, $2258 - $1F03
+INCBIN "baserom.gb", $1F03, $21B1 - $1F03
+
+; decompress a row from the level
+Call_21B1::	; 21B1
+	ld b, $10			; the screen without hud is exactly 16 tiles high
+	ld hl, $C0B0		; tilemap column cache
+	ld a, " "			; blank tile
+.clearLoop
+	ldi [hl], a
+	dec b
+	jr nz, .clearLoop
+	ldh a, [hColumnIndex]
+	and a
+	jr z, .startNewBlock; if zero, start a new "block" ?
+	ldh a, [hColumnPointerHi]	; pointer to next column?
+	ld h, a
+	ldh a, [hColumnPointerLo]	; eww big endian
+	ld l, a
+	jr .decodeLoop
+
+.startNewBlock
+	ld hl, $4000		; contains a table with 4*3+1 pointers?
+	ldh a, [hLevelIndex]; but the levels are spread around over the banks...?
+	add a
+	ld e, a
+	ld d, $00
+	add hl, de			; hl = $4000 + level * 2
+	ld e, [hl]
+	inc hl
+	ld d, [hl]
+	push de
+	pop hl				; hl ← [$4000 + level * 2] ; address of table of blocks
+	ldh a, [hLevelBlock]
+	add a				; * 2
+	ld e, a
+	ld d, $00
+	add hl, de			; hl ← [hl + block * 2]
+	ldi a, [hl]
+	cp a, $FF			; end of level?
+	jr z, .endOfLevel
+	ld e, a				; if not, this is a pointer to the block?
+	ld d, [hl]
+	push de
+	pop hl
+
+.decodeLoop
+	ldi a, [hl]
+	cp a, $FE
+	jr z, .endOfColumn	; $FE = end of column
+	ld de, $C0B0
+	ld b, a
+	and a, $F0			; high nibble = offset into column
+	swap a
+	add e
+	ld e, a
+	ld a, b
+	and a, $0F			; low nibble = number of tiles following
+	jr nz, .skip
+	ld a, $10			; if count is zero, fill column
+.skip
+	ld b, a
+.nextRow
+	ldi a, [hl]
+	cp a, $FD			; FD means fill the rest with the next byte
+	jr z, .repeatNextTile
+	ld [de], a
+	cp a, $70			; pipe?
+	jr nz, .notPipe
+	call $22A9
+	jr .incrementRow
+.notPipe
+	cp a, $80			; breakable block?
+	jr nz, .notBreakableBlock
+	call $2321
+	jr .incrementRow
+.notBreakableBlock
+	cp a, $5F			; hidden block?
+	jr nz, .notHiddenBlock
+	call $2321
+	jr .incrementRow
+.notHiddenBlock
+	cp a, $81			; coin block
+	call z, $2321
+.incrementRow
+	inc e
+	dec b
+	jr nz, .nextRow
+	jr .decodeLoop
+
+.endOfLevel
+	ld hl, $C0D2		; starts incrementing when the end of level is reached
+	inc [hl]
+	ret
+
+.endOfColumn
+	ld a, h
+	ldh [hColumnPointerHi], a
+	ld a, l
+	ldh [hColumnPointerLo], a		; save a pointer to the next column
+	ldh a, [hColumnIndex]
+	inc a
+	cp a, $14			; 20 columns per block?
+	jr nz, .blockNotFinished
+	ld hl, hLevelBlock	; next block
+	inc [hl]
+	xor a
+.blockNotFinished
+	ldh [hColumnIndex], a
+	ldh a, [$FFA4]		; scroll cord?
+	ld [$C0AA], a
+	ld a, $01
+	ldh [$FFEA], a
+	ret
+
+.repeatNextTile
+	ld a, [hl]
+.loop
+	ld [de], a
+	inc e
+	dec b
+	jr nz, .loop
+	inc hl
+	jp .decodeLoop
 
 ; draw a column in the tile map
 Call_2258::
