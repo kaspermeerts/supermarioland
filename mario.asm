@@ -1101,9 +1101,9 @@ pauseOrReset:: ; 7DA
 
 ; this draw the first screen of the level. The rest is dynamically loaded
 Call_807::
-	ld hl, $211D
+	ld hl, Data_211D
 	ld de, $C200
-	ld b, $51
+	ld b, $51			; Bug? One byte too much
 .copyLoop				; some sort of initialisation
 	ldi a, [hl]
 	ld [de], a
@@ -1660,9 +1660,9 @@ GameState_0B:: ; 166C
 	rlca
 	add b
 	add b
-	add a, $0C			; a = hLevelBlock * 10 - 28....?
-	ld [$C0AB], a		; sort of progress in the level in columns? But there's
-	xor a				; 20 columns per block or so
+	add a, $0C			; a = (hLevelBlock - 4)* 10 + 0xC....?
+	ld [$C0AB], a		; sort of progress in the level in columns / 2?
+	xor a
 	ldh [rIF], a
 	ldh [$FFA4], a		; smth to do with SCX
 	ld a, $5B
@@ -1931,7 +1931,7 @@ UpdateLives::
 	daa
 	ld [wNumLives], a
 .displayLives
-	ld a, [wNumLives]	; Huh? Bug?
+	ld a, [wNumLives]
 	ld b, a
 	and a, $0F
 	ld [$9807], a
@@ -2020,7 +2020,7 @@ GameState_3A:: ; 1CE8
 ; prepare time up
 GameState_3B:: ; 1CF0
 	ld hl, $9C00			; tile map for window
-	ld de, .data_1D14
+	ld de, .text_1D14
 	ld c, 9
 .loop
 	ld a, [de]
@@ -2041,7 +2041,7 @@ GameState_3B:: ; 1CF0
 	ld hl, hGameState
 	inc [hl]		; 3B → 3C
 	ret
-.data_1D14	; todo
+.text_1D14	; todo
 	db " time up "
 
 ; time up. Run out frame timer
@@ -2370,7 +2370,7 @@ Call_1F03:: ; 1F03
 	and a
 	ret z
 	cp a, $01
-	jr z, .jmp_1F22
+	jr z, .endOfInvincibility
 	dec a
 	ld [$C0D3], a
 	ld a, [$C200]
@@ -2379,14 +2379,60 @@ Call_1F03:: ; 1F03
 	ld a, [$DFE9]		; currently playing song
 	and a
 	ret nz
-.jmp_1F22
+.endOfInvincibility
 	xor a
 	ld [$C0D3], a
 	ld [$C200], a		; mario visible
 	call StartLevelMusic
 	ret
 
-INCBIN "baserom.gb", $1F2D, $21B1 - $1F2D
+INCBIN "baserom.gb", $1F2D, $211D - $1F2D
+
+Data_211D::
+	; C200. Mario's position, state, animation etc..
+	db $00, $86, $32, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	; C210 - C240. Fragments from breakable block. Clouds?
+	;       Y    X    sprite    flip           TTL
+	db $01, $00, $00, $0F, $00, $00, $00, $00, $00
+	ds 7
+	db $01, $00, $00, $0F, $00, $20, $00, $00, $00
+	ds 7
+	db $01, $00, $00, $0F, $00, $00, $00, $00, $00
+	ds 7
+	db $01, $00, $00, $0F, $00, $20, $00, $00, $00
+	ds 7
+
+Data_216D::	 ; jumping "parabola"?
+	db $04, $04, $03, $03, $02, $02, $02, $02, $02, $02, $02, $02, $02, $01, $01, $01, $01, $01, $01, $01, $00, $01, $00, $01, $00, $00, $7F
+
+Jump_2188:: ; 2188
+	ld a, $03
+	ldh [$FFEA], a		; has to do with rendering
+	ldh a, [$FFA4]		; scroll x
+	ld b, a
+	ld a, [$C0AA]		; another scroll thingy, rounded to 8 pxs?
+	cp b
+	ret z
+	xor a
+	ldh [$FFEA], a
+	ret
+
+Call_2198:: ; 2198
+	ldh a, [$FFEA]
+	and a
+	jr nz, Jump_2188
+	ldh a, [$FFA4]		; scroll x
+	and a, $08
+	ld hl, $FFA3		; switches between 0 and 8
+	cp [hl]
+	ret nz
+	ld a, [hl]
+	xor a, $08
+	ld [hl], a
+	and a
+	jr nz, LoadNextColumn
+	ld hl, $C0AB		; increments every two columns?
+	inc [hl]
 
 ; decompress a column from the level
 LoadNextColumn::	; 21B1

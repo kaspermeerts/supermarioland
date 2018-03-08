@@ -12,7 +12,7 @@ Requires RGBDS to build
 
 A quick and dirty Python script `coverage.py` is provided to estimate how much of the ROM has been disassembled
 
-* Bank 0: about a quarter
+* Bank 0: about a third
 * Bank 1-3: nothing yet
 * High RAM: 26 out of 127 bytes identified
 
