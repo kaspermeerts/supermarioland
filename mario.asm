@@ -53,8 +53,8 @@ VBlank:: ; $0060
 	push bc
 	push de
 	push hl
-	call Call_2258		; Loading in new areas of the map
-	call $1B86			; Collision with coins, coin blocks, etc...?
+	call DrawColumn		; Drawing new areas of the map
+	call Call_1B86		; Collision with coins, coin blocks, etc...?
 	call UpdateLives
 	call hDMARoutine
 	call DisplayScore
@@ -169,7 +169,7 @@ Start::	; 0150
 ; 3EE6 shifts and ands them together. But why?
 ; maybe find scroll coordinates from Mario's position in the level?
 Mystery_153::
-	call call_3EE6
+	call Call_3EE6
 .waitHBlank1
 	ldh a, [rSTAT]
 	and a, $03
@@ -805,7 +805,7 @@ GameState_11::	; 576
 	ld [wScore+2], a		; ten and hundred thousands
 	ldh [hCoins], a
 .jmp_58B
-	call call_5E7	; todo
+	call Call_5E7	; todo
 	call FillTileMapWithEmptyTile
 	ld hl, $9C00
 	ld b, $5F
@@ -831,8 +831,8 @@ GameState_11::	; 576
 	ldh [$FFB1], a
 	ld a, $5B
 	ldh [$FFE9], a
-	call $2442			; superfluous? happens in GameState_08.loadWorldTiles?
-	call call_3D1A		; todo
+	call Call_2442		; superfluous? happens in GameState_08.loadWorldTiles?
+	call Call_3D1A		; todo
 	call DisplayCoins
 	call UpdateLives.displayLives
 	ldh a, [hWorldAndLevel]
@@ -865,7 +865,7 @@ CopyData::	; 05DE
 
 ; 5E7
 ; prepare tiles
-call_5E7::	; the three upper banks have tiles at the same location?
+Call_5E7::	; the three upper banks have tiles at the same location?
 	ld hl, $5032
 	ld de, $9000
 	ld bc, $0800
@@ -993,19 +993,20 @@ Call_807::
 	ldh a, [hGameState]
 	cp a, $0A			; pipe going underground
 	jr z, .drawLoop
-	ldh a, [hLevelIndex]		; current level or smth
+	ldh a, [hLevelIndex]
 	cp a, $0C			; start menu doesn't scroll
 	jr z, .drawLoop
 	ld b, $1B			; load 27 tiles (20 visible, 7 preloaded)
 .drawLoop
 	push bc
-	call Call_21B1			; load a column of the level into C0B0
-	call Call_2258		; draw it onscreen
+	call LoadNextColumn	; load a column of the level into C0B0
+	call DrawColumn		; draw it onscreen
 	pop bc
 	dec b
 	jr nz, .drawLoop
 	ret
 
+; used in gamestate 0D?
 INCBIN "baserom.gb", $84E, $9F1 - $84E
 
 Call_9F1:: ; 9F1
@@ -1276,7 +1277,7 @@ GameState_08:: ; D49
 	ldh [$FFFD], a	; todo
 	xor a
 	ldh [rLCDC], a		; turn off LCD
-	call call_5E7		; again? why????
+	call Call_5E7		; again? why????
 	jp .out
 .entryPoint:: ; D49
 	ld hl, $FFA6		; timer thingy
@@ -1387,7 +1388,7 @@ GameState_08:: ; D49
 	ldh [$FFF9], a
 	ld a, $02
 	ldh [hGameState], a
-	call $2442
+	call Call_2442
 	ret
 
 ; todo
@@ -1615,7 +1616,125 @@ Call_1736::
 	ld [MBC1RomBank], a
 	ret
 
-INCBIN "baserom.gb", $175B, $1BFF - $175B
+INCBIN "baserom.gb", $175B, $1B45 - $175B
+
+; makes Mario win?
+Jmp_1B45:: ; 1B45
+	ldh a, [hSuperStatus]
+	cp a, $02			; fully grown Super Mario
+	ld b, $FF
+	jr z, .jmp_1B52
+	ld b, $0F
+	xor a
+	ldh [hSuperStatus], a
+.jmp_1B52
+	ld a, [$C203]		; animation index
+	and b
+	ld [$C203], a
+	ld b, a
+	and a, $0F
+	cp a, $0A
+	jr nc, .jmp_1B66	; jmp if animation index >= 0A, which is airplane, sub stuff
+	ld a, b
+	and a, $F0
+	ld [$C203], a
+.jmp_1B66
+	ld a, $07			; end of level with music?
+	ldh [hGameState], a
+	ld a, [$D007]
+	and a
+	jr nz, .jmp_1B79
+	ld a, $01
+	ld [$DFE8], a		; start victory music
+	ld a, $F0
+	ldh [$FFA6], a		; countdown
+.jmp_1B79
+	call Call_1ED4
+	xor a
+	ld [$C200], a		; make mario visible again?
+	ld [$DA1D], a		; smth with time up
+	ldh [rTMA], a
+	ret
+
+; collision with blocks and coins
+; called every frame
+Call_1B86:: ; 1B86
+	xor a
+	ld [$C0E2], a
+	ldh a, [$FFFE]
+	and a
+	call nz, AddCoin
+	ld hl, $FFEE		; source of the coin? :/
+	ld a, [hl]
+	cp a, $01			; breakable block which will break
+	jr z, .jmp_1BBA
+	cp a, $02			; breakable/coin block which will bounce
+	jp z, .jmp_1BF7		; why is this a JP? Bug?
+	cp a, $C0			; floating coin?
+	jr z, .jmp_1BBA
+	cp a, $04			; bounced block which will cease to be a sprite
+	ret nz
+	ld [hl], $00
+	inc l				; hl ← FFEF
+	ld d, [hl]
+	inc l				; hl ← FFF0
+	ld e, [hl]			; de ← place in VRAM where the coin was?
+	ld a, [wOAMBuffer + $2E]		; coin block OAM sprite 3rd byte?
+	cp a, $82			; normal breakable block?
+	jr z, .placeBlockBackInBG
+	cp a, $81			; coin block
+	call z, AddCoin
+	ld a, $7F			; dark block (used coinblock)
+.placeBlockBackInBG
+	ld [de], a
+	ret
+
+.jmp_1BBA
+	ld b, [hl]
+	ld [hl], 0
+.jmp_1BBD				; replace coin and breakable block?
+	inc l				; hl ← FFEF
+	ld d, [hl]
+	inc l
+	ld e, [hl]			; same as above
+	ld a, " "			; empty tile
+	ld [de], a			; remove block
+	ld a, b
+	cp a, $C0
+	jr z, .jmp_1BFB		; coin hit?
+	ld hl, -$20			; check one tile higher for a coin
+	add hl, de
+	ld a, [hl]
+	cp a, $F4			; coin "$"
+	ret nz
+	ld [hl], " "		; remove it
+	ld a, $05
+	ld [$DFE0], a		; todo sound effect
+	ld a, h
+	ld [$FFB0], a
+	ld a, l
+	ldh [$FFAF], a
+	call Call_3F13
+	ldh a, [$FFA4]		; scroll coordinate
+	ld b, a
+	ldh a, [$FFAE]
+	sub b
+	ldh [$FFEB], a
+	ldh a, [$FFAD]
+	add a, $14
+	ldh [$FFEC], a
+	ld a, $C0
+	ldh [$FFED], a
+	call AddCoin
+	ret
+
+.jmp_1BF7
+	ld [hl], $03
+	jr .jmp_1BBD
+
+.jmp_1BFB
+	call AddCoin
+	ret
 
 ; add one coin. Earns a life is 100 are collected
 AddCoin:: ; 1BFF
@@ -1953,8 +2072,9 @@ Call_1D26::
 	ld hl, $C20B		; frames a dir is held?
 	inc [hl]
 	ret
+
 .jmp_1E21				; right button held, mario in middle of screen
-	call .call_1EB4
+	call .call_1EB4		; determine walking speed
 	add [hl]
 	ld [hl], a
 	ldh a, [hGameState]
@@ -1969,7 +2089,7 @@ Call_1D26::
 	ld a, [hl]
 	cp a, $A0
 	jr c, .jmp_1E1C
-	jp $1B45			; huh?
+	jp Jmp_1B45			; huh?
 
 .leftButton
 	ld hl, $C20D		; walking dir
@@ -2106,8 +2226,8 @@ Call_1ED4:: ; 1ED4
 
 INCBIN "baserom.gb", $1F03, $21B1 - $1F03
 
-; decompress a row from the level
-Call_21B1::	; 21B1
+; decompress a column from the level
+LoadNextColumn::	; 21B1
 	ld b, $10			; the screen without hud is exactly 16 tiles high
 	ld hl, $C0B0		; tilemap column cache
 	ld a, " "			; blank tile
@@ -2172,21 +2292,21 @@ Call_21B1::	; 21B1
 	ld [de], a
 	cp a, $70			; pipe?
 	jr nz, .notPipe
-	call $22A9
+	call Call_22A9
 	jr .incrementRow
 .notPipe
 	cp a, $80			; breakable block?
 	jr nz, .notBreakableBlock
-	call $2321
+	call Call_2321
 	jr .incrementRow
 .notBreakableBlock
 	cp a, $5F			; hidden block?
 	jr nz, .notHiddenBlock
-	call $2321
+	call Call_2321
 	jr .incrementRow
 .notHiddenBlock
 	cp a, $81			; coin block
-	call z, $2321
+	call z, Call_2321
 .incrementRow
 	inc e
 	dec b
@@ -2229,7 +2349,7 @@ Call_21B1::	; 21B1
 	jp .decodeLoop
 
 ; draw a column in the tile map
-Call_2258::
+DrawColumn:: ; 2258
 	ldh a, [$FFEA]		; 01 if a new column needs to be loaded, 03 if we're 
 	cp a, $01			; still standing on that spot, but we don't need a new 
 	ret nz				; one, 00 otherwise. or more complicated...
@@ -2282,17 +2402,82 @@ Call_2258::
 	ldh [$FFEA], a
 	ret
 
-; Iunno
-INCBIN "baserom.gb", $22A9, $22FD - $22A9
+; is there are a warppipe at the column currently being drawn
+Call_22A9::
+	push hl
+	push de
+	push bc
+	ldh a, [$FFF9]		; $0A in underground?
+	and a
+	jr nz, .out
+	ldh a, [$FFFD]		; rom bank?
+	ldh [$FFE1], a
+	ld a, 3
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	ldh a, [hLevelIndex]
+	add a
+	ld e, a
+	ld d, $00
+	ld hl, $651C		; extract this todo
+	add hl, de
+	ld e, [hl]
+	inc hl
+	ld d, [hl]
+	push de
+	pop hl				; hl ← [651C + 2 * level]
+.checkPipeForWarp
+	ldh a, [hLevelBlock]	; first byte is level block of warping pipe
+	cp [hl]
+	jr z, .matchingLevelBlock
+	ld a, [hl]
+	cp a, $FF				; ff is end of list
+	jr z, .restoreROMBankAndOut
+	inc hl
+.nextPipe
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	jr .checkPipeForWarp
+
+.matchingLevelBlock
+	ldh a, [hColumnIndex]	; second byte is column on which the pipe is
+	inc hl
+	cp [hl]
+	jr nz, .nextPipe
+	inc hl
+	ld de, $FFF4			; room to which the pipe leads
+	ldi a, [hl]
+	ld [de], a
+	inc e					; FFF5, room where you exit
+	ldi a, [hl]
+	ld [de], a
+	inc e					; FFF6 x position where you leave pipe
+	ldi a, [hl]
+	ld [de], a
+	inc e					; FFF7 y position where you leave pipe
+	ld a, [hl]
+	ld [de], a
+.restoreROMBankAndOut
+	ldh a, [$FFE1]
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+.out
+	pop bc
+	pop de
+	pop hl
+	ret
 
 ; hl contains the location in VRAM of the pipe?
 Call_22FD::
-	ldh a, [$FFF4]	; is 1 in underground, or when nearing a pipe?
+	ldh a, [$FFF4]	; is non-zero in underground, or when nearing a pipe?
 	and a
 	ret z
 	push hl
 	push de
-	ld de, $FFE0
+	ld de, -$20
 	push af
 	ld a, h
 	add a, $30		; C8.. is an "overlay" of VRAM, with warps/hidden blocks/...
@@ -2315,10 +2500,58 @@ Call_22FD::
 	pop hl
 	ret
 
-INCBIN "baserom.gb", $2321, $2363 - $2321
+Call_2321:: ; 2321
+	push hl
+	push de
+	push bc
+	ldh a, [$FFFD]
+	ldh [$FFE1], a
+	ld a, 3
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a	; todo far call macro?
+	ldh a, [hLevelIndex]
+	add a
+	ld e, a
+	ld d, $00
+	ld hl, $6536		; another lookup table
+	add hl, de
+	ld e, [hl]
+	inc hl
+	ld d, [hl]
+	push de
+	pop hl
+.checkBlock
+	ldh a, [hLevelBlock]
+	cp [hl]
+	jr z, .matchingLevelBlock
+	ld a, [hl]
+	cp a, $FF			; again, end of list
+	jr z, .restoreROMBankAndOut
+	inc hl
+.nextBlock
+	inc hl
+	inc hl
+	jr .checkBlock
+
+.matchingLevelBlock
+	ldh a, [hColumnIndex]
+	inc hl
+	cp [hl]
+	jr nz, .nextBlock
+	inc hl
+	ld a, [hl]
+	ld [$C0CD], a		; contents of block
+.restoreROMBankAndOut
+	ldh a, [$FFE1]
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	pop bc
+	pop de
+	pop hl
+	ret
 
 ; stores the content of the block in overlay?
-Call_2363::
+Call_2363:: ; 2363
 	ld a, [$C0CD]
 	and a
 	ret z
@@ -2334,6 +2567,8 @@ Call_2363::
 	pop hl
 	ret
 
+; too many calls to far banks
+GameState_0D::
 INCBIN "baserom.gb", $2376, $2401 - $2376
 
 AnimateBackground::
@@ -2396,7 +2631,7 @@ Call_2442::
 INCBIN "baserom.gb", $245C, $3D1A - $245C
 
 ; called at level start, is some sort of init
-call_3D1A; 3D1A
+Call_3D1A; 3D1A
 	ld hl, $C030	; TODO ? wOAMBuffer + $30 ? used for "dynamic" sprites?
 	ld b, $20
 	xor a
@@ -2709,7 +2944,7 @@ GameState_16::
 	jr .nextState
 
 ; Transform mario's pixel coordinates into the block he's currently standing on
-call_3EE6:: ; 3EE6
+Call_3EE6:: ; 3EE6
 	ldh a, [$FFAD]		; ~Y coordinate in current level block?
 	sub a, $10			; todo mario is 16 pixels tall?
 	srl a
@@ -2740,7 +2975,7 @@ call_3EE6:: ; 3EE6
 ; called when mario hits a block that "moves" up and down
 ; FFB0 and FFAF now seem to contain the block above him?
 ; FFAD and FFAE now seem to determine where the block-sprite spawns...
-call_3F13::
+Call_3F13::	; 3F13
 	ldh a, [$FFB0]		; hey look at that. goes from 98 to ~9B
 	ld d, a
 	ldh a, [$FFAF]		; 00 to FF?
