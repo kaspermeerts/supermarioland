@@ -42,4 +42,4 @@ charmap "-", $29
 charmap "$", $2A
 charmap "*", $2B
 charmap " ", $2C
-
+charmap "♥", $84

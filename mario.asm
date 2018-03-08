@@ -931,7 +931,145 @@ GameState_01::
 
 ; lots of calls to other banks. Later
 Gamestate_02::
-INCBIN "baserom.gb", $06DC, $07DA - $06DC
+	di
+	ld a, 0
+	ldh [rLCDC], a
+	call Call_1ED4		; clears sprites
+	call Call_165E		; clears "overlay"
+	ld hl, hLevelBlock
+	ld a, [$FFF9]		; nonzero if underground
+	and a
+	jr z, .overworld
+	xor a
+	ldh [$FFF9], a		; not underground anymore
+	ldh a, [$FFF5]		; block in which we'd've exited out of pipe
+	inc a				; to be decremented immediately after
+	jr .jmp_6F8
+
+.overworld
+	ld a, [hl]
+.jmp_6F8
+	cp a, $03
+	jr z, .findCheckpoint
+	dec a
+.findCheckpoint
+	ld bc, $030C
+	cp a, $07
+	jr c, .gotoCheckpoint
+	ld bc, $0734
+	cp a, $0B
+	jr c, .gotoCheckpoint
+	ld bc, $0B5C
+	cp a, $0F
+	jr c, .gotoCheckpoint
+	ld bc, $0F84
+	cp a, $13
+	jr c, .gotoCheckpoint
+	ld bc, $13AC
+	cp a, $17
+	jr c, .gotoCheckpoint
+	ld bc, $17D4
+.gotoCheckpoint
+	ld [hl], b
+	inc l
+	ld [hl], 0
+	ld a, c
+	ld [$C0AB], a		; "progress" in level, used to spawn enemies?
+	call Call_807		; draw first block of the level
+	ld hl, $982B		; right next to the coins
+	ld [hl], " "
+	inc l
+	ldh a, [hWorldAndLevel]
+	ld b, a
+	and a, $F0
+	swap a
+	ldi [hl], a
+	ld a, b
+	and a, $0F
+	inc l
+	ld [hl], a
+	ld hl, $9C00
+	ld de, .text_79A
+	ld b, $09
+.loop
+	ld a, [de]
+	ldi [hl], a
+	inc de
+	dec b
+	jr nz, .loop
+	xor a
+	ldh [hGameState], a
+	ld [$C0D3], a			; invincibility counter
+	ld a, $C3
+	ldh [rLCDC], a
+	call StartLevelMusic
+	xor a
+	ldh [rIF], a
+	ldh [$FFA4], a			; SCX
+	ld [$C0D2], a			; starts incrementing at end of level
+	ldh [$FFEE], a			; source of collision?
+	ld [$DA1D], a			; in case of time up
+	ldh [rTMA], a
+	ld hl, wTimer + 1
+	ldi [hl], a
+	ld [hl], $04
+	ld a, $28
+	ld [wTimer], a
+	ld a, $5B
+	ldh [$FFE9], a			; some sort of index in the level
+	ldh a, [hLevelIndex]
+	ld c, $0A				; submarine
+	cp a, $05
+	jr z, .autoscroll
+	ld c, $0C				; airplane
+	cp a, $0B
+	jr nz, .out
+.autoscroll
+	ld a, $0D
+	ldh [hGameState], a		; autoscroll
+	ld a, [$C203]			; animation index
+	and a, $F0
+	or c
+	ld [$C203], a
+.out
+	call $245C
+	ei
+	ret
+
+.text_79A
+	db " ♥pause♥ "
+
+StartLevelMusic::
+	ld a, [$C0D3]
+	and a
+	ret nz
+	ld a, 3
+	ld [MBC1RomBank], a
+	call $7FF3
+	ldh a, [$FFFD]
+	ld [MBC1RomBank], a
+	ldh a, [$FFF4]		; underground?
+	and a
+	jr nz, .underground
+	ldh a, [hLevelIndex]
+	ld hl, .musicByLevel
+	ld e, a
+	ld d, $00
+	add hl, de
+	ld a, [hl]
+	ld [$DFE8], a
+	ret
+
+.underground
+	ld a, 4				; underground music
+	ld [$DFE8], a
+	ret
+
+.musicByLevel
+	db 7, 7, 3
+	db 8, 8, 5
+	db 7, 3, 3
+	db 6, 6 ,5
 
 pauseOrReset:: ; 7DA
 	ldh a, [hJoyHeld]
@@ -1439,7 +1577,7 @@ GameState_0A:: ; 162F
 	ldh [rLCDC], a
 	ldh [hColumnIndex], a
 	call Call_1ED4		; clears sprites that aren't player, enemy or platform?
-	call .call_165E
+	call Call_165E
 	ldh a, [$FFF4]
 	ldh [hLevelBlock], a
 	call Call_807		; draws the first screen of the "level"
@@ -1461,7 +1599,7 @@ GameState_0A:: ; 162F
 	ret
 
 ; clear some sort of overlay?
-.call_165E ; 165E
+Call_165E ; 165E
 	ld hl, $CA3F		; the bottom rightmost tile of the total area
 	ld bc, $0240
 .clearLoop
@@ -1494,7 +1632,7 @@ GameState_0B:: ; 166C
 	xor a
 	ldh [rLCDC], a		; turn off lcd
 	ldh [hColumnIndex], a
-	call GameState_0A.call_165E	; A is zero after this
+	call Call_165E	; A is zero after this
 	ld hl, $FFF4
 	ldi [hl], a
 	ldi [hl], a
@@ -1535,7 +1673,7 @@ GameState_0B:: ; 166C
 	ldh [rLCDC], a
 	ld a, $0C
 	ldh [hGameState], a
-	call $7A3			; smth inside gamestate 02, reset to checkpoint
+	call StartLevelMusic
 	ei
 	ret
 
@@ -2224,7 +2362,31 @@ Call_1ED4:: ; 1ED4
 	pop hl
 	ret
 
-INCBIN "baserom.gb", $1F03, $21B1 - $1F03
+Call_1F03:: ; 1F03
+	ldh a, [hFrameCounter]
+	and a, $03
+	ret nz				; every 4 frames
+	ld a, [$C0D3]		; invincibility counter
+	and a
+	ret z
+	cp a, $01
+	jr z, .jmp_1F22
+	dec a
+	ld [$C0D3], a
+	ld a, [$C200]
+	xor a, $80
+	ld [$C200], a
+	ld a, [$DFE9]		; currently playing song
+	and a
+	ret nz
+.jmp_1F22
+	xor a
+	ld [$C0D3], a
+	ld [$C200], a		; mario visible
+	call StartLevelMusic
+	ret
+
+INCBIN "baserom.gb", $1F2D, $21B1 - $1F2D
 
 ; decompress a column from the level
 LoadNextColumn::	; 21B1
