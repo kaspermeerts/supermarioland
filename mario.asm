@@ -413,18 +413,18 @@ dw $5838 ; 0x17   Bonus game walking
 dw $583B ; 0x18   Bonus game descending ladder
 dw $583E ; 0x19   Bonus game ascending ladder
 dw $5841 ; 0x1A   Getting price
-dw $0DF9 ; 0x1B   Leaving Bonus game
-dw $0E15 ; 0x1C   Smth with the gate after a boss
-dw $0E31 ; 0x1D  
-dw $0E5D ; 0x1E   Gate opening
-dw $0E96 ; 0x1F   Gate open
-dw $0EA9 ; 0x20   Walk off button
-dw $0ECD ; 0x21   Mario offscreen
-dw $0F12 ; 0x22   Scroll to fake Daisy
-dw $0F33 ; 0x23   Walk to fake Daisy
-dw $0F6A ; 0x24   Fake Daisy speak
-dw $0FFD ; 0x25   Fake Daisy morphing
-dw $1055 ; 0x26   Fake Daisy monster jumping away
+dw $0DF9 ; 0x1B ✓ Leaving Bonus game
+dw $0E15 ; 0x1C ✓ Smth with the gate after a boss
+dw $0E31 ; 0x1D ✓
+dw $0E5D ; 0x1E ✓ Gate opening
+dw $0E96 ; 0x1F ✓ Gate open
+dw $0EA9 ; 0x20 ✓ Walk off button
+dw $0ECD ; 0x21 ✓ Mario offscreen
+dw $0F12 ; 0x22 ✓ Scroll to fake Daisy
+dw $0F33 ; 0x23 ✓ Walk to fake Daisy
+dw $0F6A ; 0x24 ✓ Fake Daisy speak
+dw $0FFD ; 0x25 ✓ Fake Daisy morphing
+dw $1055 ; 0x26 ✓ Fake Daisy monster jumping away
 dw $1099 ; 0x27   Tatanga dying
 dw $0EA9 ; 0x28   Tatanga dead, plane moves forward
 dw $1116 ; 0x29  
@@ -1343,6 +1343,7 @@ GameState_05:: ; C73
 	ldh [$FFA6], a
 	ret
 
+; Winning
 GameState_06:: ; CCB
 	ldh a, [$FFA6]
 	and a
@@ -1362,6 +1363,7 @@ GameState_06:: ; CCB
 	jr nc, .bonusGame
 	ld a, $08		; increment level
 	jr .changeState
+
 .bonusGame
 	ld a, 2			; bonus game is stored in bank 2
 	ldh [$FFFD], a
@@ -1370,6 +1372,7 @@ GameState_06:: ; CCB
 .changeState
 	ldh [hGameState], a
 	ret
+
 .bossLevel
 	ldh [hGameState], a
 	ld a, 3
@@ -1379,14 +1382,14 @@ GameState_06:: ; CCB
 	ld a, [hl]
 	ldh [$FFFB], a
 	ld [hl], $0C
-	inc l
+	inc l				; hl ← level block
 	xor a
-	ldi [hl], a
-	ldi [hl], a
+	ldi [hl], a			; hl = hLevelBlock
+	ldi [hl], a			; hl = hColumnIndex
 	ldh [$FFA3], a
 	inc l
 	inc l
-	ld a, [hl]
+	ld a, [hl]			; ffe9, first not yet loaded column
 	ldh [$FFE0], a
 	ld a, $06
 	ldh [$FFA6], a
@@ -1553,7 +1556,406 @@ GameState_1B:: ; DF9
 	ldh [$FFB1], a
 	ret
 
-INCBIN "baserom.gb", $E15, $161B - $E15
+GameState_1C:: ; E15
+	ldh a, [$FFA6]		; FFA6 is 5 the first time?
+	and a
+	jr z, .nextState
+	call LoadNextColumn	; doesn't seem to be necessary
+	xor a
+	ld [$C0AB], a
+	call $2491			; explode enemies?
+	call Call_1736		; mario animation?
+	ret
+
+.nextState
+	ld a, $40			; 2/3 second
+	ldh [$FFA6], a
+	ld hl, hGameState
+	inc [hl]
+	ret					; 1C → 1D
+
+GameState_1D:: ; E31
+	xor a
+	ld [$C0AB], a
+	call $2491
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ldh a, [$FFE0]		; first column past the end
+	sub a, $02			; above gate
+	cp a, $40
+	jr nc, .nowrap		; in case of wrap around
+	add a, $20			; one screen width
+.nowrap
+	ld l, a
+	ld h, $98
+	ld de, 9 * $20		; bottom of the gate is 9 tiles under top
+	add hl, de
+	ld a, l
+	ldh [$FFE0], a		; contains low byte of location of bottom of gate
+	ld a, $05
+	ldh [$FFFC], a		; gate consists of 4 segments (+1 because of shitty logic)
+	ld a, $08
+	ldh [$FFA6], a		; timer
+	ld hl, hGameState
+	inc [hl]
+	ret
+
+; Open gate
+GameState_1E:: ; E5D
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ldh a, [$FFFC]
+	dec a
+	jr z, .gateIsOpen
+	ldh [$FFFC], a
+	ldh a, [$FFE0]
+	ld l, a
+	ld h, $99
+	sub a, $20
+	ldh [$FFE0], a
+.waitHBlank
+	ldh a, [$FF41]
+	and a, %11
+	jr nz, .waitHBlank
+	ld [hl], " "
+	ld a, $08
+	ldh [$FFA6], a
+	ld a, $0B
+	ld [$DFE0], a		; sound effect
+	ret
+
+.gateIsOpen
+	ld a, $10
+	ldh [$FFA6], a
+	ld a, $03
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	call $7FF3
+	ld hl, hGameState
+	inc [hl]			; 1E → 1F
+	ret
+
+; gate is open
+GameState_1F:: ; E96
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	xor a
+	ld [$C0D2], a		; increments at end of level
+	ld [$C207], a		; jump status
+	inc a
+	ldh [$FFF9], a		; tiens, non zero in underground
+	ld hl, hGameState
+	inc [hl]			; 1F → 20
+	ret
+
+; Mario walk off screen
+GameState_20:: ; EA9
+	call .walkRight
+	ld a, [$C202]		; mario on screen X
+	cp a, $C0
+	ret c
+	ld a, $20
+	ldh [$FFA6], a
+	ld hl, hGameState
+	inc [hl]			; 20 → 21
+	ret
+
+.walkRight
+	ld a, $10
+	ldh [hJoyHeld], a	; simulate pressing Right button todo
+	ld a, [$C203]		; animation index
+	and a, $0F
+	cp a, $0A			; animations >= $0A are sub or airplane
+	call c, $17BC
+	call Call_16F5		; animate and move mario
+	ret
+
+; preparing Fake Daisy
+GameState_21:: ; ECD
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	call .prepareMarioAndDaisy
+	xor a
+	ldh [$FFEA], a		; render status?
+	ldh [$FFA3], a		; switches between 0 and 8..
+	ld a, $A1
+	ldh [$FFA6], a
+	ld a, $0F
+	ld [$DFE8], a		; Daisy music
+	ld hl, hGameState
+	inc [hl]			; 21 → 22
+	ret
+
+.prepareMarioAndDaisy
+	ld hl, $C201		; mario y position
+	ld [hl], $7E
+	inc l
+	ld [hl], $B0		; mario x
+	inc l
+	ld a, [hl]			; C203
+	and a, $F0
+	ld [hl], a
+	ld hl, $C210
+	ld de, Data_211D
+	ld b, $10
+.loop
+	ld a, [de]
+	ldi [hl], a
+	inc de
+	dec b
+	jr nz, .loop
+	ld hl, $C211
+	ld [hl], $7E		; sprite Y pos?
+	inc l
+	ld [hl], $00		; sprite X pos?
+	inc l
+	ld [hl], $22		; Daisy :)
+	inc l
+	inc l
+	ld [hl], $20		; flipped
+	ret
+
+
+; scroll the screen
+GameState_22:: ; F12
+	ldh a, [$FFA6]
+	and a
+	jr z, .nextState
+	ld hl, $FFA4		; scroll coord
+	inc [hl]
+	call Call_2198		; loads in columns?
+	ld hl, $C202		; mario x pos
+	dec [hl]
+	ld hl, $C212		; fake daisy x pos
+	dec [hl]
+.animateMarioAndReturn
+	call Call_1736
+	ret
+
+.nextState
+	ldh a, [$FFFB]		; temporarily stores level index?
+	ldh [hLevelIndex], a
+	ld hl, hGameState
+	inc [hl]			; 22 → 23
+	ret
+
+GameState_23:: ; F33
+	ld a, $10			; right button
+	ldh [hJoyHeld], a
+	call $17BC
+	call Call_16F5
+	ld a, [$C202]
+	cp a, $4C			; almost middle of screen
+	ret c
+	ld a, [$C203]
+	and a, $F0
+	ld [$C203], a		; mario standing still
+	ld a, [$FFE0]		; top of gate?
+	sub a, $40			; two tiles up
+	add a, $04			; four to the right
+	ld b, a
+	and a, $F0
+	cp a, $C0
+	ld a, b
+	jr nz, .nowrap
+	sub a, $20
+.nowrap
+	ldh [$FFE3], a		; probably where the text will appear
+	ld a, $98
+	ldh [$FFE2], a
+	xor a
+	ldh [$FFFB], a
+	ld hl, hGameState
+	inc [hl]
+	jr GameState_22.animateMarioAndReturn
+
+; Fake Daisy speaking
+GameState_24:: ; F6A
+	ld hl, .text_FE1
+	call .fakeDaisySpeech
+	cp a, $FF		; end of speech
+	ret nz
+	ld hl, hGameState
+	inc [hl]		; 24 → 25
+	ld a, $80
+	ld [$C210], a	; make sprite invisible
+	ld a, $08
+	ldh [$FFA6], a
+	ld a, $08
+	ldh [$FFFB], a	; timer for morph
+	ld a, $12
+	ld [$DFE8], a	; music
+	ret
+
+.fakeDaisySpeech
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ld a, [$FFFB]	; keeps track of letters
+	ld e, a
+	ld d, $00
+	add hl, de
+	ld a, [hl]
+	ld b, a
+	cp a, $FE
+	jr z, .newline
+	cp a, $FF
+	ret z
+	ldh a, [$FFE2]
+	ld h, a
+	ld a, [$FFE3]
+	ld l, a
+.waitHBlank1
+	ldh a, [rSTAT]
+	and a, %11
+	jr nz, .waitHBlank1
+.waitHBlank2
+	ldh a, [rSTAT]
+	and a, %11
+	jr nz, .waitHBlank2
+	ld [hl], b
+	inc hl
+	ld a, h
+	ldh [$FFE2], a
+	ld a, l
+	and $0F
+	jr nz, .nowrap
+	bit 4, l
+	jr nz, .nowrap
+	ld a, l
+	sub a, $20
+.nextletter
+	ldh [$FFE3], a
+	inc e
+	ld a, e
+	ldh [$FFFB], a
+	ld a, $0C
+	ldh [$FFA6], a
+	ret
+
+.nowrap
+	ld a, l
+	jr .nextletter
+
+.newline
+	inc hl
+	ldi a, [hl]			; next byte determines how many tiles to skip
+	ld c, a
+	ld b, $00
+	ld a, [hl]
+	push af
+	ldh a, [$FFE2]
+	ld h, a
+	ldh a, [$FFE3]
+	ld l, a
+	add hl, bc
+	pop bc
+	inc de
+	inc de
+	jr .waitHBlank1
+
+.text_FE1
+	db "thank you mario.", $FE, $73
+	db "oh! daisy", $FF	
+
+; Fake Daisy morphing
+GameState_25:: ; FFD
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ldh a, [$FFFB]
+	dec a
+	jr z, .nextState
+	ldh [$FFFB], a
+	and a, $01
+	ld hl, .morphSprites1
+	jr nz, .exchangeSprites
+	ld hl, .morphSprites2
+	ld a, 3
+	ld [$DFF8], a
+.exchangeSprites
+	call .writeSprites
+	ld a, $08
+	ldh [$FFA6], a
+	ret
+
+.nextState
+	ld hl, $C210
+	ld [hl], $00		; make sprite visible
+	ld hl, hGameState
+	inc [hl]			; 25 → 26
+	ret
+
+.writeSprites
+	ld de, wOAMBuffer + 4 * $7	; Daisy sprite
+	ld b, 4 * 4					; 4 concomitant sprites
+.loop
+	ldi a, [hl]
+	ld [de], a
+	inc e
+	dec b
+	jr nz, .loop
+	ret
+
+.morphSprites1
+	db $78, $58, $06, $00
+	db $78, $60, $06, $20
+	db $80, $58, $06, $40
+	db $80, $60, $06, $60
+
+.morphSprites2
+	db $78, $58, $07, $00
+	db $78, $60, $07, $20
+	db $80, $58, $07, $40
+	db $80, $60, $07, $60
+
+; Fake Daisy monster jumping away
+GameState_26:: ; 1055
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ld hl, $C213		; sprite 1 animation index?
+	ld [hl], $20		; jumping enemy
+	ld bc, $C218
+	ld hl, Data_216D	; jumping curve
+	push bc
+	call $490D			; animates smth?
+	pop hl
+	dec l
+	ld a, [hl]
+	and a
+	jr nz, .advanceMonster
+	ld [hl], $01
+	ld hl, $C213
+	ld [hl], $21		; jumping enemy on the ground
+	ld a, $40
+	ldh [$FFA6], a
+.advanceMonster
+	ldh a, [hFrameCounter]
+	and a, %1
+	jr nz, .out
+	ld hl, $C212
+	inc [hl]
+	ld a, [hl]
+	cp a, $D0
+	jr nc, .monsterOutOfView
+.out
+	call Call_1736
+	ret
+
+.monsterOutOfView
+	ld hl, hGameState
+	ld [hl], $12		; go to bonus game
+	ld a, $02
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	ret
+
+INCBIN "baserom.gb", $1099, $161B - $1099
 
 ; go down pipe
 GameState_09:: ; 161B
