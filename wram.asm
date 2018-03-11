@@ -33,4 +33,4 @@ wTimer:: ; DA00-DA02
 
 ds $DA15 - $DA03
 
-wNumLives::	db	; $DA15
+wLives::	db	; $DA15

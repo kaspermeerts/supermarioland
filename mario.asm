@@ -116,6 +116,7 @@ LCDStatus::
 	pop hl
 	pop af
 	reti
+
 .jmp_CF
 	ld hl, rLCDC
 	res 5, [hl]		; Turn off Window
@@ -124,6 +125,7 @@ LCDStatus::
 	xor a
 	ld [$C0A5], a
 	jr .jmp_CC
+
 .jmp_DE
 	push af
 	ldh a, [$FFFB]
@@ -134,6 +136,7 @@ LCDStatus::
 .jmp_E7
 	pop af
 	jr .jmp_C5
+
 .jmp_EA
 	ld a, $FF
 	ld [$C0AD], a
@@ -388,7 +391,7 @@ Init::	; 0185
 	; 2A6
 dw $0627 ; 0x00   Normal gameplay
 dw $06BC ; 0x01 ✓ Dead?
-dw $06DC ; 0x02   Reset to checkpoint
+dw $06DC ; 0x02 ✓ Reset to checkpoint
 dw $0B8D ; 0x03 ✓ Pre dying
 dw $0BD6 ; 0x04 ✓ Dying animation
 dw $0C73 ; 0x05 ✓ Explosion/Score counting down
@@ -425,24 +428,24 @@ dw $0F33 ; 0x23 ✓ Walk to fake Daisy
 dw $0F6A ; 0x24 ✓ Fake Daisy speak
 dw $0FFD ; 0x25 ✓ Fake Daisy morphing
 dw $1055 ; 0x26 ✓ Fake Daisy monster jumping away
-dw $1099 ; 0x27   Tatanga dying
-dw $0EA9 ; 0x28   Tatanga dead, plane moves forward
-dw $1116 ; 0x29  
-dw $1165 ; 0x2A   Daisy speaking
-dw $1194 ; 0x2B   Daisy moving
-dw $11D0 ; 0x2C   Daisy kissing
-dw $121B ; 0x2D   Daisy quest over
-dw $1254 ; 0x2E   Mario credits running
-dw $12A1 ; 0x2F   Entering airplane
-dw $12C2 ; 0x30   Airplane taking off
-dw $12F1 ; 0x31   Airplane moving forward
-dw $138E ; 0x32   Airplane leaving hanger?
-dw $13F0 ; 0x33   In between two credits?
-dw $1441 ; 0x34   Credits coming up
-dw $145A ; 0x35   Credits stand still
-dw $1466 ; 0x36   Credits leave
-dw $1488 ; 0x37   Airplane leaving
-dw $14DC ; 0x38   THE END letters flying
+dw $1099 ; 0x27 ✓ Tatanga dying
+dw $0EA9 ; 0x28 ✓ Tatanga dead, plane moves forward
+dw $1116 ; 0x29 ✓ 
+dw $1165 ; 0x2A ✓ Daisy speaking
+dw $1194 ; 0x2B ✓ Daisy moving
+dw $11D0 ; 0x2C ✓ Daisy kissing
+dw $121B ; 0x2D ✓ Daisy quest over
+dw $1254 ; 0x2E ✓ Mario credits running
+dw $12A1 ; 0x2F ✓ Entering airplane
+dw $12C2 ; 0x30 ✓ Airplane taking off
+dw $12F1 ; 0x31 ✓ Airplane moving forward
+dw $138E ; 0x32 ✓ Airplane leaving hanger?
+dw $13F0 ; 0x33 ✓ In between two credits?
+dw $1441 ; 0x34 ✓ Credits coming up
+dw $145A ; 0x35 ✓ Credits stand still
+dw $1466 ; 0x36 ✓ Credits leave
+dw $1488 ; 0x37 ✓ Airplane leaving
+dw $14DC ; 0x38 ✓ THE END letters flying
 dw $1C7C ; 0x39 ✓ Pre game over?
 dw $1CE8 ; 0x3A ✓ Game over
 dw $1CF0 ; 0x3B ✓ Pre time up
@@ -495,7 +498,7 @@ GameState_0E::
 	ld de, $8000
 	ld bc, $02A0
 	call CopyData	; same, but to the other tile data bank
-	call FillTileMapWithEmptyTile
+	call Call_5CF
 	xor a
 	ldh [hLevelBlock], a
 	ldh a, [hLevelIndex]
@@ -806,7 +809,7 @@ GameState_11::	; 576
 	ldh [hCoins], a
 .jmp_58B
 	call Call_5E7	; todo
-	call FillTileMapWithEmptyTile
+	call Call_5CF
 	ld hl, $9C00
 	ld b, $5F
 	ld a, " "
@@ -840,9 +843,10 @@ GameState_11::	; 576
 GameState_10:: ;5CE Huh? Unused?
 	ret
 
-FillTileMapWithEmptyTile:: ; 05CF  What a waste
+Call_5CF:: ; 05CF  What a waste
 	ld hl, $9BFF	; TODO... name
 	ld bc, $0400
+EraseTileMap:: ; 5D5
 .loop
 	ld a, " "
 	ldd [hl], a
@@ -930,7 +934,7 @@ GameState_01::
 	ret
 
 ; lots of calls to other banks. Later
-Gamestate_02::
+GameState_02::
 	di
 	ld a, 0
 	ldh [rLCDC], a
@@ -1112,10 +1116,10 @@ Call_807::
 	jr nz, .copyLoop	; if you're not going to fucking use it
 	ldh a, [hSuperStatus]
 	and a
-	jr z, .smallMario
+	jr z, .drawLevel	; jump if small mario
 	ld a, $10
 	ld [$C203], a		; animation index. upper nibble is 1 of large mario
-.smallMario				; does weird things in autoscroll
+.drawLevel::			; does weird things in autoscroll
 	ld hl, hColumnIndex
 	xor a
 	ld b, 6
@@ -1651,7 +1655,8 @@ GameState_1F:: ; E96
 	inc [hl]			; 1F → 20
 	ret
 
-; Mario walk off screen
+; Mario walks/flies off screen
+GameState_28::
 GameState_20:: ; EA9
 	call .walkRight
 	ld a, [$C202]		; mario on screen X
@@ -1690,7 +1695,7 @@ GameState_21:: ; ECD
 	inc [hl]			; 21 → 22
 	ret
 
-.prepareMarioAndDaisy
+.prepareMarioAndDaisy::
 	ld hl, $C201		; mario y position
 	ld [hl], $7E
 	inc l
@@ -1955,7 +1960,780 @@ GameState_26:: ; 1055
 	ld [MBC1RomBank], a
 	ret
 
-INCBIN "baserom.gb", $1099, $161B - $1099
+; Shaking, explosions, blocks disappearing
+; the blocks are removed by a constantly rotating bitmask ANDed with the tiles
+; the bitmask goes
+; 10111111 → 11100111 → 11101100 → 10001101 → 10100001 → 00100100 → 1000010 → 1000000
+GameState_27::	; 1099
+	ldh a, [$FFA7]
+	and a
+	jr nz, .jmp_10A7
+	ld a, $01
+	ld [$DFF8], a		; explosion sound effect
+	ld a, $20
+	ldh [$FFA7], a
+.jmp_10A7
+	xor a
+	ld [$C0AB], a
+	call $2491			; explosions?
+	ldh a, [$FFA6]
+	ld c, a
+	and a, %11			; shake every 4 frames
+	jr nz, .disintegrateBlocks
+	ldh a, [$FFFB]
+	xor a, $01
+	ldh [$FFFB], a
+	ld b, -4
+	jr z, .shake
+	ld b, 4
+.shake
+	ld a, [$C0DF]		; scroll Y
+	add b
+	ld [$C0DF], a
+.disintegrateBlocks
+	ld a, c
+	cp a, $80
+	ret nc				; start disappearing block 128 frames before the end
+	and a, $20 - 1		; every 32 frames
+	ret nz
+	ld hl, $8DD0		; all kinds of tiles, even tho only 3 are visible
+	ld bc, 34 * $10		; 34 from the start, but it skips ahead somewhere
+	ldh a, [$FFFC]		; starts at BF 10111111
+	ld d, a
+.maskTileRow
+.waitHBlank1			; todo macro
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank1
+	ld a, [hl]
+	and d
+	ld e, a
+.waitHBlank2
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank2
+	ld [hl], e
+	inc hl
+	ld a, h
+	cp a, $8F
+	jr nz, .dontSkipAhead
+	ld hl, $9690
+.dontSkipAhead
+	rrc d				; rotate the bitmask to the right
+	dec bc
+	ld a, c
+	or b
+	jr nz, .maskTileRow
+	ldh a, [$FFFC]
+	sla a				; shift a new zero bit in the mask
+	jr z, .allTilesGone
+	swap a
+	ldh [$FFFC], a
+	ld a, $3F
+	ldh [$FFA6], a
+	ret
+
+.allTilesGone
+	xor a
+	ld [$C0DF], a		; stop screen shake
+	ld [$C0D2], a
+	inc a
+	ldh [$FFF9], a
+	ld hl, hGameState
+	inc [hl]			; 27 → 28
+	ret
+
+GameState_29:: ; 1116
+	di
+	xor a
+	ldh [rLCDC], a
+	ldh [$FFF9], a
+	ld hl, $9C00
+	ld bc, $0100
+	call EraseTileMap
+	call Call_807.drawLevel
+	call GameState_21.prepareMarioAndDaisy
+	ld hl, $C202		; mario X position
+	ld [hl], $38
+	inc l
+	ld [hl], $10		; Super Mario
+	ld hl, $C212
+	ld [hl], $78		; Daisy X position
+	xor a
+	ldh [rIF], a
+	ldh [$FFA4], a		; X scroll
+	ld [$C0DF], a		; Y isn't scrolled
+	ldh [$FFFB], a
+	ld hl, wOAMBuffer
+	ld b, 3*4			; 3 projectiles?
+.loop
+	ldi [hl], a
+	dec b
+	jr nz, .loop
+	call Call_1736
+	ld a, $98
+	ldh [$FFE2], a
+	ld a, $A5
+	ldh [$FFE3], a
+	ld a, $0F
+	ld [$DFE8], a
+	ld a, $C3
+	ldh [rLCDC], a
+	ei
+	ld hl, hGameState
+	inc [hl]			; 29 → 2A
+	ret
+
+GameState_2A:: ; 1165
+	ld hl, .text_1183
+	call GameState_24.fakeDaisySpeech	; todo
+	cp a, $FF
+	ret nz
+	xor a
+	ldh [$FFFB], a
+	ld a, $99
+	ldh [$FFE2], a
+	ld a, $02
+	ldh [$FFE3], a
+	ld a, $23
+	ld [$C213], a		; animation index?
+	ld hl, hGameState
+	inc [hl]			; 2A → 2B
+	ret
+
+.text_1183
+	db "oh! daisy", $FE, $1B, "daisy", $FF
+
+; Daisy running towards Mario
+GameState_2B:: ; 1194
+	ld hl, .text_11BF
+	call GameState_24.fakeDaisySpeech
+	ldh a, [hFrameCounter]
+	and a, $03
+	ret nz
+	ld hl, $C212		; daisy X pos
+	ld a, [hl]
+	cp a, $44
+	jr c, .out
+	dec [hl]
+	call Call_1736
+	ret
+
+.out
+	ld hl, hGameState
+	inc [hl]
+	ld hl, wOAMBuffer +  4 * $C
+	ld [hl], $70		; Y pos
+	inc l
+	ld [hl], $3A		; X pos
+	inc l
+	ld [hl], "♥"		; sprite
+	inc l
+	ld [hl], 0
+	ret
+
+.text_11BF
+	db "thank you mario.", $FF
+
+; kiss ^_^
+GameState_2C:: ; 11D0
+	ldh a, [hFrameCounter]
+	and a, %1
+	ret nz
+	ld hl, wOAMBuffer + 4 * $C ; todo sprite macro?
+	dec [hl]			; Y pos
+	ldi a, [hl]
+	cp a, $20			; if heart gets high
+	jr c, .clearMessageAndOut
+	ldh a, [$FFFB]
+	and a
+	ld a, [hl]
+	jr nz, .goRight
+	dec [hl]			; heart goes left
+	cp a, $30
+	ret nc
+.out
+	ldh [$FFFB], a
+	ret
+
+.goRight
+	inc [hl]
+	cp a, $50
+	ret c
+	xor a
+	jr .out
+
+.clearMessageAndOut
+	ld [hl], $F0
+	ld b, $6D
+	ld hl, $98A5
+.loop
+.waitHBlank1
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank1
+.waitHBlank2
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank2
+	ld [hl], " "
+	inc hl
+	dec b
+	jr nz, .loop
+	xor a
+	ldh [$FFFB], a
+	ld a, $99
+	ldh [$FFE2], a
+	ld a, $00
+	ldh [$FFE3], a
+	ld hl, hGameState
+	inc [hl]			; 2C → 2D
+	ret
+
+; your quest is over
+GameState_2D:: ; 121B
+	ld hl, .text_123F
+	call GameState_24.fakeDaisySpeech
+	cp a, $FF
+	ret nz
+	ld hl, $C213	; daisy run
+	ld [hl], $24
+	inc l
+	inc l
+	ld [hl], $00	; facing right?
+	ld hl, $C241	; spaceship entity
+	ld [hl], $7E	; Y pos
+	inc l
+	inc l
+	ld [hl], $28	; spaceship
+	inc l
+	inc l
+	ld [hl], $00	; facing right
+	ld hl, hGameState
+	inc [hl]		; 2D → 2E
+	ret
+
+.text_123F
+	db "-your quest is over-", $FF
+
+; Mario & Daisy walking
+GameState_2E::
+	ldh a, [hFrameCounter]
+	and a, $03
+	jr nz, .jmp_1261
+	ld hl, $C213		; daisy animation
+	ld a, [hl]
+	xor a, $01			; two daisy walking sprites
+	ld [hl], a
+.jmp_1261
+	ld hl, $C240		; spaceship
+	ld a, [hl]
+	and a
+	jr nz, .walkMarioDaisy
+	inc l				; move spaceship
+	inc l
+	dec [hl]			; X pos
+	ld a, [hl]
+	cp a, $50
+	jr nz, .checkIfBothAreInSpaceship	; todo name
+	ld a, $80			; Mario "enters" the spaceship (becomes invisible)
+	ld [$C200], a
+	jr .walkMarioDaisy
+
+.checkIfBothAreInSpaceship
+	cp a, $40
+	jr nz, .walkMarioDaisy
+	ld a, $80
+	ld [$C210], a		; Daisy "enters" the spaceship
+	ld a, $40
+	ldh [$FFA6], a		; 40 frames
+	ld hl, hGameState
+	inc [hl]			; 2E → 2F
+.walkMarioDaisy
+	call GameState_20.walkRight
+	call Call_2198		; level rendering
+	ldh a, [hLevelBlock]
+	cp a, $03
+	ret nz
+	ldh a, [hColumnIndex]
+	and a
+	ret nz
+	ld hl, $C240		; spaceship
+	ld [hl], $00		; make visible?
+	inc l
+	inc l
+	ld [hl], $C0		; X pos
+	ret
+
+; prepare for liftoff
+GameState_2F:: ; 12A1
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ld hl, $C240		; spaceship
+	ld de, $C200		; mario
+	ld b, $06
+.loop
+	ldi a, [hl]
+	ld [de], a
+	inc e
+	dec b
+	jr nz, .loop		; todo macro?
+	ld hl, $C203		; animation
+	ld [hl], $26
+	ld hl, $C241		; previous spaceship
+	ld [hl], $F0		; out of sight, out of mind
+	ld hl, hGameState
+	inc [hl]			; 2F → 30
+	ret
+
+GameState_30:: ; 12C2
+	call Call_1736		; animate "Mario" (spaceship)
+	ldh a, [hFrameCounter]
+	ld b, a
+	and a, 1
+	ret nz
+	ld hl, $C240
+	ld [hl], $FF		; make invisible. Why not do this before?
+	ld hl, $C201		; Y pos
+	dec [hl]			; take off
+	ldi a, [hl]
+	cp a, $58
+	jr z, .cruisingAltitude
+	call .switchSpaceshipAnimation
+	ret
+
+.cruisingAltitude
+	ld hl, hGameState
+	inc [hl]				; 30 → 31
+	ld a, $04
+	ldh [$FFFB], a
+	ret
+
+.switchSpaceshipAnimation
+	ldh a, [hFrameCounter]
+	and a, 3
+	ret nz
+	inc l
+	ld a, [hl]				; C203, animation
+	xor a, 1				; switch exhaust flame
+	ld [hl], a
+	ret
+
+GameState_31:: ; 12F1
+	call .animateSpaceship
+	call Call_2198		; loads level
+	ldh a, [$FFA4]		; X scroll
+	inc a
+	call z, .call_1318
+	inc a
+	call z, .call_1318
+	ldh [$FFA4], a
+	ld a, [$DFE9]		; wait until the song is over?
+	and a
+	ret nz
+	ld a, $11
+	ld [$DFE8], a
+	ret
+
+.animateSpaceship
+	ld hl, $C202		; X pos
+	call GameState_30.switchSpaceshipAnimation
+	call Call_1736		; animate entities
+	ret
+
+.call_1318
+	push af
+	ldh a, [$FFFB]
+	dec a				; FFFB starts at 4. So traverse 4 blocks
+	ld [$FFFB], a
+	jr nz, .out
+	ldh [rLYC], a		; A is 0 here. Removes HUD?
+	ld a, $21
+	ldh [$FFFB], a
+	ld a, $54
+	ldh [$FFE9], a
+	call .clearColumn
+	ld hl, $C210
+	ld de, .data_137F
+	call .replaceEntity
+	ld hl, $C220		; cloud?
+	ld de, .data_1384
+	call .replaceEntity
+	ld hl, $C230
+	ld de, .data_1389
+	call .replaceEntity
+	ld hl, hGameState
+	inc [hl]
+.out
+	pop af
+	ret
+
+.clearColumn
+	ld hl, $C0B0
+	ld b, $10
+	ld a, $2C
+.clearLoop
+	ldi [hl], a
+	dec b
+	jr nz, .clearLoop
+	ld a , 1
+	ldh [$FFEA], a
+	ld b, $02
+	ldh a, [$FFE9]		; first not yet loaded column
+	sub a, $20
+	ld l, a
+	ld h, $98
+.clearLoop2
+.waitHBlank
+	ldh a, [rSTAT]
+	and a, 3
+	jr nz, .waitHBlank
+	ld [hl], " "
+	ld a, l
+	sub a, $20
+	ld l, a
+	dec b
+	jr nz, .clearLoop2
+	ret
+
+.replaceEntity
+	ld b, $05
+.loop
+	ld a, [de]
+	ldi [hl], a
+	inc de
+	dec b
+	jr nz, .loop
+	ret
+
+.data_137F
+	db $00, $30, $D0, $29, $80
+.data_1384
+	db $80, $70, $10, $2A, $80
+.data_1389
+	db $80, $40, $70, $29, $80
+
+GameState_32:: ; 138E
+	call AnimateSpaceshipAndClouds
+	ldh a, [$FFA4]
+	inc a
+	inc a
+	ldh [$FFA4], a	; scx
+	and a, $08
+	ld b, a
+	ldh a, [$FFA3]	; switches between 0 and 8, depending on column loaded
+	cp b
+	ret nz
+	xor a, $08
+	ldh [$FFA3], a
+	call GameState_31.clearColumn
+	ldh a, [$FFFB]
+	dec a
+	ldh [$FFFB], a
+	ret nz
+	xor a
+	ldh [$FFA4], a
+	ld a, $60
+	ldh [rLYC], a
+	ld hl, Text_1557
+	ld a, h
+	ldh [$FFE2], a
+	ld a, l
+	ldh [$FFE3], a
+	ld a, $F0
+	ldh [$FFA6], a
+	ld hl, hGameState
+	inc [hl]		; 32 → 33
+	ret
+
+
+GameState_33:: ; 13C4
+.animateClouds
+	ld hl, $C212	; clouds X pos
+	ld de, $0010
+	ld b, $03
+.floatCloud
+	dec [hl]		; float to the left
+	ld a, [hl]
+	cp a, $01
+	jr nz, .checkCloudForReset
+	ld [hl], $FE
+	jr .nextCloud
+
+.checkCloudForReset
+	cp a, $E0
+	jr nz, .nextCloud	; reset if cloud hits E0 from the right
+	push hl
+	ldh a, [rDIV]	; divider register, pseudorandom
+	dec l			; Y position
+	add [hl]
+	and a, $7F		; make Y pos <= 7F
+	cp a, $68		; clear between 3F and 68 (spaceship, the end)
+	jr nc, .resetCloud
+	and a, $3F
+.resetCloud
+	ldd [hl], a
+	ld [hl], 0
+	pop hl
+.nextCloud
+	add hl, de
+	dec b
+	jr nz, .floatCloud
+	ret
+
+.entryPoint:: ; 13F0
+	call AnimateSpaceshipAndClouds
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ldh a, [$FFE2]
+	ld h, a
+	ldh a, [$FFE3]
+	ld l, a
+	ld de, $9A42	; start of first line. Below the stage, scrolled in later
+.printLine
+	ld a, [hl]
+	cp a, $FE		; end of line
+	jr z, .eraseTillEndOfLine
+	inc hl
+	ld b, a
+.printCharacter
+.waitHBlank1
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank1
+.waitHBlank2
+	ldh a, [rSTAT]
+	and a, $03
+	jr nz, .waitHBlank2
+	ld a, b
+	ld [de], a
+	inc de
+	ld a, e
+	cp a, $54
+	jr z, .nextLine
+	cp a, $93
+	jr z, .startCreditsScroll
+	jr .printLine
+
+.eraseTillEndOfLine
+	ld b, " "
+	jr .printCharacter
+
+.nextLine
+	ld de, $9A87
+	inc hl
+	jr .printLine
+
+.startCreditsScroll
+	inc hl
+	ld a, [hl]
+	cp a, $FF
+	jr nz, .nextState
+	ld a, $FF
+	ld [$C0DE], a		; will be put in SCY
+.nextState
+	ld a, h
+	ldh [$FFE2], a
+	ld a, l
+	ldh [$FFE3], a
+	ld hl, hGameState
+	inc [hl]			; 33 → 34
+	ret
+
+; credits entering
+GameState_34::
+	call AnimateSpaceshipAndClouds
+	ldh a, [hFrameCounter]
+	and a, 3
+	ret nz
+	ld hl, $C0DF		; scroll Y
+	inc [hl]
+	ld a, [hl]
+	cp a, $20			; scroll $20 pxs up
+	ret nz
+	ld hl, hGameState
+	inc [hl]			; 34 → 35
+	ld a, $50
+	ldh [$FFA6], a
+	ret
+
+
+GameState_35:: ; 145A
+	call AnimateSpaceshipAndClouds
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ld hl, hGameState
+	inc [hl]			; 35 → 36
+	ret
+
+; scroll credits up, out of sight
+GameState_36:: ; 1466
+	call AnimateSpaceshipAndClouds
+	ldh a, [hFrameCounter]
+	and a, 3
+	ret nz
+	ld hl, $C0DF
+	inc [hl]
+	ld a, [hl]
+	cp a, $50
+	ret nz
+	xor a
+	ld [$C0DF], a
+	ld a, [$C0DE]
+	cp a, $FF
+	ld a, $33
+	jr nz, .out
+	ld a, $37
+.out
+	ldh [hGameState], a
+	ret
+
+; spaceship flies off, prepare "THE END"
+GameState_37::
+	call AnimateSpaceshipAndClouds
+	ld hl, $C202		; X position
+	inc [hl]
+	ld a, [hl]
+	cp a, $D0			; out of sight??
+	ret nz
+	dec l
+	ld [hl], $F0
+	push hl
+	call Call_1736
+	pop hl
+	dec l
+	ld [hl], $FF		; make invisible?
+	ld hl, wOAMBuffer + 4 * $1C	; sprite 1C?
+	ld de, .data_14C4
+	ld b, $18
+.loop1
+	ld a, [de]
+	ldi [hl], a
+	inc de
+	dec b
+	jr nz, .loop1
+	ld b, $18
+	xor a
+.loop2
+	ldi [hl], a
+	dec b
+	jr nz, .loop2
+	ld a, $90
+	ldh [$FFA6], a
+	ldh a, [hWinCount]
+	inc a
+	ldh [hWinCount], a
+	ld [$C0E1], a
+	ld hl, hGameState
+	inc [hl]			; 37 → 38
+	ret
+
+.data_14C4
+	db $4E, $CC, $52, 00 ; T
+	db $4E, $D4, $53, 00 ; H
+	db $4E, $DC, $54, 00 ; E
+	db $4E, $EC, $54, 00 ; E
+	db $4E, $F4, $55, 00 ; N
+	db $4E, $FC, $56, 00 ; D
+
+GameState_38::
+	call AnimateSpaceshipAndClouds
+	ldh a, [$FFA6]
+	and a
+	ret nz
+	ld hl, $C071		; letter sprite X position
+	ld a, [hl]
+	cp a, $3C
+	jr z, .nextLetter
+.animateLetter
+	dec [hl]
+	dec [hl]
+	dec [hl]
+	ret
+
+.nextLetter
+	ld hl, $C075
+	ld a, [hl]
+	cp a, $44
+	jr nz, .animateLetter
+	ld hl, $C079
+	ld a, [hl]
+	cp a, $4C
+	jr nz, .animateLetter
+	ld hl, $C07D
+	ld a, [hl]
+	cp a, $5C
+	jr nz, .animateLetter
+	ld hl, $C081
+	ld a, [hl]
+	cp a, $64
+	jr nz, .animateLetter
+	ld hl, $C085
+	ld a, [hl]
+	cp a, $6C
+	jr nz, .animateLetter
+	call .resetToMenu
+	xor a
+	ldh [hLevelIndex], a
+	ldh [hSuperStatus], a
+	ldh [$FFB5], a
+	ld [wNumContinues], a
+	ld a, $11
+	ldh [hWorldAndLevel], a
+	ret
+
+.resetToMenu
+	ldh a, [hJoyPressed]
+	and a
+	ret z
+	call $7FF3
+	ld a, $02
+	ldh [$FFFD], a
+	ld [MBC1RomBank], a
+	ld [$C0DC], a
+	ld [$C0A4], a
+	xor a
+	ld [wTimer], a
+	ld [$C0A5], a
+	ld [$C0AD], a
+	ld a, $03
+	ldh [rIE], a
+	ld a, $0E
+	ldh [hGameState], a	; init menu
+	ret
+
+AnimateSpaceshipAndClouds
+	call GameState_31.animateSpaceship
+	call GameState_33.animateClouds
+	ret
+
+Text_1557
+	db "producer", $FE
+	db "g.yokoi", $FE
+	db "director", $FE
+	db "s.okada", $FE
+	db "programmer", $FE
+	db "m.yamamoto", $FE
+	db "programmer", $FE
+	db "t.harada", $FE
+	db "design", $FE
+	db "h.matsuoka", $FE
+	db "sound", $FE
+	db "h.tanaka", $FE
+	db "amida", $FE
+	db "m.yamanaka", $FE
+	db "design", $FE
+	db "mashimo", $FE
+	db "special thanks to:", $FE
+	db "taki", $FE
+	db "izushi", $FE
+	db "nagata", $FE
+	db "kanoh", $FE
+	db "nishizawa", $FE
+	db $FF
 
 ; go down pipe
 GameState_09:: ; 161B
@@ -2080,7 +2858,7 @@ GameState_0B:: ; 166C
 	ret
 
 ; coming up out of pipe
-Gamestate_0C:: ; 16DA
+GameState_0C:: ; 16DA
 	ldh a, [hFrameCounter]
 	and a, $01				; slow down animation by 2
 	ret z
@@ -2319,7 +3097,7 @@ UpdateLives::
 	or a							; any other non-zero value adds one
 	ret z
 	cp a, $FF			; FF = -1
-	ld a, [wNumLives]
+	ld a, [wLives]
 	jr z, .loseLife
 	cp a, $99			; Saturate at 99 lives
 	jr z, .out
@@ -2331,9 +3109,9 @@ UpdateLives::
 	add a, 1			; Add one life
 .displayUpdatedLives
 	daa
-	ld [wNumLives], a
+	ld [wLives], a
 .displayLives
-	ld a, [wNumLives]
+	ld a, [wLives]
 	ld b, a
 	and a, $0F
 	ld [$9807], a
@@ -2793,7 +3571,7 @@ INCBIN "baserom.gb", $1F2D, $211D - $1F2D
 Data_211D::
 	; C200. Mario's position, state, animation etc..
 	db $00, $86, $32, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-	; C210 - C240. Fragments from breakable block. Clouds?
+	; C210 - C240. Fragments from breakable block, clouds, Daisy, spaceship
 	;       Y    X    sprite    flip           TTL
 	db $01, $00, $00, $0F, $00, $00, $00, $00, $00
 	ds 7
@@ -3359,7 +4137,7 @@ GameState_12::
 	dec c
 	jr nz, .tilemapLoop
 	ld de, $988B	; todo
-	ld a, [wNumLives]
+	ld a, [wLives]
 	ld b, a
 	and a, $0F
 	ld [de], a
