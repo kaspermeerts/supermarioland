@@ -2,6 +2,7 @@ INCLUDE "charmap.asm"
 INCLUDE "gbhw.asm"
 INCLUDE "wram.asm"
 INCLUDE "hram.asm"
+INCLUDE "macros.asm"
 
 SECTION "bank0", ROM0[$0000]
 
@@ -42,7 +43,7 @@ SECTION "Interrupt Timer", ROM0[$0050]
 	ld a, $03
 	ld [MBC1RomBank], a
 	call $7FF0 ; TODO
-	ldh a, [$FFFD] ; Some sort of last active ROM bank?
+	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	pop af
 	reti
@@ -83,10 +84,7 @@ VBlank:: ; $0060
 LCDStatus::
 	push af
 	push hl
-.waitHBlank
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank
+	WAIT_FOR_HBLANK
 	ld a, [$C0A5]
 	and a
 	jr nz, .jmp_CF
@@ -173,15 +171,9 @@ Start::	; 0150
 ; maybe find scroll coordinates from Mario's position in the level?
 Mystery_153::
 	call Call_3EE6
-.waitHBlank1
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank1
+	WAIT_FOR_HBLANK
 	ld b, [hl]
-.waitHBlank2
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank2
+	WAIT_FOR_HBLANK
 	ld a, [hl]
 	and b
 	ret
@@ -310,7 +302,7 @@ Init::	; 0185
 	call $7FF3			; This seems to set up sound
 	ld a, 2
 	ld [MBC1RomBank], a
-	ldh [$FFFD], a	; TODO Stores the ROM bank?? We've been over this
+	ldh [hActiveRomBank], a
 
 .jmp_226				; MAIN LOOP (well, i think)
 	ld a, [$DA1D]		; TODO DA1D is 0 in normal play, 1 if time < 100
@@ -321,15 +313,9 @@ Init::	; 0185
 	call Call_9F1		; kill mario with an animation?
 	call Call_1736
 .jmp_238
-	ldh a, [$FFFD]	; Again, ROM bank?
-	ldh [$FFE1], a	; temporarily store for some reason
-	ld a, 3
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a
+	SAVE_AND_SWITCH_ROM_BANK 3
 	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF81)
-	ldh a, [$FFE1]	; TODO probably the rom for the tiles of this level?
-	ldh [$FFFD], a	; another bank switch
-	ld [MBC1RomBank], a
+	RESTORE_ROM_BANK
 	ldh a, [$FF9F]	; Demo mode?
 	and a
 	jr nz, .jmp_25A
@@ -370,7 +356,7 @@ Init::	; 0185
 	jr nz, .jmp_293		; start the game?
 	ld a, 2
 	ld [MBC1RomBank], a
-	ldh [$FFFD], a
+	ldh [hActiveRomBank], a
 	ld a, $0E
 	ldh [hGameState], a	; go back from demo to menu
 .jmp_293
@@ -770,7 +756,7 @@ GameState_0F::
 	ld a, 3
 	ld [MBC1RomBank], a
 	call $7FF3			; setup sound effects
-	ldh a, [$FFFD]
+	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	xor a
 	ld [$DFE0], a
@@ -933,7 +919,6 @@ GameState_01::
 	ldh [hGameState], a
 	ret
 
-; lots of calls to other banks. Later
 GameState_02::
 	di
 	ld a, 0
@@ -1048,9 +1033,9 @@ StartLevelMusic::
 	and a
 	ret nz
 	ld a, 3
-	ld [MBC1RomBank], a
+	ld [MBC1RomBank], a	; no need to save rom bank, interrupts are disabled
 	call $7FF3
-	ldh a, [$FFFD]
+	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	ldh a, [$FFF4]		; underground?
 	and a
@@ -1319,15 +1304,9 @@ GameState_05:: ; C73
 	jr z, .endLevel
 	ld a, 1
 	ld [wTimer], a
-	ldh a, [$FFFD]
-	ldh [$FFE1], a
-	ld a, 2
-	ldh [$FFFD], a
-	ld  [MBC1RomBank], a
+	SAVE_AND_SWITCH_ROM_BANK 2
 	call $5844		; counts the timer down. For some reason in bank 2
-	ldh a, [$FFE1]
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a
+	RESTORE_ROM_BANK
 	ld de, $0010
 	call AddScore
 	ld a, 1
@@ -1370,7 +1349,7 @@ GameState_06:: ; CCB
 
 .bonusGame
 	ld a, 2			; bonus game is stored in bank 2
-	ldh [$FFFD], a
+	ldh [hActiveRomBank], a
 	ld [MBC1RomBank], a
 	ld a, $12		; bonus game state
 .changeState
@@ -1381,7 +1360,7 @@ GameState_06:: ; CCB
 	ldh [hGameState], a
 	ld a, 3
 	ld [MBC1RomBank], a
-	ldh [$FFFD], a
+	ldh [hActiveRomBank], a
 	ld hl, hLevelIndex
 	ld a, [hl]
 	ldh [$FFFB], a
@@ -1419,7 +1398,7 @@ GameState_08:: ; D49
 	di
 	ld a, c
 	ld [MBC1RomBank], a
-	ldh [$FFFD], a	; todo
+	ldh [hActiveRomBank], a	; todo
 	xor a
 	ldh [rLCDC], a		; turn off LCD
 	call Call_5E7		; again? why????
@@ -1468,7 +1447,7 @@ GameState_08:: ; D49
 	di
 	ld a, c
 	ld [MBC1RomBank], a
-	ldh [$FFFD], a ; todo
+	ldh [hActiveRomBank], a ; todo
 	xor a
 	ldh [rLCDC], a
 	ld a, b
@@ -1634,7 +1613,7 @@ GameState_1E:: ; E5D
 	ld a, $10
 	ldh [$FFA6], a
 	ld a, $03
-	ldh [$FFFD], a
+	ldh [hActiveRomBank], a
 	ld [MBC1RomBank], a
 	call $7FF3
 	ld hl, hGameState
@@ -1796,7 +1775,7 @@ GameState_24:: ; F6A
 	ld [$DFE8], a	; music
 	ret
 
-.fakeDaisySpeech
+.fakeDaisySpeech	; todo name
 	ldh a, [$FFA6]
 	and a
 	ret nz
@@ -1814,14 +1793,9 @@ GameState_24:: ; F6A
 	ld h, a
 	ld a, [$FFE3]
 	ld l, a
-.waitHBlank1
-	ldh a, [rSTAT]
-	and a, %11
-	jr nz, .waitHBlank1
-.waitHBlank2
-	ldh a, [rSTAT]
-	and a, %11
-	jr nz, .waitHBlank2
+.printLetter
+	WAIT_FOR_HBLANK
+	WAIT_FOR_HBLANK
 	ld [hl], b
 	inc hl
 	ld a, h
@@ -1833,7 +1807,7 @@ GameState_24:: ; F6A
 	jr nz, .nowrap
 	ld a, l
 	sub a, $20
-.nextletter
+.nextLetter
 	ldh [$FFE3], a
 	inc e
 	ld a, e
@@ -1844,7 +1818,7 @@ GameState_24:: ; F6A
 
 .nowrap
 	ld a, l
-	jr .nextletter
+	jr .nextLetter
 
 .newline
 	inc hl
@@ -1861,7 +1835,7 @@ GameState_24:: ; F6A
 	pop bc
 	inc de
 	inc de
-	jr .waitHBlank1
+	jr .printLetter
 
 .text_FE1
 	db "thank you mario.", $FE, $73
@@ -1956,7 +1930,7 @@ GameState_26:: ; 1055
 	ld hl, hGameState
 	ld [hl], $12		; go to bonus game
 	ld a, $02
-	ldh [$FFFD], a
+	ldh [hActiveRomBank], a
 	ld [MBC1RomBank], a
 	ret
 
@@ -2001,17 +1975,11 @@ GameState_27::	; 1099
 	ldh a, [$FFFC]		; starts at BF 10111111
 	ld d, a
 .maskTileRow
-.waitHBlank1			; todo macro
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank1
+	WAIT_FOR_HBLANK
 	ld a, [hl]
 	and d
 	ld e, a
-.waitHBlank2
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank2
+	WAIT_FOR_HBLANK
 	ld [hl], e
 	inc hl
 	ld a, h
@@ -2168,14 +2136,8 @@ GameState_2C:: ; 11D0
 	ld b, $6D
 	ld hl, $98A5
 .loop
-.waitHBlank1
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank1
-.waitHBlank2
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank2
+	WAIT_FOR_HBLANK
+	WAIT_FOR_HBLANK
 	ld [hl], " "
 	inc hl
 	dec b
@@ -2385,10 +2347,7 @@ GameState_31:: ; 12F1
 	ld l, a
 	ld h, $98
 .clearLoop2
-.waitHBlank
-	ldh a, [rSTAT]
-	and a, 3
-	jr nz, .waitHBlank
+	WAIT_FOR_HBLANK
 	ld [hl], " "
 	ld a, l
 	sub a, $20
@@ -2499,14 +2458,8 @@ GameState_33:: ; 13C4
 	inc hl
 	ld b, a
 .printCharacter
-.waitHBlank1
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank1
-.waitHBlank2
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank2
+	WAIT_FOR_HBLANK
+	WAIT_FOR_HBLANK
 	ld a, b
 	ld [de], a
 	inc de
@@ -2691,7 +2644,7 @@ GameState_38::
 	ret z
 	call $7FF3
 	ld a, $02
-	ldh [$FFFD], a
+	ldh [hActiveRomBank], a
 	ld [MBC1RomBank], a
 	ld [$C0DC], a
 	ld [$C0A4], a
@@ -2923,15 +2876,9 @@ Call_1736::
 	ldh [$FF8D], a
 	ld a, $05
 	ldh [$FF8F], a
-	ldh a, [$FFFD]
-	ldh [$FFE1], a
-	ld a, 3
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a
+	SAVE_AND_SWITCH_ROM_BANK 3
 	call $4823
-	ldh a, [$FFE1]
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a
+	RESTORE_ROM_BANK
 	ret
 
 INCBIN "baserom.gb", $175B, $1B45 - $175B
@@ -3141,14 +3088,8 @@ GameState_39::	; 1C7C
 .loop
 	ld a, [de]
 	ld c, a
-.waitHBlank1
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank1
-.waitHBlank2
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank2
+	WAIT_FOR_HBLANK
+	WAIT_FOR_HBLANK
 	ld [hl], c
 	inc l
 	inc de
@@ -3205,10 +3146,7 @@ GameState_3B:: ; 1CF0
 .loop
 	ld a, [de]
 	ld b, a
-.waitHBlank
-	ldh a, [rSTAT]
-	and a, $03
-	jr nz, .waitHBlank
+	WAIT_FOR_HBLANK
 	ld [hl], b
 	inc l
 	inc de
@@ -3798,11 +3736,7 @@ Call_22A9::
 	ldh a, [$FFF9]		; $0A in underground?
 	and a
 	jr nz, .out
-	ldh a, [$FFFD]		; rom bank?
-	ldh [$FFE1], a
-	ld a, 3
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a
+	SAVE_AND_SWITCH_ROM_BANK 3
 	ldh a, [hLevelIndex]
 	add a
 	ld e, a
@@ -3849,9 +3783,7 @@ Call_22A9::
 	ld a, [hl]
 	ld [de], a
 .restoreROMBankAndOut
-	ldh a, [$FFE1]
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a
+	RESTORE_ROM_BANK
 .out
 	pop bc
 	pop de
@@ -3892,11 +3824,7 @@ Call_2321:: ; 2321
 	push hl
 	push de
 	push bc
-	ldh a, [$FFFD]
-	ldh [$FFE1], a
-	ld a, 3
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a	; todo far call macro?
+	SAVE_AND_SWITCH_ROM_BANK 3
 	ldh a, [hLevelIndex]
 	add a
 	ld e, a
@@ -3930,9 +3858,7 @@ Call_2321:: ; 2321
 	ld a, [hl]
 	ld [$C0CD], a		; contents of block
 .restoreROMBankAndOut
-	ldh a, [$FFE1]
-	ldh [$FFFD], a
-	ld [MBC1RomBank], a
+	RESTORE_ROM_BANK
 	pop bc
 	pop de
 	pop hl

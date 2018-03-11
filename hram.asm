@@ -46,7 +46,12 @@ ds $DF - $C0
 hPauseMusic::	; FFDF
 	ds 1
 
-ds $E4 - $E0
+ds 1
+
+hSavedRomBank::	; FFE1
+	ds 1
+
+ds $E4 - $E2
 
 hLevelIndex::	; FFE4
 	ds 1
@@ -65,5 +70,10 @@ hColumnPointerLo:: ; FFE8
 
 ds $FA - $E9
 
-hCoins::		; FFFA
+hCoins::	; FFFA
+	ds 1
+
+ds 2
+
+hActiveRomBank::	; FFFD
 	ds 1
