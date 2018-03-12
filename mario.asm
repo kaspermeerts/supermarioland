@@ -1021,7 +1021,7 @@ GameState_02::
 	or c
 	ld [$C203], a
 .out
-	call $245C
+	call Call_245C
 	ei
 	ret
 
@@ -2628,7 +2628,7 @@ GameState_38::
 	ld a, [hl]
 	cp a, $6C
 	jr nz, .animateLetter
-	call .resetToMenu
+	call .checkForButtonPress
 	xor a
 	ldh [hLevelIndex], a
 	ldh [hSuperStatus], a
@@ -2638,11 +2638,12 @@ GameState_38::
 	ldh [hWorldAndLevel], a
 	ret
 
-.resetToMenu
+.checkForButtonPress
 	ldh a, [hJoyPressed]
 	and a
 	ret z
 	call $7FF3
+.resetToMenu
 	ld a, $02
 	ldh [hActiveRomBank], a
 	ld [MBC1RomBank], a
@@ -2714,7 +2715,7 @@ GameState_0A:: ; 162F
 	ldh a, [$FFF4]
 	ldh [hLevelBlock], a
 	call Call_807		; draws the first screen of the "level"
-	call $245C
+	call Call_245C
 	ld hl, $C201		; Mario Y position
 	ld [hl], $20		; up high
 	inc l				; Mario X position
@@ -2800,7 +2801,7 @@ GameState_0B:: ; 166C
 	ldh [$FFA4], a		; smth to do with SCX
 	ld a, $5B
 	ldh [$FFE9], a		; first col not yet loaded in. IMO $807 should do this
-	call $245C
+	call Call_245C
 	call Call_1ED4		; clears sprites
 	ld a, $C3
 	ldh [rLCDC], a
@@ -3135,7 +3136,7 @@ GameState_39::	; 1C7C
 GameState_3A:: ; 1CE8
 	ld a, [$C0AD]
 	and a
-	call nz, $1530			; TODO
+	call nz, GameState_38.resetToMenu
 	ret
 
 ; prepare time up
@@ -3504,7 +3505,358 @@ Call_1F03:: ; 1F03
 	call StartLevelMusic
 	ret
 
-INCBIN "baserom.gb", $1F2D, $211D - $1F2D
+; called every frame in non autoscroll levels
+Call_1F2D:: ; 1F2D
+	ld b, $01			; just one superball?
+	ld hl, $FFA9		; projectiles at A9, AA and AB?
+	ld de, wOAMBuffer + 1 ; sprite 0, X position
+.superballLoop
+	ldi a, [hl]
+	and a
+	jr nz, .moveSuperball
+.nextSuperball			; XXX more than one? how?
+	inc e
+	inc e
+	inc e
+	inc e				; next sprite
+	dec b
+	jr nz, .superballLoop
+	ret
+
+.moveSuperball
+	push hl
+	push de
+	push bc
+	dec l				; hl = FFA9
+	ld a, [wSuperballTTL]
+	and a
+	jr z, .removeSuperball
+	dec a
+	ld [wSuperballTTL], a
+	bit 0, [hl]			; going right?
+	jr z, .flyingLeft
+	ld a, [de]			; X pos
+	inc a
+	inc a
+	ld [de], a			; X → X + 2
+	cp a, $A2
+	jr c, .detectCollisionRight
+.removeSuperball
+	xor a
+	res 0, e			; Guess they remembered this CPU has bit instructions
+	ld [de], a			; a DEC DE would have sufficed
+	ld [hl], a
+	jr .enemyCollision
+
+.detectCollisionRight
+	add a, $03			; check collision a little in front
+	push af
+	dec e				; e is now the Y coord of the sprite
+	ld a, [de]
+	ldh [$FFAD], a		; used in collision detection
+	pop af
+	call FindNeighboringTile
+	jr c, .verticalMotion	; c if no collision with solid
+	ld a, [hl]
+	and a, %11111100
+	or a,  %00000010	; reverse direction, go left
+	ld [hl], a
+.verticalMotion
+	bit 2, [hl]			; non zero if going up
+	jr z, .flyingDown
+	ld a, [de]
+	dec a
+	dec a
+	ld [de], a
+	cp a, $10
+	jr c, .removeSuperball		; c if out of bounds
+	sub a, $01
+	ldh [$FFAD], a				; check collision uo
+	inc e
+	ld a, [de]
+	call FindNeighboringTile
+	jr c, .enemyCollision		; c if no collision
+	ld a, [hl]
+	and a, %11110011
+	or  a, %00001000	; reverse direction, go down
+	ld [hl], a
+.enemyCollision
+	pop bc
+	pop de
+	pop hl
+	call Call_200A		; collision with enemy?
+	jr .nextSuperball
+
+.flyingDown
+	ld a, [de]
+	inc a
+	inc a
+	ld [de], a
+	cp a, $A8				; todo screen width and such
+	jr nc, .removeSuperball	; nc if out of bounds
+	add a, $04				; check collision down
+	ldh [$FFAD], a
+	inc e
+	ld a, [de]
+	call FindNeighboringTile
+	jr c, .enemyCollision		; c if no collision
+	ld a, [hl]
+	and a, %11110011
+	or  a, %00000100	; reverse direction, go up
+	ld [hl], a
+	jr .enemyCollision
+
+.flyingLeft
+	ld a, [de]
+	dec a
+	dec a
+	ld [de], a
+	cp a, $04
+	jr c, .removeSuperball		; if out of bounds
+	sub a, $02			; detect collision to the left
+	push af
+	dec e
+	ld a, [de]
+	ldh [$FFAD], a
+	pop af
+	call FindNeighboringTile
+	jr c, .verticalMotion
+	ld a, [hl]
+	and a, %11111100
+	or a,  %00000001	; reverse direction, go right
+	ld [hl], a
+	jr .verticalMotion
+
+; FFAD is preloaded with the Y coord, A contains X coord
+FindNeighboringTile::	; gets called in autoscroll from 514F?
+	ld b, a
+	ldh a, [$FFA4]		; scx
+	add b
+	ldh [$FFAE], a
+	push de
+	push hl
+	call Mystery_153
+	cp a, $F4			; Coin sprite
+	jr nz, .checkForBreakableBlock
+	ldh a, [hGameState]
+	cp a, $0D			; In autoscroll levels, can't collect coins with projectiles
+	jr z, .checkForSolidTile
+	push hl
+	pop de
+	ld hl, $FFEE		; collision?
+	ld a, [hl]
+	and a
+	jr nz, .checkForSolidTile
+	ld [hl], $C0		; COin?
+	inc l
+	ld [hl], d
+	inc l
+	ld [hl], e
+	ld a, $05
+	ld [$DFE0], a		; coin sound effect
+.checkForBreakableBlock
+	cp a, $82			; breakable block
+	call z, Call_200A.breakBlockInAutoscroll
+	cp a, $80			; breakable block
+	call z, Call_200A.breakBlockInAutoscroll
+.checkForSolidTile
+	pop hl
+	pop de
+	cp a, $60			; every sprite above $60 is solid
+	ret
+
+Call_200A::
+	push hl
+	push de
+	push bc
+	ld b, $0A
+	ld hl, $D100
+.enemyLoop				; todo not just enemies?
+	ld a, [hl]
+	cp a, $FF			; no enemy
+	jr nz, .jmp_2029
+.nextEnemy
+	push de
+	ld de, $0010
+	add hl, de
+	pop de
+	dec b
+	jr nz, .enemyLoop
+	pop bc
+	pop de
+	pop hl
+	ret
+
+.popRegsAndNextEnemy
+	pop hl
+	pop de
+	pop bc
+	jr .nextEnemy
+
+.jmp_2029
+	push bc
+	push de
+	push hl
+	ld bc, $000A		; normal enemy = 11, enemy stunned after jump = 22
+	add hl, bc			; platform = B1? some sort of "type" at least
+	bit 7, [hl]			; in any case, if bit 7 is set, they can't be hit
+	jr nz, .popRegsAndNextEnemy
+	ld c, [hl]
+	inc l
+	inc l				; D1XD = health?
+	ld a, [hl]
+	ldh [$FF9B], a		; more new variables
+	ld a, [de]
+	ldh [$FFA2], a		; de is still X pos of superball
+	add a, $04			; X pos + 4
+	ldh [$FF8F], a
+	dec e				; y pos
+	ld a, [de]
+	ldh [$FFA0], a
+	ld a, [de]
+	add a, $03			; y pos + 3
+	ldh [$FFA1], a		; FFA0 - FFA3, some sort of hitbox?
+	pop hl
+	push hl
+	call $0AAF
+	and a
+	jr z, .popRegsAndNextEnemy
+	dec l
+	dec l
+	dec l
+	call $A10
+	push de
+	ldh a, [hGameState]
+	cp a, $0D
+	jr nz, .jmp_2064
+	call $2AAD
+	jr .jmp_2067
+
+.jmp_2064
+	call $2A68
+.jmp_2067
+	pop de
+	and a
+	jr z, .popRegsAndNextEnemy
+	push af
+	ld a, [de]
+	sub a, $08
+	ldh [$FFEC], a			; we seen this before in the coin collision routine
+	inc e
+	ld a, [de]
+	ldh [$FFEB], a
+	pop af
+	cp a, $FF
+	jr nz, .jmp_2083
+	ld a, $03
+	ld [$DFE0], a			; enemy dieing sound effect
+	ldh a, [$FF9E]
+	ldh [$FFED], a
+.jmp_2083
+	xor a
+	ld [de], a
+	dec e
+	ld [de], a
+	ld hl, $FFAB
+	bit 3, e
+	jr nz, .jmp_2094
+	dec l
+	bit 2, e
+	jr nz, .jmp_2094
+	dec l
+.jmp_2094
+	ld [hl], a
+	jr .popRegsAndNextEnemy
+
+.breakBlockInAutoscroll
+	push hl
+	push bc
+	push de
+	push af
+	ldh a, [hGameState]
+	cp a, $0D
+	jr nz, .out				; only breakable in autoscroll
+	push hl
+	pop de
+	ld hl, $FFEE			; collision?
+	ld a, [hl]
+	and a
+	jr nz, .out
+	ld [hl], $01
+	inc l					; FFEF
+	ld [hl], d
+	inc l					; FFF0
+	ld [hl], e
+	pop af
+	push af
+	cp a, $80
+	jr nz, .jmp_20C1
+	ld a, d
+	add a, $30
+	ld d, a
+	ld a, [de]
+	and a
+	jr z, .jmp_20C1
+	call $254D
+.jmp_20C1
+	ld hl, $C210			; non player entity?
+	ld de, $0010
+	ld b, $04
+.jmp_20C9
+	push hl
+	ld [hl], $00
+	inc l
+	ldh a, [$FFAD]			; Y coordinate in VRAM?
+	add a, $00
+	ld [hl], a
+	inc l
+	ldh a, [$FFA1]
+	add a, $00
+	ld [hl], a
+	inc l
+	inc l
+	inc l
+	inc l
+	inc l
+	ld [hl], $01
+	inc l
+	ld [hl], $07
+	pop hl
+	add hl, de
+	dec b
+	jr nz, .jmp_20C9
+	ld hl, $C222
+	ld a, [hl]
+	sub a, $04
+	ld [hl], a
+	ld hl, $C242
+	ld a, [hl]
+	sub a, $04
+	ld [hl], a
+	ld hl, $C238
+	ld [hl], $0B
+	ld hl, $C248
+	ld [hl], $0B
+	ldh a, [$FFA4]	; scx?
+	ldh [$FFF3], a
+	ld de, $0050
+	call AddScore
+	ld a, $02
+	ld [$DFF8], a
+.out
+	pop af
+	pop de
+	pop bc
+	pop hl
+	ret
+
+Call_2113:: ; 2113
+	ldh a, [$FF9F]
+	and a
+	ret z
+	ld a, [$C0DB]
+	ldh [hJoyHeld], a
+	ret
 
 Data_211D::
 	; C200. Mario's position, state, animation etc..
@@ -3930,7 +4282,7 @@ Data_2436::
 Call_2442::
 	ld a, $0C
 	ld [$C0AB], a
-	call $245C
+	call Call_245C
 	xor a
 	ld [$D007], a
 	ld hl, Data_2436
@@ -3942,7 +4294,47 @@ Call_2442::
 	ld [wBackgroundAnimated], a
 	ret
 
-INCBIN "baserom.gb", $245C, $3D1A - $245C
+; initializes objects? skips over enemies?
+Call_245C::
+	ld hl, $401A		; after the level pointers?
+	ldh a, [hLevelIndex]
+	rlca				; why not ADD A?... Carry will be zero anyway
+	ld d, $00
+	ld e, a
+	add hl, de
+	ldi a, [hl]
+	ld e, a
+	ld a, [hl]			; load address from the table
+	ld d, a
+	ld h, d
+	ld l, e
+	ld a, [$C0AB]		; "progress" in level
+	ld b, a
+.next
+	ld a, [hl]			; enemy location?
+	cp b
+	jr nc, .storeNextEnemy	; todo name
+	inc hl
+	inc hl
+	inc hl
+	jr .next
+
+.storeNextEnemy
+	ld a, l
+	ld [$D010], a
+	ld a, h
+	ld [$D011], a
+	ld hl, $D100		; enemies, powerups, platforms
+	ld de, $0010
+.loop
+	ld [hl], $FF		; disable
+	add hl, de
+	ld a, l
+	cp a, $A0			; clear D100 to D190
+	jp nz, .loop		; why JP and nor JR?
+	ret
+
+INCBIN "baserom.gb", $2491, $3D1A - $2491
 
 ; called at level start, is some sort of init
 Call_3D1A; 3D1A

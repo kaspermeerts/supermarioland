@@ -14,7 +14,12 @@ ds 1		; C0A5
 wNumContinues::	; C0A6
 	db
 
-ds $C0 - $A7
+ds 2
+
+wSuperballTTL:: ; C0A9
+	db
+
+ds $C0 - $AA
 
 wTopScore:: ; C0C0
 	ds 3
