@@ -1153,7 +1153,86 @@ Call_9F1:: ; 9F1
 	ld [$C0DD], a			; death Y pos?
 	ret
 
-INCBIN "baserom.gb", $A10, $B8D - $A10
+; called during hit detection
+Call_A10::
+	push hl
+	push de
+	ldh a, [$FF9B]			; enemy... health?
+	and a, %11000000
+	swap a
+	srl a
+	srl a				; put two upper bits in lowest position
+	ld e, a
+	ld d, $00
+	ld hl, .data_A29
+	add hl, de
+	ld a, [hl]
+	ldh [$FF9E], a
+	pop de
+	pop hl
+	ret
+
+.data_A29
+	db $01, $04, $08, $50
+
+INCBIN "baserom.gb", $A2D, $AAF - $A2D
+
+; TODO clean up these comments
+; collision detection between enemy and bounding box defined by
+; T B L R FFA0 FFA1 FFA2 FF8F (-_-)
+; HL contains D1x0 of enemy under consideration?
+; C is some sort is width? XY in both nibbles?
+Call_AAF::
+	inc l
+	inc l				; D1x2 Y pos
+	ld a, [hl]
+	add a, $08			; Y pos is top left of bottom left sprite tile
+	ld b, a				; so add 8 to get coordinate of bottom of enemy
+	ldh a, [$FFA0]		; top of bounding box?
+	sub b				; top - bottom
+	jr nc, .noCollision ; NC if bottom < top (don't forget Y coords grow downwards)
+	ld a, c
+	and a, $0F			; lower nibble, height in tiles?
+	ld b, a
+	ld a, [hl]			; still Y pos
+.loopHeight
+	dec b
+	jr z, .checkBottomOfBB
+	sub a, $08			; subtract (c & 0F) tiles
+	jr .loopHeight
+
+.checkBottomOfBB
+	ld b, a				; B contains top of enemy
+	ldh a, [$FFA1]		; bottom Y
+	sub b
+	jr c, .noCollision	; C if top > bottom (Y coords grow downwards)
+; X detection
+	inc l				; D1x3 X pos
+	ldh a, [$FF8F]		; right BB x
+	ld b, [hl]			; left X of enemy
+	sub b
+	jr c, .noCollision	; C if left X of enemy > right BB X
+	ld a, c
+	and a, $70			; upper nibble, but only 3 bits
+	swap a
+	ld b, a
+	ld a, [hl]			; still X pos
+.loopWidth
+	add a, $08			; add width tiles to get the right bound of the enemy
+	dec b
+	jr nz, .loopWidth
+	ld b, a
+	ldh a, [$FFA2]		; left BB x
+	sub b
+	jr nc, .noCollision	; NC if left BB x > right X of enemy
+	ld a, 1				; collision detected
+	ret
+
+.noCollision
+	xor a
+	ret
+
+INCBIN "baserom.gb", $AEA, $B8D - $AEA
 
 ; prepare Mario's dying sprites. And some variables
 GameState_03:: ; B8D
@@ -3715,16 +3794,16 @@ Call_200A::
 	ldh [$FFA0], a
 	ld a, [de]
 	add a, $03			; y pos + 3
-	ldh [$FFA1], a		; FFA0 - FFA3, some sort of hitbox?
+	ldh [$FFA1], a		; FF8F FFA0 FFA1 FFA2, some sort of hitbox?
 	pop hl
 	push hl
-	call $0AAF
+	call Call_AAF		; hit detection?
 	and a
 	jr z, .popRegsAndNextEnemy
 	dec l
 	dec l
 	dec l
-	call $A10
+	call Call_A10
 	push de
 	ldh a, [hGameState]
 	cp a, $0D
