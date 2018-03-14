@@ -1143,17 +1143,17 @@ Call_9F1:: ; 9F1
 	ld a, $03				; pre dying
 	ldh [hGameState], a
 	xor a
-	ldh [$FFB5], a
+	ldh [$FFB5], a			; superball capability
 	ldh [rTMA], a
 	ld a, $02
-	ld [$DFE8], a
+	ld [$DFE8], a			; sound effect
 	ld a, $80
 	ld [$C200], a
 	ld a, [$C201]			; Mario Y pos
 	ld [$C0DD], a			; death Y pos?
 	ret
 
-; called during hit detection
+; called when a hit is detected on an enemy?
 Call_A10::
 	push hl
 	push de
@@ -1173,16 +1173,104 @@ Call_A10::
 	ret
 
 .data_A29
+; corresponding top nibbles
+;      0-3  4-7  8-B  C-F
 	db $01, $04, $08, $50
 
-INCBIN "baserom.gb", $A2D, $AAF - $A2D
+; called when Mario hits a bouncing block, to hit the enemy above it
+Call_A2D:: ; A2D
+	ldh a, [$FFEE]
+	and a
+	ret z
+	cp a, $C0
+	ret z				; return if no collision, and if not with a coin
+	ld de, $0010
+	ld b, $0A
+	ld hl, $D100		; enemies. and hittable objects
+.loop
+	ld a, [hl]
+	cp a, $FF			; ff means no object
+	jr nz, .checkEnemyHit
+.nextEnemy
+	add hl, de
+	dec b
+	jr nz, .loop
+	ret
+
+.checkEnemyHit
+	push bc
+	push hl
+	ld bc, $000A
+	add hl, bc			; D1xA, lower 7 bits is width + height, 7th bit is ?
+	bit 7, [hl]
+	jr nz, .noHit		; bit 7 is immortality?
+	ld c, [hl]
+	inc l
+	inc l				; D1xC, health?
+	ld a, [hl]
+	ldh [$FF9B], a		; used in Call_A10 at least
+	pop hl
+	push hl
+	inc l
+	inc l
+	ld b, [hl]			; D1x2 Y pos
+	ld a, [$C201]		; player Y pos
+	sub b				; Y coordinates are inverted
+	jr c, .noHit		; enemy needs to be above player
+	ld b, a
+	ld a, $14
+	sub b
+	jr c, .noHit		; but not too much above the player either
+	cp a, $07			; A contains $14 - (playerY - enemyY) and has to be < 7
+	jr nc, .noHit		; meaning playerY - enemyY has to be at least $D
+	inc l
+	ld a, c				; c contains the width + height
+	and a, $70			; just width
+	swap a
+	ld c, a
+	ld a, [hl]			; D1x3 X pos, points to left bound of leftmost tile
+.loopR
+	add a, $08			; one tile per width
+	dec c
+	jr nz, .loopR
+	ld c, a				; C contains right bound of enemy
+	ld b, [hl]			; B contains left bound of enemy
+	ld a, [$C202]		; Mario X pos
+	sub a, $06			; Mario is 12 pixels wide
+	sub c
+	jr nc, .noHit		; left bound has to be smaller than right bound of enemy
+	ld a, [$C202]
+	add a, $06
+	sub b
+	jr c, .noHit
+	dec l
+	dec l
+	dec l				; D1x0
+	push de
+	call Call_A10
+	Call $2A23			; prepares death animation
+	pop de
+	and a
+	jr z, .noHit
+	ld a, [$C202]		; X pos
+	add a, $FC			; or -4
+	ldh [$FFEB], a
+	ld a, [$C201]		; Y pos
+	sub a, $10
+	ldh [$FFEC], a
+	ldh a, [$FF9E]
+	ldh [$FFED], a
+.noHit
+	pop hl
+	pop bc
+	jp .nextEnemy
 
 ; TODO clean up these comments
 ; collision detection between enemy and bounding box defined by
 ; T B L R FFA0 FFA1 FFA2 FF8F (-_-)
 ; HL contains D1x0 of enemy under consideration?
 ; C is some sort is width? XY in both nibbles?
-Call_AAF::
+Call_AAF:: ; AAF
 	inc l
 	inc l				; D1x2 Y pos
 	ld a, [hl]
@@ -3776,13 +3864,13 @@ Call_200A::
 	push bc
 	push de
 	push hl
-	ld bc, $000A		; normal enemy = 11, enemy stunned after jump = 22
+	ld bc, $000A		; lower 7 bits is width + height
 	add hl, bc			; platform = B1? some sort of "type" at least
-	bit 7, [hl]			; in any case, if bit 7 is set, they can't be hit
+	bit 7, [hl]			; if bit 7 is set, they can't be hit
 	jr nz, .popRegsAndNextEnemy
 	ld c, [hl]
 	inc l
-	inc l				; D1XD = health?
+	inc l				; D1XC = health?
 	ld a, [hl]
 	ldh [$FF9B], a		; more new variables
 	ld a, [de]
@@ -4839,16 +4927,18 @@ PrintScore::
 	xor a
 	ldh [$FFB1], a
 	ret
+
 .startNumber1
 	push af
 	ld a, 1
-	ldh [$FFB1], a	; Number has start, print "0" instead of " "
+	ldh [$FFB1], a	; Number has started, print "0" instead of " "
 	pop af
 	jr .printFirstDigit
+
 .startNumber2
 	push af
 	ld a, 1
-	ldh [$FFB1], a	; Number has start, print "0" instead of " "
+	ldh [$FFB1], a	; Number has started, print "0" instead of " "
 	pop af
 	jr .printSecondDigit
 
