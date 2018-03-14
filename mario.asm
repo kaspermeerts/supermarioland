@@ -1320,7 +1320,121 @@ Call_AAF:: ; AAF
 	xor a
 	ret
 
-INCBIN "baserom.gb", $AEA, $B8D - $AEA
+; has to do with Mario riding on platforms and blocks
+Call_AEA:: ; AEA
+	ld a, [$C207]		; jump status
+	cp a, 1
+	ret z
+	ld de, $0010
+	ld b, $0A
+	ld hl, $D100		; enemies again
+.loop
+	ld a, [hl]
+	cp a, $FF
+	jr nz, .checkEnemy
+.nextEnemy
+	add hl, de
+	dec b
+	jr nz, .loop
+	ret
+
+.checkEnemy
+	push bc
+	push hl
+	ld bc, $000A
+	add hl, bc
+	bit 7, [hl]			; mortality?
+	jp z, .notOnTop		; only dealing with immortal enemies (platforms, blocks?)
+	ld a, [hl]			; mortal bit + width + height
+	and a, $0F			; just height
+	ldh [$FFA0], a		; hitbox? temporary storage?
+	ld bc, -$8
+	add hl, bc			; D1x2 Y pos
+	ldh a, [$FFA0]		; ...why? do we jump into this?
+	ld b, a
+	ld a, [hl]			; Y pos
+.loopT
+	dec b
+	jr z, .break		; decrement before subtracting tile height, as the Y pos
+	sub a, $08			; already corresponds to the top bound
+	jr .loopT
+
+.break
+	ld c, a				; enemy top bound
+	ldh [$FFA0], a
+	ld a, [$C201]		; player y pos
+	add a, $06			; todo is mario 6 units tall or so?
+	ld b, a				; mario bottom bound
+	ld a, c
+	sub b
+	cp a, $07			; mario has to be less than 8 pixels above the enemy
+	jr nc, .notOnTop
+	inc l
+	ld a, [$C202]		; mario x pos
+	ld b, a
+	ld a, [hl]			; enemy x pos
+	sub b
+	jr c, .checkRightBound	; if enemy x < mario x, ok
+	cp a, $03
+	jr nc, .notOnTop		; maximum 2 units of overhang? why not add before..
+.checkRightBound
+	push hl
+	inc l
+	inc l
+	inc l
+	inc l
+	inc l
+	inc l
+	inc l
+	ld a, [hl]			; D1xA
+	and a, $70			; width
+	swap a
+	ld b, a
+	pop hl
+	ld a, [hl]			; x pos
+.loopR
+	add a, $08
+	dec b
+	jr nz, .loopR		; find right bound
+	ld b, a
+	ld a, [$C202]		; mario x pos
+	sub b				; 
+	jr c, .jmp_B5D
+	cp a, $03
+	jr nc, .notOnTop
+.jmp_B5D
+	dec l
+	ldh a, [$FFA0]		; enemy top Y bound
+	sub a, $0A
+	ld [$C201], a		; position Mario 10 units above
+	push hl
+	dec l
+	dec l				; D1x0
+	call $2A01
+	pop hl
+	ld bc, $0009
+	add hl, bc
+	ld [hl], $01		; D1xB
+	xor a
+	ld hl, $C207
+	ldi [hl], a			; C207 jump status
+	ldi [hl], a			; C208
+	ldi [hl], a			; C209
+	ld [hl], $01		; C20A 1 if mario on the ground
+	ld hl, $C20C		; two INC L's would've been cheaper >_<
+	ld a, [hl]
+	cp a, $07			; momentum?
+	jr c, .out
+	ld [hl], $06
+.out
+	pop hl
+	pop bc
+	ret
+
+.notOnTop
+	pop hl
+	pop bc
+	jp .nextEnemy
 
 ; prepare Mario's dying sprites. And some variables
 GameState_03:: ; B8D
