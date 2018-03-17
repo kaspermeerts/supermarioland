@@ -1945,7 +1945,7 @@ GameState_20:: ; EA9
 	ld a, [$C203]		; animation index
 	and a, $0F
 	cp a, $0A			; animations >= $0A are sub or airplane
-	call c, $17BC
+	call c, Call_17BC
 	call Call_16F5		; animate and move mario
 	ret
 
@@ -2022,7 +2022,7 @@ GameState_22:: ; F12
 GameState_23:: ; F33
 	ld a, $10			; right button
 	ldh [hJoyHeld], a
-	call $17BC
+	call Call_17BC
 	call Call_16F5
 	ld a, [$C202]
 	cp a, $4C			; almost middle of screen
@@ -3185,7 +3185,7 @@ Jmp_175B:: ; 175B
 Jmp_1765:: ; 1765
 	ldh a, [hJoyHeld]
 	bit 7, a
-	jp z, $185D				; Down button
+	jp z, Jmp_185D			; Down button
 	ld bc, -$20				; one screen width?
 	ld a, h
 	ldh [$FFB0], a
@@ -3197,7 +3197,7 @@ Jmp_1765:: ; 1765
 	ld de, $FFF4
 	ld a, [hl]
 	and a
-	jp z, $185D
+	jp z, Jmp_185D
 	ld [de], a
 	inc e
 	add hl, bc
@@ -3236,7 +3236,7 @@ Jmp_1765:: ; 1765
 	ld [$DFE8], a			; underground music
 .jmp_17B6
 	call Call_1ED4			; clears some sprites
-	jp $185D
+	jp Jmp_185D
 
 ; called every frame?
 Call_17BC:: ; 17BC
@@ -3310,17 +3310,17 @@ Call_17BC:: ; 17BC
 	jr nz, .jmp_1842
 	pop af
 	call Call_9E0
-	jr .jmp_185D
+	jr Jmp_185D
 
 .jmp_183C
 	pop af
 	call Call_9F1			; kill mario
-	jr .jmp_185D
+	jr Jmp_185D
 
 .jmp_1842
 	pop af
 	cp a, $F4				; Coin
-	jr nz, .jmp_185D
+	jr nz, Jmp_185D
 	push hl
 	pop de
 	ld hl, $FFEE
@@ -3336,7 +3336,7 @@ Call_17BC:: ; 17BC
 	ld [$DFE0], a			; coin sound
 	jr .jmp_1801
 
-.jmp_185D
+Jmp_185D
 	ld hl, $C201
 	ld a, [hl]
 	dec a
@@ -3357,7 +3357,311 @@ Call_17BC:: ; 17BC
 	ld [hl], $06
 	ret
 
-INCBIN "baserom.gb", $187B, $1A6B - $187B
+; hidden block
+.jmp_187B:: ; 187B
+	ldh a, [$FFEE]
+	and a
+	ret nz
+	push hl					; HL contains VRAM location of hidden block
+	ld a, h
+	add a, $30				; overlay? :/
+	ld h, a
+	ld a, [hl]
+	pop hl
+	and a					; if 0, don't make the hidden block appear
+	ret z					; it's from a different level screen/block
+.jmp_1888
+	ldh a, [$FFEE]
+	and a
+	ret nz
+	push hl
+	ld a, h
+	add a, $30
+	ld h, a
+	ld a, [hl]				; wait, why again?
+	pop hl
+	and a
+	jp z, $19E1
+	cp a, $F0				; nothing, just a solid grey block
+	jr z, .jmp_18C0
+.jmp_189B
+	cp a, $C0				; coin block
+	jr nz, .jmp_18C7		; everything else comes out of a solid grey block
+	ld a, $FF
+	ld [$C0CE], a			; timer :)
+.jmp_18A4
+	ldh a, [$FFEE]
+	and a
+	ret nz
+	ld a, $05
+	ld [$DFE0], a			; coin sound effect
+	ld a, [$C201]			; Y pos
+	sub a, $10
+	ldh [$FFEC], a
+	ld a, $C0
+	ldh [$FFED], a
+	ldh [$FFFE], a
+	ld a, [$C0CE]
+	and a
+	jr nz, .jmp_1923
+.jmp_18C0
+	ld a, $80
+	ld [wOAMBuffer + 4*$B + 2], a
+	jr .jmp_1937
+
+.jmp_18C7
+	ldh [$FFA0], a
+	ld a, $80
+	ld [wOAMBuffer + 4*$B + 2], a
+	ld a, $07
+	ld [$DFE0], a			; bump sound effect
+	push hl
+	pop de
+	ld hl, $FFEE
+	ld a, [hl]
+	and a
+	ret nz
+	ld [hl], $02			; bounce block?
+	inc l
+	ld [hl], d
+	inc l
+	ld [hl], e
+	ld a, d
+	ldh [$FFB0], a
+	ld a, e
+	ldh [$FFAF], a
+	ld a, d
+	add a, $30
+	ld d, a
+	ld a, [de]
+	ldh [$FFA0], a
+	call Call_3F13
+	ld hl, wOAMBuffer + 4*$B
+	ld a, [$C201]
+	sub a, $0B
+	ldi [hl], a				; Y pos of sprite on top of mario?
+	ldh [$FFC2], a			; enemy Y pos buffer?
+	ldh [$FFF1], a
+	ldh a, [$FFA4]
+	ld b, a
+	ldh a, [$FFAE]
+	ldh [$FFF2], a
+	sub b
+	ldi [hl], a
+	ldh [$FFC3], a			; enemy X pos buffer?
+	inc l
+	ld [hl], $00
+	ldh a, [$FFA0]
+	cp a, $F0
+	ret z
+	cp a, $28				; mushroom
+	jr nz, .jmp_191F
+	ldh a, [hSuperStatus]
+	cp a, $02
+	ld a, $28
+	jr nz, .jmp_191F
+	ld a, $2D				; flower
+.jmp_191F
+	call $254D				; make it come out?
+	ret
+
+.jmp_1923
+	ldh a, [$FFEE]
+	and a
+	ret nz
+	ld a, $82
+	ld [$C02E], a
+	ld a, [$DFE0]
+	and a
+	jr nz, .jmp_1937
+	ld a, $07
+	ld [$DFE0], a
+
+.jmp_1937
+	push hl
+	pop de
+	ld hl, $FFEE
+	ld [hl], $02
+	inc l
+	ld [hl], d
+	inc l
+	ld [hl], e
+	ld a, d
+	ldh [$FFB0], a
+	ld a, e					; store HL in FFEF, FFF0, FFB0 and FFAF?
+	ld [$FFAF], a			; what a mess
+	call Call_3F13
+	ld hl, wOAMBuffer + 4*$B
+	ld a, [$C201]			; y pos
+	sub a, $B
+	ldi [hl], a
+	ldh [$FFF1], a
+	ldh a, [$FFA4]
+	ld b, a
+	ld a, [$FFAE]
+	ld c, a
+	ldh [$FFF2], a
+	sub b
+	ldi [hl], a
+	inc l
+	ld [hl], $00
+	ldh [$FFEB], a
+	ret
+
+; hitting a Mystery Block todo call
+.jmp_1966:: ; 1966
+	ldh a, [$FFEE]
+	and a
+	ret nz
+	push hl
+	ld a, h
+	add a, $30
+	ld h, a
+	ld a, [hl]
+	pop hl
+	and a
+	jp nz, .jmp_189B
+	ld a, $05				; empty Mystery Block contain a single coin
+	ld [$DFE0], a
+	ld a, $81
+	ld [$C02E], a
+	ld a, [$C201]			; ypos
+	sub a, $10
+	ldh [$FFEC], a
+	ld a, $C0
+	ldh [$FFED], a
+	jr .jmp_1937
+
+.jmp_198C
+	ld a, [$C207]			; jump status
+	cp a, $01				; ascending
+	ret nz
+	ld hl, $C201
+	ldi a, [hl]
+	add a, -$3				; look for collision on mario's head
+	ldh [$FFAD], a
+	ldh a, [$FFA4]
+	ld b, [hl]
+	add b
+	add a, $02
+	ldh [$FFAE], a
+	call Mystery_153
+	cp a, $5F				; Hidden Block
+	jp z, .jmp_187B
+	cp a, $60
+	jr nc, .jmp_19BF
+	ldh a, [$FFAE]
+	add a, -$4
+	ldh [$FFAE], a
+	call Mystery_153
+	cp a, $5F
+	jp z, .jmp_187B
+	cp a, $60
+	ret c					; non solid block
+.jmp_19BF
+	call Call_1A6B			; platform-like blocks
+	and a
+	ret z
+	cp a, $82				; breakable block
+	jr z, .jmp_19E1
+	cp a, $F4				; coin
+	jp z, .jmp_1A57
+	cp a, $81				; mystery block
+	jr z, .jmp_1966
+	cp a, $80
+	jp z, .jmp_1888
+	ld a, $02
+	ld [$C207], a
+	ld a, $07
+	ld [$DFE0], a			; bump
+	ret
+
+.jmp_19E1
+	push hl
+	ld a, h
+	add a, $30
+	ld h, a
+	ld a, [hl]
+	pop hl
+	cp a, $C0
+	jp z, .jmp_18A4
+	ldh a, [hSuperStatus]
+	cp a, $02
+	jp nz, .jmp_1923
+	push hl
+	pop de
+	ld hl, $FFEE
+	ld a, [hl]
+	and a
+	ret nz
+	ld [hl], $01
+	inc l
+	ld [hl], d
+	inc l
+	ld [hl], e
+	ld hl, $C210			; block fragments?
+	ld de, $0010
+	ld b, $04
+.jmp_1A0A
+	push hl
+	ld [hl], $00
+	inc l					; C2x1 Y
+	ld a, [$C201]
+	add a, -$D
+	ld [hl], a
+	inc l					; C2x2 X
+	ld a, [$C202]
+	add a, $2
+	ld [hl], a
+	inc l					; C2x3
+	inc l                   ; C2x4
+	inc l                   ; C2x5
+	inc l                   ; C2x6
+	inc l                   ; C2x7
+	ld [hl], $01
+	inc l					; C2x8
+	ld [hl], $07
+	pop hl
+	add hl, de
+	dec b
+	jr nz, .jmp_1A0A
+	ld hl, $C222
+	ld a, [hl]
+	sub a, $04
+	ld [hl], a
+	ld hl, $C242
+	ld a, [hl]
+	sub a, $04
+	ld [hl], a
+	ld hl, $C238
+	ld [hl], $0B
+	ld hl, $C248
+	ld [hl], $0B
+	ldh a, [$FFA4]
+	ldh [$FFF3], a
+	ld a, $02
+	ld [$DFF8], a			; breaking block sound effect
+	ld de, $0050
+	call AddScore
+	ld a, $02
+	ld [$C207], a
+	ret
+
+.jmp_1A57
+	push hl
+	pop de
+	ld hl, $FFEE
+	ld a, [hl]
+	and a
+	ret nz
+	ld [hl], $C0
+	inc l
+	ld [hl], d
+	inc l
+	ld [hl], e
+	ld a, $05
+	ld [$DFE0], a
+	ret
 
 ; Clears A if it's a solid block that does not have side or top collision,
 ; but can be stood upon, like a platform
