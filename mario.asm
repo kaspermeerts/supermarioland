@@ -1134,7 +1134,18 @@ Call_807::
 	ret
 
 ; used in gamestate 0D?
-INCBIN "baserom.gb", $84E, $9F1 - $84E
+INCBIN "baserom.gb", $84E, $9E0 - $84E
+
+Call_9E0:: ; 9E0
+	ld a, 3
+	ldh [hSuperStatus], a
+	xor a
+	ldh [$FFB5], a			; superball
+	ld a, $50
+	ldh [$FFA6], a
+	ld a, $06
+	ld [$DFE0], a			; injury music
+	ret
 
 Call_9F1:: ; 9F1
 	ld a, [$D007]
@@ -1573,7 +1584,7 @@ GameState_05:: ; C73
 	jr nz, .countdown
 	xor a
 	ld [$C0AB], a
-	call $2491		; explodes the enemies?
+	call Call_2491		; explodes the enemies?
 .countdown
 	ldh a, [$FFA6]
 	and a
@@ -1827,7 +1838,7 @@ GameState_1C:: ; E15
 	call LoadNextColumn	; doesn't seem to be necessary
 	xor a
 	ld [$C0AB], a
-	call $2491			; explode enemies?
+	call Call_2491			; explode enemies?
 	call Call_1736		; mario animation?
 	ret
 
@@ -1841,7 +1852,7 @@ GameState_1C:: ; E15
 GameState_1D:: ; E31
 	xor a
 	ld [$C0AB], a
-	call $2491
+	call Call_2491
 	ldh a, [$FFA6]
 	and a
 	ret nz
@@ -2230,7 +2241,7 @@ GameState_27::	; 1099
 .jmp_10A7
 	xor a
 	ld [$C0AB], a
-	call $2491			; explosions?
+	call Call_2491			; explosions?
 	ldh a, [$FFA6]
 	ld c, a
 	and a, %11			; shake every 4 frames
@@ -3163,7 +3174,345 @@ Call_1736::
 	RESTORE_ROM_BANK
 	ret
 
-INCBIN "baserom.gb", $175B, $1B45 - $175B
+; standing on boss switch
+Jmp_175B:: ; 175B
+	ldh a, [hGameState]
+	cp a, $0E
+	jp nc, $181E
+	jp Jmp_1B45				; Mario wins
+
+; Called every frame when standing on a pipe?
+Jmp_1765:: ; 1765
+	ldh a, [hJoyHeld]
+	bit 7, a
+	jp z, $185D				; Down button
+	ld bc, -$20				; one screen width?
+	ld a, h
+	ldh [$FFB0], a
+	ld a, l
+	ldh [$FFAF], a
+	ld a, h
+	add a, $30
+	ld h, a
+	ld de, $FFF4
+	ld a, [hl]
+	and a
+	jp z, $185D
+	ld [de], a
+	inc e
+	add hl, bc
+	ld a, [hl]
+	ld [de], a
+	inc e
+	add hl, bc
+	ld a, [hl]
+	ld [de], a
+	inc e
+	add hl, bc
+	ld a, [hl]
+	ld [de], a
+	inc e
+	push de
+	call Call_3F13			; called when hitting a bouncing block
+	pop de
+	ld hl, $C201			; Y pos
+	ldi a, [hl]
+	add a, $10
+	ld [de], a
+	ldh a, [$FFA4]			; scroll x
+	ld b, a
+	ldh a, [$FFAE]
+	sub b
+	add a, $08
+	ldi [hl], a
+	inc l
+	ld [hl], $80
+	ld a, $09
+	ldh [hGameState], a		; go down pipe
+	ld a, [$C0D3]			; invincibility counter
+	and a
+	jr nz, .jmp_17B6
+	ld a, $04
+	ld [$DFE8], a			; underground music
+.jmp_17B6
+	call Call_1ED4			; clears some sprites
+	jp $185D
+
+; called every frame?
+Call_17BC:: ; 17BC
+	ld hl, $C207			; jump status
+	ld a, [hl]
+	cp a, $01
+	ret z
+	ld hl, $C201			; Y pos
+	ldi a, [hl]
+	add a, $0B
+	ldh [$FFAD], a
+	ldh a, [$FFA4]			; scroll x
+	ld b, a
+	ld a, [hl]
+	add b
+	add a, $FE				; -2?
+	ldh [$FFAE], a
+	call Mystery_153
+	cp a, $70				; standing on pipe
+	jr z, Jmp_1765
+	cp a, $E1				; boss switch
+	jp z, Jmp_175B			; can this be a JR?
+	cp a, $60				; solid tiles
+	jr nc, .jmp_181E		; why is this a JP? Bug?
+	ld a, [$C20E]			; 02 walking, 04 running
+	ld b, $04
+	cp a, $04
+	jr nz, .jmp_17F5
+	ld a, [$C207]			; jump status
+	and a
+	jr nz, .jmp_17F5
+	ld b, $08
+.jmp_17F5
+	ldh a, [$FFAE]
+	add b
+	ldh [$FFAE], a
+	call Mystery_153
+	cp a, $60
+	jr nc, .jmp_181E
+.jmp_1801
+	ld hl, $C207
+	ld a, [hl]
+	cp a, $02
+	ret z					; return if descending
+	ld hl, $C201			; Y pos
+	inc [hl]
+	inc [hl]
+	inc [hl]				; falling without having jumped
+	ld hl, $C20A
+	ld [hl], 0				; Mario not on ground
+	ld a, [$C20E]
+	and a
+	ret nz
+	ld a, $02
+	ld [$C20E], a
+	ret
+
+.jmp_181E
+	cp a, $ED				; spike
+	push af
+	jr nz, .jmp_1842
+	ld a, [$C0D3]			; invincible
+	and a
+	jr nz, .jmp_1842
+	ldh a, [hSuperStatus]
+	and a
+	jr z, .jmp_183C
+	cp a, $04				; i frames after hit
+	jr z, .jmp_1842
+	cp a, $02
+	jr nz, .jmp_1842
+	pop af
+	call Call_9E0
+	jr .jmp_185D
+
+.jmp_183C
+	pop af
+	call Call_9F1			; kill mario
+	jr .jmp_185D
+
+.jmp_1842
+	pop af
+	cp a, $F4				; Coin
+	jr nz, .jmp_185D
+	push hl
+	pop de
+	ld hl, $FFEE
+	ld a, [hl]
+	and a
+	jr nz, .jmp_1801
+	ld [hl], $C0
+	inc l
+	ld [hl], d
+	inc l
+	ld [hl], e
+	ld a, $05
+	ld [$DFE0], a			; coin sound
+	jr .jmp_1801
+
+.jmp_185D
+	ld hl, $C201
+	ld a, [hl]
+	dec a
+	dec a
+	and a, $FC				; erase lowest 2 bits
+	or a, $06				; and set 2 and 1
+	ld [hl], a
+	xor a
+	ld hl, $C207			; jump status
+	ldi [hl], a				; C208 no clue
+	ldi [hl], a				; C209 no clue
+	ldi [hl], a				; C20A 1 if mario on the ground
+	ld [hl], $01			; C20B animation counter
+	ld hl, $C20C			; Why not just INC L... Bug. Momentum
+	ld a, [hl]
+	cp a, $07
+	ret c
+	ld [hl], $06
+	ret
+
+INCBIN "baserom.gb", $187B, $1A6B - $187B
+
+; Clears A if it's a solid block that does not have side or top collision,
+; but can be stood upon, like a platform
+Call_1A6B:: ; 1A6B
+	push hl
+	push af
+	ld b, a
+	ldh a, [hWorldAndLevel]
+	and a, $F0
+	swap a					; just the world
+	dec a
+	sla a					; times two
+	ld e, a
+	ld d, $00
+	ld hl, .data_1A93		; lookup in table
+	add hl, de
+	ld e, [hl]
+	inc hl
+	ld d, [hl]				; load the address in DE
+.nextBlock
+	ld a, [de]
+	cp a, $FD
+	jr z, .endOfList
+	cp b
+	jr z, .match
+	inc de
+	jr .nextBlock
+
+.endOfList					; no match, don't clear A
+	pop af
+	pop hl
+	ret
+
+.match						; clear A, no collision
+	pop af
+	pop hl
+	xor a
+	ret
+
+.data_1A93
+	dw .data_1A9D
+	dw .data_1AA2
+	dw .data_1AA7
+	dw .data_1AA9
+	dw .data_1AAB
+
+.data_1A9D
+	db $68, $69, $6A, $7C, $FD		; "trees" in 1-2 , 7C never seems to appear
+.data_1AA2
+	db $60, $61, $63, $7C, $FD		; "mountains" in 2-1
+.data_1AA7
+	db $7C, $FD
+.data_1AA9
+	db $7C, $FD
+.data_1AAB
+	db $7C, $FD						; ???? World 5?? Bug?
+
+; detects collision with environment, but only left and right?
+Call_1AAD:: ; 1AAD
+	ldh a, [hGameState]
+	cp a, $0E
+	jr nc, .noCollision		; jump if not in "normal gameplay"
+	ld de, $0701
+	ldh a, [hSuperStatus]
+	cp a, $02				; super mario
+	jr nz, .checkSide
+	ld a, [$C203]			; animation index
+	cp a, $18				; crouching mario
+	jr z, .checkSide
+	ld de, $0702			; E = 2, check lower and upper side
+.checkSide
+	ld hl, $C201			; Y pos
+	ldi a, [hl] 			; The Y pos is about 10 px above Mario's feet
+	add d					; so look about 7px lower first iteration?
+	ldh [$FFAD], a
+	ld a, [$C205]			; dir facing
+	ld b, [hl]				; X pos
+	ld c, -6				; mario is 12 pixels wide?
+	and a
+	jr nz, .findTile
+	ld c, 6					; 6 pixels to the right if he's facing right
+.findTile					; Bug? Mario's X pos is one pixel to the right of 
+	ld a, c					; his center, so adding 6 is wrong, asymmetric
+	add b					; with subtracting 6
+	ld b, a
+	ldh a, [$FFA4]			; scroll x
+	add b					; add to find X coordinate in tile coordinates
+	ldh [$FFAE], a			; used in block detection
+	push de
+	call Mystery_153		; block finding routine?
+	call Call_1A6B			; detect if the block is passthrougable from the side
+	pop de
+	and a
+	jr z, .checkNextTile
+	cp a, $60
+	jr c, .checkNextTile
+	cp a, $F4
+	jr z, .touchedCoin
+	cp a, $77
+	jr z, .touchedSidewaysPipe
+	cp a, $F2				; downward fist Genkotsu
+	jr z, Jmp_1B45			; ...makes Mario win? Bug? Deleted content?
+.stopMario
+	ld hl, $C20B			; animation frame counter
+	inc [hl]
+	ld a, $02
+	ld [$C20E], a			; 02 walking, 04 runnning
+	ld a, $FF
+	ret
+
+.checkNextTile
+	ld d, -$4				; if Super Mario, check collision again 4 units higher
+	dec e
+	jr nz, .checkSide
+
+.noCollision
+	xor a
+	ret
+
+.touchedCoin
+	push hl
+	pop de
+	ld hl, $FFEE
+	ld a, [hl]
+	and a
+	ret nz					; return if collision already being handled
+	ld [hl], $C0			; C0in
+	inc l
+	ld [hl], d
+	inc l
+	ld [hl], e				; store block address in FFEF-FFF0
+	ld a, $05
+	ld [$DFE0], a			; coin sound effect
+	xor a
+	ret
+
+.touchedSidewaysPipe
+	ldh a, [$FFF9]
+	and a
+	jr z, .stopMario		; do nothing if we're not underground
+	ld a, $0B
+	ldh [hGameState], a
+	ld a, $80
+	ld [$C204], a		; mario in control?
+	ld hl, $C202		; X pos
+	ldd a, [hl]
+	add a, $18
+	ldh [$FFF8], a		; goal X?
+	ld a, [hl]			; Y pos
+	and a, $F8			; zero lowest three bits
+	add a, $06
+	ld [hl], a
+	call Call_1ED4		; clears sprites of some sort
+	ld a, $FF
+	ret
 
 ; makes Mario win?
 Jmp_1B45:: ; 1B45
@@ -3552,7 +3901,7 @@ Call_1D26::
 .skip
 	ld hl, $C205		; dir facing
 	ld [hl], $00		; facing right
-	call $1AAD
+	call Call_1AAD
 	and a
 	ret nz
 .jmp_1DC1
@@ -3652,7 +4001,7 @@ Call_1D26::
 .jmp_1E61
 	ld hl, $C205		; dir facing
 	ld [hl], $20		; facing left
-	call $1AAD
+	call Call_1AAD
 	and a
 	ret nz
 	ld hl, $C202		; mario x pos
@@ -4615,7 +4964,54 @@ Call_245C::
 	jp nz, .loop		; why JP and nor JR?
 	ret
 
-INCBIN "baserom.gb", $2491, $3D1A - $2491
+Call_2491:: ; 2491
+	call Call_249B
+	call $2648
+	call $2568
+	ret
+
+; spawns enemies?
+Call_249B:: ; 249B
+	ld a, [$D010]
+	ld l, a
+	ld a, [$D011]
+	ld h, a
+	ld a, [hl]		; where next enemy should appear?
+	ld b, a
+	ld a, [$C0AB]	; progress in columns / 2
+	sub b
+	ret z
+	ret c			; return if we're not there yet
+	ld c, a
+	swap c			; remember the difference in the hi nibble
+	push hl
+	inc hl			; Y position of the enemy, in tiles (lowest 5 bits)
+	ld a, [hl]
+	and a, $1F
+	rlca
+	rlca
+	rlca			; multiply by 8
+	add a, $10		; account for HUD
+	ldh [$FFC2], a	; enemy buffer?
+	ldi a, [hl]		; again Y position
+	and a, $C0		; highest 2 bits, X position
+	swap a
+	add a, $D0		; TODO what's going on here
+	sub c
+	ldh [$FFC3], a	; future X pos
+	call $24EF
+	pop hl
+	ld de, $0003	; 3 bytes per enemy
+	add hl, de		; next one to spawn
+	ld a, l
+	ld [$D010], a
+	ld a, h
+	ld [$D011], a
+	jr Call_249B
+
+Call_24D6:: ; 24D6
+
+INCBIN "baserom.gb", $24D6, $3D1A - $24D6
 
 ; called at level start, is some sort of init
 Call_3D1A; 3D1A
