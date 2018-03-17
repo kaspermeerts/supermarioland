@@ -19,9 +19,19 @@ hSuperStatus:: ; FF99 TODO constants
 hWinCount::		; FF9A TODO mirrored at C0E1?
 	ds 1
 
-ds $AC - $9B
+ds $A4 - $9B
 
-hFrameCounter::
+hScrollX::		; FFA4
+	ds 1
+
+ds 1			; FFA5 unknown
+
+hTimer::		; FFA6 Generic frame based timer
+	ds 1
+
+ds $AC - $A7
+
+hFrameCounter:: ; FFAC
 	ds 1
 
 ds $B2 - $AD
@@ -35,11 +45,11 @@ hGameState::	; FFB3
 hWorldAndLevel::; FFB4
 	ds 1
 
-ds $B6 - $B5
+hSuperballMario::; FFB5
+	ds 1
 
 hDMARoutine::	; FFB6
 	ds $A
-hDMARoutineEnd:: ; TODO temporary
 
 ds $DF - $C0
 
