@@ -19,7 +19,15 @@ hSuperStatus:: ; FF99 TODO constants
 hWinCount::		; FF9A TODO mirrored at C0E1?
 	ds 1
 
-ds $A4 - $9B
+ds 1			; FF9B unknown
+
+hStompChainTimer:: ; FF9C
+	ds 1
+
+hStompChain::	; FF9D
+	ds 1
+
+ds $A4 - $9E
 
 hScrollX::		; FFA4
 	ds 1

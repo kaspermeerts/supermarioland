@@ -1135,8 +1135,260 @@ Call_807::
 	jr nz, .drawLoop
 	ret
 
-; used in gamestate 0D?
-INCBIN "baserom.gb", $84E, $9E0 - $84E
+; called from main gameplay subroutine
+; player "entity" (enemy, powerup) collision
+Call_84E:: ; 84E
+	ldh a, [hStompChainTimer]
+	and a
+	jr z, .skip			; don't decrement below zero
+	dec a
+	ldh [hStompChainTimer], a
+.skip
+	ld de, -$10
+	ld b, $0A
+	ld hl, $D190
+.enemyLoop
+	ld a, [hl]
+	cp a, $FF
+	jr nz, .jmp_868
+.nextEnemy
+	add hl, de
+	dec b
+	jr nz, .enemyLoop	; loop over all enemies/entities
+	ret
+
+.jmp_868
+	ldh [$FFFB], a
+	ld a, l
+	ldh [$FFFC], a
+	push bc
+	push hl
+	ld bc, $000A
+	add hl, bc
+	ld c, [hl]			; D1xA mortal + width + height
+	inc l
+	inc l
+	ld a, [hl]			; D1xC health?
+	ldh [$FF9B], a
+	ld a, [$C201]		; Mario Y pos
+	ld b, a
+	ldh a, [hSuperStatus]
+	cp a, $02
+	jr nz, .jmp_88E
+	ld a, [$C203]
+	cp a, $18
+	jr z, .jmp_88E
+	ld a, -$2
+	add b
+	ld b, a
+.jmp_88E
+	ld a, b
+	ldh [$FFA0], a		; bounding box top?
+	ld a, [$C201]
+	add a, $6
+	ldh [$FFA1], a		; bounding box bottom?
+	ld a, [$C202]		; Mario X pos
+	ld b, a
+	sub a, $03
+	ldh [$FFA2], a		; bounding box left?
+	ld a, $02
+	add b
+	ldh [$FF8F], a		; BB right
+	pop hl
+	push hl
+	call Call_AAF		; hitbox detection
+	and a
+	jp z, .noCollision
+	ldh a, [$FFFC]
+	cp a, $90			; powerups only appear in the last slot
+	jp z, .powerUpCollision
+	ldh a, [$FFFB]		; gets overwritten immediately. Bug?
+	ldh a, [hGameState]
+	cp a, $0D			; autoscroll
+	jr z, .jmp_8C3
+	ld a, [wInvincibilityTimer]
+	and a
+	jr z, .jmp_8C7
+.jmp_8C3
+	dec l
+	jp .jmp_94B
+.jmp_8C7
+	ld a, [$C202]		; mario x pos
+	add a, $06
+	ld c, [hl]
+	dec l
+	sub c
+	jr c, .jmp_94B
+	ld a, [$C202]
+	sub a, $06
+	sub b
+	jr nc, .jmp_94B
+	ld b, [hl]
+	dec b
+	dec b
+	dec b
+	ld a, [$C201]
+	sub b
+	jr nc, .jmp_94B
+	dec l
+	dec l
+	push hl
+	ld bc, $000A
+	add hl, bc
+	bit 7, [hl]			; 7 bit set, enemy can't die
+	pop hl
+	jr nz, .out
+	call Call_A10		; hit enemy
+	call $2A01
+	and a
+	jr z, .out
+	ld hl, $C20A		; 1 if on ground
+	ld [hl], 0
+	dec l
+	dec l
+	ld [hl], $D			; C208
+	dec l
+	ld [hl], 1			; C207 jump status
+	ld hl, $C203		; animation
+	ld a, [hl]
+	and a, $F0
+	or a, $04			; flying
+	ld [hl], a
+.enemyKilled
+	ld a, $03
+	ld [$DFE0], a		; stomp sound
+	ld a, [$C202]		; X pos
+	add a, -$4
+	ldh [$FFEB], a		; floaty X poes
+	ld a, [$C201]
+	sub a, $10
+	ldh [$FFEC], a		; floaty Y pos
+	ldh a, [$FF9E]
+	ldh [$FFED], a		; floaty control
+	ldh a, [hStompChainTimer]
+	and a
+	jr z, .resetStompChain
+	ldh a, [hStompChain]
+	cp a, 3				; maximum chain of 3
+	jr z, .calculateScoreReward
+	inc a
+	ldh [hStompChain], a
+.calculateScoreReward
+	ld b, a
+	ldh a, [$FFED]
+	cp a, $50			; Floaties above $50 are not score but coins and 1UPs
+	jr z, .resetStompChain
+.loop					; Shift BCD encoded score reward. Works out to a 
+	sla a				; multiplication by 2, except for a weird jump
+	dec b				; from 800 → 1000
+	jr nz, .loop
+	ldh [$FFED], a		; floaty control
+.resetStompChainTimer	; 50 frames? 5/6ths of a second? No wonder chaining
+	ld a, $32			; is so hard in this game
+	ldh [hStompChainTimer], a
+	jr .out
+
+.resetStompChain
+	xor a
+	ldh [hStompChain], a
+	jr .resetStompChainTimer
+
+.jmp_94B	; enemy side hit?
+	dec l
+	dec l
+	ld a, [wInvincibilityTimer]
+	and a
+	jr nz, .jmp_974			; try to kill enemy?
+	ldh a, [hSuperStatus]
+	cp a, $03
+	jr nc, .out				; if superstatus is 4 (or more?), Mario has some
+	call $2A44				; i-frames
+	and a
+	jr z, .out
+	ldh a, [hSuperStatus]
+	and a
+	jr nz, .injureAndOut
+	call KillMario
+.out
+	pop hl
+	pop bc
+	ret
+
+.noCollision
+	pop hl
+	pop bc
+	jp .nextEnemy
+
+.injureAndOut
+	call InjureMario
+	jr .out
+
+.jmp_974
+	call $2B06				; like 2AXX calls, a lookup into tables
+	and a					; between $3000 and $4000
+	jr z, .out
+	jr .enemyKilled
+
+.powerUpCollision
+	ldh a, [$FFFB]
+	cp a, $29				; mushroom
+	jr z, .pickupMushroom
+	cp a, $34				; Star
+	jr z, .pickupStar
+	cp a, $2B				; 1 UP
+	jr z, .pickup1UP
+	cp a, $2E				; Flower
+	jr nz, .out
+.pickupFlower
+	ldh a, [hSuperStatus]
+	cp a, $02				; if we lost our Super before picking up
+	jr nz, .becomeSuper		; the flower, it functions like a mushroom
+	ldh [hSuperballMario], a
+.playPowerUpSound
+	ld a, 4
+	ld [$DFE0], a
+.spawn1000ScoreFloaty
+	ld a, $10
+	ldh [$FFED], a			; floatey numbers and coins, 1000 score?
+.positionFloaty
+	ld a, [$C202]
+	add a, -$4
+	ldh [$FFEB], a			; X position of floaty number?
+	ld a, [$C201]
+	sub a, $10
+	ldh [$FFEC], a			; Y position of floaty number
+	dec l
+	dec l
+	dec l
+	ld [hl], $FF
+	jr .out
+
+.pickupMushroom
+	ldh a, [hSuperStatus]
+	cp a, $02
+	jr z, .spawn1000ScoreFloaty
+.becomeSuper
+	ld a, $01
+	ldh [hSuperStatus], a
+	ld a, $50
+	ldh [hTimer], a
+	jr .playPowerUpSound
+
+.pickupStar
+	ld a, $F8
+	ld [wInvincibilityTimer], a
+	ld a, $0C
+	ld [$DFE8], a				; Galop Infernal
+	jr .spawn1000ScoreFloaty
+
+.pickup1UP
+	ld a, $FF
+	ldh [$FFED], a				; 1UP floaty
+	ld a, $08
+	ld [$DFE0], a				; life up
+	ld a, 1
+	ld [wLivesEarnedLost], a
+	jr .positionFloaty
 
 InjureMario:: ; 9E0
 	ld a, 3
@@ -3464,7 +3716,7 @@ Jmp_185D
 	jr nz, .jmp_191F
 	ld a, $2D				; flower
 .jmp_191F
-	call $254D				; make it come out?
+	call Call_254D				; make it come out?
 	ret
 
 .jmp_1923
@@ -4250,7 +4502,7 @@ Call_1D26::
 	add [hl]			; scroll screen if Mario is in the middle
 	ld [hl], a
 	call .call_1EA4		; shift sprites
-	call $2C9F
+	call Call_2C9F
 	ld hl, $C001		; projectile X positions
 	ld de, $0004		; 4 bytes per sprite
 	ld c, $03			; 3 projectiles
@@ -4733,7 +4985,7 @@ Call_200A::
 	ld a, [de]
 	and a
 	jr z, .jmp_20C1
-	call $254D
+	call Call_254D			; spawn powerup
 .jmp_20C1
 	ld hl, $C210			; non player entity?
 	ld de, $0010
@@ -5272,8 +5524,8 @@ Call_245C::
 
 Call_2491:: ; 2491
 	call Call_249B
-	call $2648
-	call $2568
+	call Call_2648
+	call Call_2568
 	ret
 
 ; spawns enemies?
@@ -5305,7 +5557,7 @@ Call_249B:: ; 249B
 	add a, $D0		; TODO what's going on here
 	sub c
 	ldh [$FFC3], a	; future X pos
-	call $24EF
+	call Call_24EF
 	pop hl
 	ld de, $0003	; 3 bytes per enemy
 	add hl, de		; next one to spawn
@@ -5315,9 +5567,646 @@ Call_249B:: ; 249B
 	ld [$D011], a
 	jr Call_249B
 
+; enemy launches projectile?
 Call_24D6:: ; 24D6
+	ld a, [$D003]
+	ldh [$FFC0], a
+	cp a, $FF
+	ret z
+	ld d, $00
+	ld e, a
+	rlca
+	add e			; multiply by 3
+	rl d			; propagate carry into upper nibble
+	ld e, a
+	ld hl, Data_3375
+	add hl, de
+	ldi a, [hl]
+	ldh [$FFC7], a
+	jr Jmp_250B
 
-INCBIN "baserom.gb", $24D6, $3D1A - $24D6
+Call_24EF:: ; 24EF
+	ldh a, [hWinCount]
+	and a
+	jr nz, .jmp_24F7
+	bit 7, [hl]
+	ret nz
+.jmp_24F7
+	ld a, [hl]
+	and a, $7F
+	ldh [$FFC0],a
+	ld d, $00
+	ld e, a
+	rlca
+	add e
+	rl d
+	ld e, a
+	ld hl, Data_3375
+	add hl, de
+	ld a, [hl]
+	ldh [$FFC7], a
+
+Jmp_250B
+	xor a
+	ldh [$FFC4], a
+	ldh [$FFC5], a
+	ldh [$FFC8], a
+	ldh [$FFC9], a
+	ldh [$FFCB], a
+	ldh a, [$FFC0]
+	ld d, $00
+	ld e, a
+	rlca
+	add e
+	rl d
+	ld e, a
+	ld hl, Data_3375
+	add hl, de
+	inc hl				; not interested in the first byte?
+	ldi a, [hl]
+	ldh [$FFCA], a		; mortality and dimensions
+	ld a, [hl]
+	ldh [$FFCC], a		; "health" above C0 means boss
+	cp a, $C0
+	jr c, .findEmptySlot
+	ld a, $0B
+	ld [$DFE8], a		; boss music!
+.findEmptySlot
+	ld de, $0010
+	ld b, $00
+	ld hl, $D100
+.slotLoop
+	ld a, [hl]
+	inc a
+	jr z, .jmp_2548
+	inc b
+	add hl, de
+	ld a, l
+	cp a, $90			; 10 slots, from 0-9
+	jr nz, .slotLoop
+	ret
+
+.jmp_2548
+	ld a, b
+	call Call_2CF7
+	ret
+
+Call_254D:: ; 254D
+	ld hl, $D190		; powerup slot
+	ld [hl], a
+	ldh a, [$FFC2]		; Y pos
+	and a, $F8
+	add a, $7			; align the Y pos with block coordinates?
+	ld [$D192], a
+	ldh a, [$FFC3]		; X pos
+	ld [$D193], a
+	call Call_2CBB
+	ld a, $0B
+	ld [$DFE0], a
+	ret
+
+; draws enemies
+Call_2568::; 2568
+	xor a
+	ld [$D013], a
+	ld c, $00
+.jmp_256E
+	ld a, [$D013]
+	cp a, $14
+	ret nc
+	push bc
+	ld a, c
+	swap a
+	ld hl, $D100
+	ld l, a
+	ld a, [hl]
+	inc a
+	jr z, .jmp_259D
+	ld a, c
+	call Call_2CE5
+	ldh a, [$FFC3]
+	cp a, $E0
+	jr c, .jmp_2594
+.jmp_258A
+	ld a, $FF
+	ldh [$FFC0], a
+	ld a, c
+	call Call_2CF7
+	jr .jmp_259D
+
+.jmp_2594
+	ldh a, [$FFC2]
+	cp a, $C0
+	jr nc, .jmp_258A
+	call .call_25C0
+.jmp_259D
+	pop bc
+	inc c
+	ld a, c
+	cp a, $0A
+	jr nz, .jmp_256E
+	ld hl, $C050
+	ld a, [$D013]
+	rlca
+	rlca
+	ld d, $00
+	ld e, a
+	add hl, de
+.jmp_25B0
+	ld a, l
+	cp a, $A0
+	jp nc, .jmp_25BF
+	ld a, $B4
+	ld [hl], a
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	jr .jmp_25B0
+.jmp_25BF
+	ret
+
+.call_25C0
+	xor a
+	ld [$D000], a
+	ld hl, $C050			; first enemy sprite slot?
+	ld a, [$D013]			; sprite slot to be filled?
+	rlca
+	rlca					; times 4, 4 bytes per sprite
+	ld d, $00
+	ld e, a
+	add hl, de
+	ld b, h
+	ld c, l					; store address in BC
+	ld hl, Data_2FE2
+	ldh a, [$FFC5]
+	and a, %1				; BIT 0, A >_> bug. 1 if facing right
+	jr nz, .jmp_25DE
+	ld hl, Data_30B4
+.jmp_25DE
+	ldh a, [$FFC6]
+	rlca					; times two
+	ld d, $00
+	ld e, a
+	add hl, de
+	ldi a, [hl]
+	ld e, a
+	ld a, [hl]
+	ld d, a					; lookup in table
+	ld h, d					; store the address in HL
+	ld l, e
+.jmp_25EB
+	ld a, [$D013]
+	cp a, $14
+	ret nc
+.jmp_25F1
+	ld a, [hl]
+	cp a, $FF
+	ret z
+	bit 7, a
+	jr nz, .jmp_262E
+	rlca
+	res 4, a
+	ld [$D000], a
+	ld a, [hl]
+	bit 3, a
+	jr z, .jmp_260B
+	ldh a, [$FFC2]
+	sub a, $8
+	ldh [$FFC2], a
+	ld a, [hl]
+.jmp_260B
+	bit 2, a
+	jr z, .jmp_2616
+	ldh a, [$FFC2]
+	add a, $8
+	ldh [$FFC2], a
+	ld a, [hl]
+.jmp_2616
+	bit 1, a
+	jr z, .jmp_2621
+	ldh a, [$FFC3]
+	sub a, $8
+	ldh [$FFC3], a
+	ld a, [hl]
+.jmp_2621
+	bit 0, a
+	jr z, .jmp_262B
+	ldh a, [$FFC3]
+	add a, $8
+	ldh [$FFC3], a
+.jmp_262B
+	inc hl
+	jr .jmp_25F1
+
+; BC contains the sprite address at this point
+.jmp_262E
+	ldh a, [$FFC2]		; Y pos
+	ld [bc], a			; sprite Y pos
+	inc bc
+	ldh a, [$FFC3]		; X pos
+	ld [bc], a			; sprite X pos
+	inc bc
+	ld a, [hl]			; this comes from the pointer 2FE2 and 30B4
+	ld [bc], a
+	inc bc
+	ld a, [$D000]		; where is this filled in?
+	ld [bc], a			; sprite attributes
+	inc bc
+	inc hl
+	ld a, [$D013]
+	inc a
+	ld [$D013], a
+	jr .jmp_25EB
+
+Call_2648:: ; 2648
+	ld hl, $D100
+.jmp_264B
+	ld a, [hl]
+	inc a
+	jr z, .jmp_266C
+	push hl
+	call Call_2CE5.call_2CEB
+	ld hl, Data_349E
+	ldh a, [$FFC0]		; enemy ID
+	rlca
+	ld d, $00
+	ld e, a
+	add hl, de
+	ldi a, [hl]
+	ld e, a
+	ld a, [hl]
+	ld d, a
+	ld h, d
+	ld l, e
+	call .call_2676
+	pop hl
+	push hl
+	call Call_2CF7.call_2CFD
+	pop hl
+.jmp_266C
+	ld a, l
+	add a, $10
+	ld l, a
+	cp a, $A0
+	jp nz, .jmp_264B
+	ret
+
+.call_2676
+.jmp_2676
+	ldh a, [$FFC8]			; state or animation index
+	and a
+	jr z, .jmp_26B5
+	ldh a, [$FFC7]			; 07 if gravity works on it??
+	bit 1, a
+	jr z, .jmp_2692
+	call Call_2BBB
+	jr nc, .jmp_268C
+	ldh a, [$FFC2]
+	inc a
+	ldh [$FFC2], a
+	ret
+
+.jmp_268C
+	ldh a, [$FFC2]
+	and a, $F8
+	ldh [$FFC2], a
+.jmp_2692
+	ldh a, [$FFC9]
+	and a, $F0
+	swap a
+	ld b, a
+	ldh a, [$FFC9]
+	and a, $0F
+	cp b
+	jr z, .jmp_26A7
+	inc b
+	swap b
+	or b
+	ldh [$FFC9], a
+	ret
+
+.jmp_26A7
+	ldh a, [$FFC9]
+	and a, $0F
+	ldh [$FFC9], a
+	ldh a, [$FFC8]
+	dec a
+	ldh [$FFC8], a
+	jp $2879
+
+.jmp_26B5
+	push hl
+	ld d, $00
+	ldh a, [$FFC4]
+	ld e, a
+	add hl, de
+	ld a, [hl]
+	ld [$D002], a
+	cp a, $FF
+	jr nz, .jmp_26CA
+	xor a
+	ldh [$FFC4], a
+	pop hl
+	jr .jmp_26B5
+
+.jmp_26CA
+	ldh a, [$FFC4]
+	inc a
+	ldh [$FFC4], a
+	ld a, [$D002]
+	and a, $F0
+	cp a, $F0
+	jr z, .jmp_26F8
+	ld a, [$D002]
+	and a, $E0
+	cp a, $E0
+	jr nz, .jmp_26EB
+	ld a, [$D002]
+	and a, $0F
+	ldh [$FFC8], a
+	pop hl
+	jr .jmp_2676
+
+.jmp_26EB
+	ld a, [$D002]
+	ldh [$FFC1], a
+	ld a, $01
+	ldh [$FFC8], a
+	pop hl
+	jp .jmp_2676
+
+.jmp_26F8
+
+INCBIN "baserom.gb", $26F8, $2BBB - $26F8
+
+; sprite collision detection?
+Call_2BBB:: ; 2BBB
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $4
+	ldh [$FFAE], a
+	ld c, a
+	ldh a, [$FFC5]
+	bit 0, a
+	jr .jmp_2BD4
+
+.jmp_2BCC
+	ldh a, [$FFCA]	; mortality and dimensions?
+	and a, $70
+	rrca
+	add c
+	ldh [$FFAE], a
+.jmp_2BD4
+	ldh a, [$FFC2]
+	add a, $08
+	ldh [$FFAD], a
+	Call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+Call_2BE4:: ; 2BE4
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $03
+	ldh [$FFAE], a
+	ldh a, [$FFC2]
+	add a, $08
+	ldh [$FFAD], a
+	call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+; 4 collision detection routines of some kind
+
+Call_2BFE:: ; 2BFE
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $5
+	ld c, a
+	ldh a, [$FFCA]
+	and a, $70
+	rrca
+	add c
+	sub a, $8
+	ldh [$FFAE], a
+	ldh a, [$FFC2]
+	add a, $8
+	ldh [$FFAD], a
+	call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+Call_2C21:: ; 2C21
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $04
+	ldh [$FFAE], a
+	ld c, a
+	ldh a, [$FFC5]
+	bit 0, a
+	jr .jmp_2C3A
+	ldh a, [$FFCA]
+	and a, $70
+	rrca
+	add c
+	ldh [$FFAE], a
+.jmp_2C3A
+	ldh a, [$FFCA]
+	and a, $07
+	dec a
+	swap a
+	rrca
+	ld c, a
+	ldh a, [$FFC2]
+	sub c
+	ldh [$FFAD], a
+	call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+Call_2C52:: ; 2C52
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $03
+	ldh [$FFAE], a
+	ldh a, [$FFCA]
+	and a, $07
+	dec a
+	swap a
+	rrca
+	ld c, a
+	ldh a, [$FFC2]
+	sub c
+	ldh [$FFAD], a
+	Call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+Call_2C74:: ; 2C74
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $05
+	ld c, a
+	ldh a, [$FFCA]
+	and a, $70
+	rrca
+	sub c
+	sub a, $08
+	ldh [$FFAE], a
+	ldh a, [$FFCA]
+	and a, $07
+	dec a
+	swap a
+	rrca
+	ld c, a
+	ldh a, [$FFC2]
+	sub c
+	ldh [$FFAD], a
+	Call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+; scroll all enemies by B
+Call_2C9F:: ; 2C9F
+	ld a, b
+	and a
+	ret z
+	ldh a, [$FFC3]		; X
+	sub b
+	ldh [$FFC3], a
+	push hl
+	push de
+	ld hl, $D103
+	ld de, $0010
+.loop
+	ld a, [hl]
+	sub b
+	ld [hl], a
+	add hl, de
+	ld a, l
+	cp a, $A0
+	jr c, .loop
+	pop de
+	pop hl
+	ret
+
+; HL points to enemy slot (powerup slot?)
+Call_2CBB:: ; 2CBB
+	push hl
+	ld a, [hl]			; enemy ID
+	ld d, $00
+	ld e, a
+	rlca
+	add e				; times three
+	rl d
+	ld e, a
+	ld hl, Data_3375
+	add hl, de
+	ldi a, [hl]
+	ld b, a
+	ldi a, [hl]
+	ld d, a
+	ld a, [hl]
+	pop hl
+	inc hl				; D1x1
+	inc hl				; D1x2
+	inc hl				; D1x3
+	inc hl				; D1x4
+	ld [hl], $00
+	inc hl				; D1x5
+	inc hl				; D1x6
+	inc hl				; D1x7
+	ld [hl], b			; some sort of behaviour? goomba is 6. koopa is 7
+	inc hl				; D1x8
+	ld [hl], $00
+	inc hl				; D1x9
+	ld [hl], $00
+	inc hl				; D1xA mortality and dimensions
+	ld [hl], d
+	inc hl				; D1xB
+	inc hl				; D1xC "health"
+	ld [hl], a
+	ret
+
+; Fill buffer from enemy slot
+Call_2CE5::
+	swap a
+	ld hl, $D100
+	ld l, a
+.call_2CEB
+	ld de, $FFC0
+	ld b, $0D
+.loop
+	ldi a, [hl]
+	ld [de], a
+	inc de
+	dec b
+	jr nz, .loop
+	ret
+
+; Fills enemy slot from buffer
+Call_2CF7:: ; 2CF7
+	swap a				; same as multiplying by 16. Slots are 16 bytes apart
+	ld hl, $D100
+	ld l, a
+.call_2CFD
+	ld de, $FFC0
+	ld b, $0D
+.loop
+	ld a, [de]
+	ldi [hl], a
+	inc de
+	dec b
+	jr nz, .loop
+	ret
+
+; data used for whatever reason
+INCBIN "baserom.gb", $2D09, $2FE2 - $2D09
+
+; pointers for that data if facing left
+Data_2FE2:: ; 2FE2
+INCBIN "baserom.gb", $2FE2, $30B4 - $2FE2
+
+; pointers for that data if facing left
+Data_30B4:: ; 30B4
+INCBIN "baserom.gb", $30B4, $3375 - $30B4
+
+Data_3375:: ; 3375
+INCBIN "baserom.gb", $3375, $349E - $3375
+
+Data_349E:: ; 349E
+INCBIN "baserom.gb", $349E, $3D1A - $349E
 
 ; called at level start, is some sort of init
 Call_3D1A; 3D1A
