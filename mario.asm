@@ -93,7 +93,7 @@ LCDStatus::
 	ld a, [$C0DE]
 	and a
 	jr z, .jmp_B2
-	ld a, [$C0DF]
+	ld a, [wScrollY]
 	ldh [rSCY], a
 .jmp_B2
 	ldh a, [hGameState]
@@ -567,7 +567,7 @@ GameState_0E::
 	ld a, [wNumContinues]
 	ld [hl], a
 	inc l
-	ld [hl], 0		; no sprite attributes
+	ld [hl], 0		; no object attributes
 	inc l
 	ld [hl], $80	; Y
 .noContinues
@@ -710,7 +710,7 @@ GameState_0F::
 	inc l
 	ld [hl], $78	; X for world
 	inc l
-	ldi [hl], a		; world sprite index
+	ldi [hl], a		; world object index
 	inc l
 	ld a, c
 	and a, $0F
@@ -718,7 +718,7 @@ GameState_0F::
 	inc l
 	ld [hl], $88	; X for level
 	inc l
-	ldi [hl], a		; level sprite index
+	ldi [hl], a		; level object index
 	inc l
 	ld [hl], b		; Y
 	inc l
@@ -1259,7 +1259,7 @@ Call_84E:: ; 84E
 	ld [$DFE0], a		; stomp sound
 	ld a, [$C202]		; X pos
 	add a, -$4
-	ldh [$FFEB], a		; floaty X poes
+	ldh [$FFEB], a		; floaty X pos
 	ld a, [$C201]
 	sub a, $10
 	ldh [$FFEC], a		; floaty Y pos
@@ -1539,7 +1539,7 @@ Call_AAF:: ; AAF
 	inc l
 	inc l				; D1x2 Y pos
 	ld a, [hl]
-	add a, $08			; Y pos is top left of bottom left sprite tile
+	add a, $08			; Y pos is top left of bottom left object tile
 	ld b, a				; so add 8 to get coordinate of bottom of enemy
 	ldh a, [$FFA0]		; top of bounding box?
 	sub b				; top - bottom
@@ -1701,9 +1701,9 @@ Call_AEA:: ; AEA
 	pop bc
 	jp .nextEnemy
 
-; prepare Mario's dying sprites. And some variables
+; prepare Mario's dying sprite. And some variables
 GameState_03:: ; B8D
-	ld hl, wOAMBuffer + $0C	; Mario's 4 sprites todo
+	ld hl, wOAMBuffer + $0C	; Mario's 4 objects todo
 	ld a, [$C0DD]		; death Y position?
 	ld c, a
 	sub a, $08
@@ -1714,7 +1714,7 @@ GameState_03:: ; B8D
 	add a, $F8			; or subtract 8
 	ld b, a
 	ldi [hl], a			; X position
-	ld [hl], $0F		; todo mario dying sprite top
+	ld [hl], $0F		; todo mario dying object top
 	inc l
 	ld [hl], $00		; TODO OAM bits
 	inc l
@@ -1722,7 +1722,7 @@ GameState_03:: ; B8D
 	inc l
 	ld [hl], b			; X position
 	inc l
-	ld [hl], $1F		; bottom dying sprite
+	ld [hl], $1F		; bottom dying object
 	inc l
 	ld [hl], $00		; OAM, flip
 	inc l
@@ -1732,7 +1732,7 @@ GameState_03:: ; B8D
 	add a, $08
 	ld b, a
 	ldi [hl], a			; X position
-	ld [hl], $0F		; top right dying mario sprite (mirrored)
+	ld [hl], $0F		; top right dying mario object (mirrored)
 	inc l
 	ld [hl], $20		; OAM X flip
 	inc l
@@ -1740,7 +1740,7 @@ GameState_03:: ; B8D
 	inc l
 	ld [hl], b			; X
 	inc l
-	ld [hl], $1F		; bottom dying sprite
+	ld [hl], $1F		; bottom dying object
 	inc l
 	ld [hl], $20		; OAM X flip
 	ld a, $04			; dying animation
@@ -1770,14 +1770,14 @@ GameState_04:: ; BD6
 	ld [$C0AC], a
 	ld b, 2				; coast with the same speed of 2
 .next
-	ld hl, wOAMBuffer + 3 * 4		; 3rd sprite, first mario sprite
-	ld de, 4						; 4 bytes per sprite
-	ld c, 4							; 4 sprites in total
+	ld hl, wOAMBuffer + 3 * 4		; 3rd object, first mario object
+	ld de, 4						; 4 bytes per object
+	ld c, 4							; 4 object in total
 .loop
 	ld a, b
 	add [hl]
 	ld [hl], a						; first byte is Y position
-	add hl, de						; next sprite
+	add hl, de						; next object
 	dec c
 	jr nz, .loop
 	cp a, $B4						; end animation when he goes low enough
@@ -1822,7 +1822,7 @@ GameState_07:: ; C40
 	and a, $0F				; select just the level
 	cp a, 3
 	ret nz
-	call $2B2A				; if there was a boss fight. explode enemies?
+	call Call_2B2A			; if there was a boss fight. explode enemies?
 	ldh a, [hWorldAndLevel]
 	cp a, $43				; last level
 	ret nz
@@ -2239,9 +2239,9 @@ GameState_21:: ; ECD
 	dec b
 	jr nz, .loop
 	ld hl, $C211
-	ld [hl], $7E		; sprite Y pos?
+	ld [hl], $7E		; object Y pos?
 	inc l
-	ld [hl], $00		; sprite X pos?
+	ld [hl], $00		; object X pos?
 	inc l
 	ld [hl], $22		; Daisy :)
 	inc l
@@ -2397,13 +2397,13 @@ GameState_25:: ; FFD
 	jr z, .nextState
 	ldh [$FFFB], a
 	and a, $01
-	ld hl, .morphSprites1
-	jr nz, .exchangeSprites
-	ld hl, .morphSprites2
+	ld hl, .morphSprite1
+	jr nz, .exchangeSprite
+	ld hl, .morphSprite2
 	ld a, 3
 	ld [$DFF8], a
-.exchangeSprites
-	call .writeSprites
+.exchangeSprite
+	call .writeSprite
 	ld a, $08
 	ldh [hTimer], a
 	ret
@@ -2415,9 +2415,9 @@ GameState_25:: ; FFD
 	inc [hl]			; 25 → 26
 	ret
 
-.writeSprites
+.writeSprite
 	ld de, wOAMBuffer + 4 * $7	; Daisy sprite
-	ld b, 4 * 4					; 4 concomitant sprites
+	ld b, 4 * 4					; 4 concomitant objects
 .loop
 	ldi a, [hl]
 	ld [de], a
@@ -2426,13 +2426,13 @@ GameState_25:: ; FFD
 	jr nz, .loop
 	ret
 
-.morphSprites1
+.morphSprite1
 	db $78, $58, $06, $00
 	db $78, $60, $06, $20
 	db $80, $58, $06, $40
 	db $80, $60, $06, $60
 
-.morphSprites2
+.morphSprite2
 	db $78, $58, $07, $00
 	db $78, $60, $07, $20
 	db $80, $58, $07, $40
@@ -2487,15 +2487,15 @@ GameState_26:: ; 1055
 GameState_27::	; 1099
 	ldh a, [$FFA7]
 	and a
-	jr nz, .jmp_10A7
+	jr nz, .screenShake
 	ld a, $01
 	ld [$DFF8], a		; explosion sound effect
-	ld a, $20
+	ld a, $20			; one explosion every 32 frames, about half a second
 	ldh [$FFA7], a
-.jmp_10A7
+.screenShake
 	xor a
 	ld [$C0AB], a
-	call Call_2491			; explosions?
+	call Call_2491		; sprite animation?
 	ldh a, [hTimer]
 	ld c, a
 	and a, %11			; shake every 4 frames
@@ -2504,12 +2504,12 @@ GameState_27::	; 1099
 	xor a, $01
 	ldh [$FFFB], a
 	ld b, -4
-	jr z, .shake
+	jr z, .updateScrollY
 	ld b, 4
-.shake
-	ld a, [$C0DF]		; scroll Y
+.updateScrollY
+	ld a, [wScrollY]
 	add b
-	ld [$C0DF], a
+	ld [wScrollY], a
 .disintegrateBlocks
 	ld a, c
 	cp a, $80
@@ -2549,7 +2549,7 @@ GameState_27::	; 1099
 
 .allTilesGone
 	xor a
-	ld [$C0DF], a		; stop screen shake
+	ld [wScrollY], a		; stop screen shake
 	ld [$C0D2], a
 	inc a
 	ldh [$FFF9], a
@@ -2576,7 +2576,7 @@ GameState_29:: ; 1116
 	xor a
 	ldh [rIF], a
 	ldh [hScrollX], a
-	ld [$C0DF], a		; Y isn't scrolled
+	ld [wScrollY], a
 	ldh [$FFFB], a
 	ld hl, wOAMBuffer
 	ld b, 3*4			; 3 projectiles?
@@ -2654,7 +2654,7 @@ GameState_2C:: ; 11D0
 	ldh a, [hFrameCounter]
 	and a, %1
 	ret nz
-	ld hl, wOAMBuffer + 4 * $C ; todo sprite macro?
+	ld hl, wOAMBuffer + 4 * $C ; todo object macro?
 	dec [hl]			; Y pos
 	ldi a, [hl]
 	cp a, $20			; if heart gets high
@@ -2731,7 +2731,7 @@ GameState_2E::
 	jr nz, .jmp_1261
 	ld hl, $C213		; daisy animation
 	ld a, [hl]
-	xor a, $01			; two daisy walking sprites
+	xor a, $01			; two daisy walking objects
 	ld [hl], a
 .jmp_1261
 	ld hl, $C240		; spaceship
@@ -3031,7 +3031,7 @@ GameState_33:: ; 13C4
 	cp a, $FF
 	jr nz, .nextState
 	ld a, $FF
-	ld [$C0DE], a		; will be put in SCY
+	ld [$C0DE], a
 .nextState
 	ld a, h
 	ldh [$FFE2], a
@@ -3047,7 +3047,7 @@ GameState_34::
 	ldh a, [hFrameCounter]
 	and a, 3
 	ret nz
-	ld hl, $C0DF		; scroll Y
+	ld hl, wScrollY
 	inc [hl]
 	ld a, [hl]
 	cp a, $20			; scroll $20 pxs up
@@ -3074,13 +3074,13 @@ GameState_36:: ; 1466
 	ldh a, [hFrameCounter]
 	and a, 3
 	ret nz
-	ld hl, $C0DF
+	ld hl, wScrollY
 	inc [hl]
 	ld a, [hl]
 	cp a, $50
 	ret nz
 	xor a
-	ld [$C0DF], a
+	ld [wScrollY], a
 	ld a, [$C0DE]
 	cp a, $FF
 	ld a, $33
@@ -3105,7 +3105,7 @@ GameState_37::
 	pop hl
 	dec l
 	ld [hl], $FF		; make invisible?
-	ld hl, wOAMBuffer + 4 * $1C	; sprite 1C?
+	ld hl, wOAMBuffer + 4 * $1C	; object 1C?
 	ld de, .data_14C4
 	ld b, $18
 .loop1
@@ -3143,7 +3143,7 @@ GameState_38::
 	ldh a, [hTimer]
 	and a
 	ret nz
-	ld hl, $C071		; letter sprite X position
+	ld hl, $C071		; letter object X position
 	ld a, [hl]
 	cp a, $3C
 	jr z, .nextLetter
@@ -3256,7 +3256,7 @@ GameState_0A:: ; 162F
 	xor a
 	ldh [rLCDC], a
 	ldh [hColumnIndex], a
-	call Call_1ED4		; clears sprites that aren't player, enemy or platform?
+	call Call_1ED4		; clears objects that aren't player, enemy or platform?
 	call Call_165E
 	ldh a, [$FFF4]
 	ldh [hLevelBlock], a
@@ -3348,7 +3348,7 @@ GameState_0B:: ; 166C
 	ld a, $5B
 	ldh [$FFE9], a		; first col not yet loaded in. IMO $807 should do this
 	call Call_245C
-	call Call_1ED4		; clears sprites
+	call Call_1ED4		; clears objects
 	ld a, $C3
 	ldh [rLCDC], a
 	ld a, $0C
@@ -4504,7 +4504,7 @@ Call_1D26::
 	call .call_1EA4		; shift sprites
 	call Call_2C9F
 	ld hl, $C001		; projectile X positions
-	ld de, $0004		; 4 bytes per sprite
+	ld de, $0004		; 4 bytes per object
 	ld c, $03			; 3 projectiles
 .shiftProjectiles		; todo name
 	ld a, [hl]
@@ -4597,7 +4597,7 @@ Call_1D26::
 	dec [hl]
 	ret
 
-; subtract B from X coord of sprites 0x0C to 0x14?
+; subtract B from X coord of objects 0x0C to 0x14?
 .call_1EA4
 	ld hl, wOAMBuffer + $C * 4 + 1
 	ld de, $0004
@@ -4633,7 +4633,7 @@ Call_1D26::
 	;  0  x  2  x  4  x
 	db 0, 1, 1, 1, 1, 2
 
-; Clears sprites 0-3, 7 to 20. Projectiles, fragments of blocks, score
+; Clears objects 0-3, 7 to 20. Projectiles, fragments of blocks, score
 ; TODO name
 Call_1ED4:: ; 1ED4
 	push hl
@@ -4647,7 +4647,7 @@ Call_1ED4:: ; 1ED4
 	dec b
 	jr nz, .clearLoop
 	ld hl, wOAMBuffer + 0
-	ld b, $0B			; 2 sprites and 3/4th of one ? Bug?
+	ld b, $0B			; 2 objects and 3/4th of one ? Bug?
 .clearLoop2
 	ldi [hl], a
 	dec b
@@ -4697,7 +4697,7 @@ Call_1F03:: ; 1F03
 Call_1F2D:: ; 1F2D
 	ld b, $01			; just one superball?
 	ld hl, $FFA9		; projectiles at A9, AA and AB?
-	ld de, wOAMBuffer + 1 ; sprite 0, X position
+	ld de, wOAMBuffer + 1 ; objects 0, X position
 .superballLoop
 	ldi a, [hl]
 	and a
@@ -4706,7 +4706,7 @@ Call_1F2D:: ; 1F2D
 	inc e
 	inc e
 	inc e
-	inc e				; next sprite
+	inc e				; next object
 	dec b
 	jr nz, .superballLoop
 	ret
@@ -4739,7 +4739,7 @@ Call_1F2D:: ; 1F2D
 .detectCollisionRight
 	add a, $03			; check collision a little in front
 	push af
-	dec e				; e is now the Y coord of the sprite
+	dec e				; e is now the Y coord of the object
 	ld a, [de]
 	ldh [$FFAD], a		; used in collision detection
 	pop af
@@ -4850,7 +4850,7 @@ FindNeighboringTile::	; gets called in autoscroll from 514F?
 .checkForSolidTile
 	pop hl
 	pop de
-	cp a, $60			; every sprite above $60 is solid
+	cp a, $60			; every tile above $60 is solid
 	ret
 
 Call_200A::
@@ -5525,7 +5525,7 @@ Call_245C::
 Call_2491:: ; 2491
 	call Call_249B
 	call Call_2648
-	call Call_2568
+	call DrawEnemies
 	ret
 
 ; spawns enemies?
@@ -5589,7 +5589,7 @@ Call_24EF:: ; 24EF
 	ldh a, [hWinCount]
 	and a
 	jr nz, .jmp_24F7
-	bit 7, [hl]
+	bit 7, [hl]		; 7th bit set means the enemy appears only in expert mode
 	ret nz
 .jmp_24F7
 	ld a, [hl]
@@ -5648,7 +5648,7 @@ Jmp_250B
 
 .jmp_2548
 	ld a, b
-	call Call_2CF7
+	call CopyBufferToEnemySlot
 	ret
 
 Call_254D:: ; 254D
@@ -5665,14 +5665,13 @@ Call_254D:: ; 254D
 	ld [$DFE0], a
 	ret
 
-; draws enemies
-Call_2568::; 2568
+DrawEnemies::; 2568
 	xor a
-	ld [$D013], a
-	ld c, $00
-.jmp_256E
-	ld a, [$D013]
-	cp a, $14
+	ld [wObjectsDrawn], a
+	ld c, $00			; C points to the slot currently being drawn
+.drawEnemySlot
+	ld a, [wObjectsDrawn]
+	cp a, $14			; the upper 20 objects are reserved for enemies
 	ret nc
 	push bc
 	ld a, c
@@ -5681,58 +5680,59 @@ Call_2568::; 2568
 	ld l, a
 	ld a, [hl]
 	inc a
-	jr z, .jmp_259D
+	jr z, .nextSlot		; zero if D1x0 is FF, empty slot
 	ld a, c
-	call Call_2CE5
+	call CopyEnemySlotToBuffer
 	ldh a, [$FFC3]
-	cp a, $E0
-	jr c, .jmp_2594
-.jmp_258A
-	ld a, $FF
+	cp a, $E0			; the screen is A0 pixels wide. Due to wraparound,
+	jr c, .checkYBound	; 00 → FF, this also takes care of enemies leaving
+.enemyOutOfBounds		; stage left
+	ld a, $FF			; remove enemy
 	ldh [$FFC0], a
 	ld a, c
-	call Call_2CF7
-	jr .jmp_259D
+	call CopyBufferToEnemySlot
+	jr .nextSlot
 
-.jmp_2594
+.checkYBound
 	ldh a, [$FFC2]
 	cp a, $C0
-	jr nc, .jmp_258A
-	call .call_25C0
-.jmp_259D
+	jr nc, .enemyOutOfBounds
+	call .drawEnemy
+.nextSlot
 	pop bc
 	inc c
 	ld a, c
 	cp a, $0A
-	jr nz, .jmp_256E
-	ld hl, $C050
-	ld a, [$D013]
+	jr nz, .drawEnemySlot
+	ld hl, wOAMBuffer + 4*$14
+	ld a, [wObjectsDrawn]
 	rlca
 	rlca
-	ld d, $00
+	ld d, $00				; 4 bytes per object
 	ld e, a
 	add hl, de
-.jmp_25B0
+.loop						; Offscreen remaining objects
 	ld a, l
-	cp a, $A0
-	jp nc, .jmp_25BF
-	ld a, $B4
+	cp a, $A0				; maximum 10 enemy slots
+	jp nc, .retNC			; why not a RET NC? Bug
+	ld a, $B4				; 180 px is offscreen. Just using 0 would suffice
 	ld [hl], a
 	inc hl
 	inc hl
 	inc hl
 	inc hl
-	jr .jmp_25B0
-.jmp_25BF
+	jr .loop
+
+.retNC
 	ret
 
-.call_25C0
+.drawEnemy
 	xor a
-	ld [$D000], a
-	ld hl, $C050			; first enemy sprite slot?
-	ld a, [$D013]			; sprite slot to be filled?
+	ld [$D000], a			; D000 is used to temporarily store object flags
+	ld hl, wOAMBuffer + 4*$14
+	ld a, [wObjectsDrawn]
 	rlca
-	rlca					; times 4, 4 bytes per sprite
+	rlca					; 4 bytes per object
 	ld d, $00
 	ld e, a
 	add hl, de
@@ -5740,84 +5740,84 @@ Call_2568::; 2568
 	ld c, l					; store address in BC
 	ld hl, Data_2FE2
 	ldh a, [$FFC5]
-	and a, %1				; BIT 0, A >_> bug. 1 if facing right
+	and a, %1				; BIT 0, A >_> bug. 1 if facing right?
 	jr nz, .jmp_25DE
 	ld hl, Data_30B4
 .jmp_25DE
-	ldh a, [$FFC6]
-	rlca					; times two
+	ldh a, [$FFC6]			; animation index/sprite index
+	rlca					; times two, the table stores pointers
 	ld d, $00
 	ld e, a
 	add hl, de
-	ldi a, [hl]
+	ldi a, [hl]				; look the address up in the table
 	ld e, a
 	ld a, [hl]
-	ld d, a					; lookup in table
-	ld h, d					; store the address in HL
+	ld d, a					; store in DE
+	ld h, d					; and from DE to HL
 	ld l, e
-.jmp_25EB
-	ld a, [$D013]
+.drawSpriteLoop
+	ld a, [wObjectsDrawn]
 	cp a, $14
 	ret nc
-.jmp_25F1
+.readNextByte
 	ld a, [hl]
 	cp a, $FF
 	ret z
-	bit 7, a
-	jr nz, .jmp_262E
-	rlca
-	res 4, a
-	ld [$D000], a
-	ld a, [hl]
-	bit 3, a
-	jr z, .jmp_260B
+	bit 7, a				; Highest bit set means this is an object index
+	jr nz, .drawObject		; to be drawn
+	rlca					; Rotate left and reset carry (as bit 7 is not set)
+	res 4, a				; Palette?
+	ld [$D000], a			; Later used as object attributes. Lower 3 bits
+	ld a, [hl]				; are unused there. So the lower 4 bits of
+	bit 3, a				; bytes that aren't object indices, are used here
+	jr z, .testBit2
 	ldh a, [$FFC2]
-	sub a, $8
+	sub a, $8				; bit 3 - move one tile up
 	ldh [$FFC2], a
 	ld a, [hl]
-.jmp_260B
+.testBit2
 	bit 2, a
-	jr z, .jmp_2616
+	jr z, .testBit1
 	ldh a, [$FFC2]
-	add a, $8
+	add a, $8				; bit 2 - move one tile down
 	ldh [$FFC2], a
 	ld a, [hl]
-.jmp_2616
+.testBit1
 	bit 1, a
-	jr z, .jmp_2621
+	jr z, .testBit0
 	ldh a, [$FFC3]
-	sub a, $8
+	sub a, $8				; bit 1 - move one tile left
 	ldh [$FFC3], a
 	ld a, [hl]
-.jmp_2621
+.testBit0
 	bit 0, a
-	jr z, .jmp_262B
+	jr z, .nextByte
 	ldh a, [$FFC3]
-	add a, $8
+	add a, $8				; bit 0 - move one tile right
 	ldh [$FFC3], a
-.jmp_262B
+.nextByte
 	inc hl
-	jr .jmp_25F1
+	jr .readNextByte
 
-; BC contains the sprite address at this point
-.jmp_262E
+; BC contains the object address at this point
+.drawObject
 	ldh a, [$FFC2]		; Y pos
-	ld [bc], a			; sprite Y pos
+	ld [bc], a			; object Y pos
 	inc bc
 	ldh a, [$FFC3]		; X pos
-	ld [bc], a			; sprite X pos
+	ld [bc], a			; object X pos
 	inc bc
 	ld a, [hl]			; this comes from the pointer 2FE2 and 30B4
 	ld [bc], a
 	inc bc
 	ld a, [$D000]		; where is this filled in?
-	ld [bc], a			; sprite attributes
+	ld [bc], a			; object attributes
 	inc bc
 	inc hl
-	ld a, [$D013]
+	ld a, [wObjectsDrawn]
 	inc a
-	ld [$D013], a
-	jr .jmp_25EB
+	ld [wObjectsDrawn], a
+	jr .drawSpriteLoop
 
 Call_2648:: ; 2648
 	ld hl, $D100
@@ -5826,7 +5826,7 @@ Call_2648:: ; 2648
 	inc a
 	jr z, .jmp_266C
 	push hl
-	call Call_2CE5.call_2CEB
+	call CopyEnemySlotToBuffer.fromHL
 	ld hl, Data_349E
 	ldh a, [$FFC0]		; enemy ID
 	rlca
@@ -5842,7 +5842,7 @@ Call_2648:: ; 2648
 	call .call_2676
 	pop hl
 	push hl
-	call Call_2CF7.call_2CFD
+	call CopyBufferToEnemySlot.toHL
 	pop hl
 .jmp_266C
 	ld a, l
@@ -5862,8 +5862,8 @@ Call_2648:: ; 2648
 	jr z, .jmp_2692
 	call Call_2BBB
 	jr nc, .jmp_268C
-	ldh a, [$FFC2]
-	inc a
+	ldh a, [$FFC2]			; Y pos
+	inc a					; go down
 	ldh [$FFC2], a
 	ret
 
@@ -5937,10 +5937,506 @@ Call_2648:: ; 2648
 	jp .jmp_2676
 
 .jmp_26F8
+	ldh a, [$FFC4]
+	inc a
+	ldh [$FFC4], a
+	inc hl
+	ld a, [hl]
+	ld [$D003], a
+	ld a, [$D002]
+	cp a, $F8
+	jr nz, .jmp_2711
+	ld a, [$D003]
+	ldh [$FFC6], a
+	pop hl
+	jr .jmp_26B5
+.jmp_2711
+	cp a, $F0
+	jr nz, .jmp_278D
+	ld a, [$D003]
+	and a, $C0
+	jr z, .jmp_2754
+	bit 7, a
+	jr z, .jmp_2733
+	ldh a, [$FFC5]
+	and a, $FD			; %1111 1101
+	ld b, a
+	ld a, [$C201]		; Y pos
+	ld c, a
+	ldh a, [$FFC2]
+	sub c
+	rla
+	rlca
+	and a, $02
+	or b
+	ldh [$FFC5], a
+.jmp_2733
+	ld a, [$D003]
+	bit 6, a
+	jr z, .jmp_2754
+	ld a, [$C202]
+	ld c, a
+	ldh a, [$FFC3]
+	ld b, a
+	ldh a, [$FFCA]
+	and a, $70
+	rrca
+	rrca
+	add b
+	sub c
+	rla
+	and a, $01
+	ld b, a
+	ldh a, [$FFC5]
+	and a, $FE			; %1111 1110
+	or b
+	ldh [$FFC5], a
+.jmp_2754
+	ld a, [$D003]
+	and a, $0C			; %0000 1100
+	jr z, .jmp_2763
+	rra
+	rra
+	ld b, a
+	ldh a, [$FFC5]
+	xor b
+	ldh [$FFC5], a
+.jmp_2763
+	ld a, [$D003]
+	bit 5, a
+	jr z, .jmp_2776
+	and a, $02			; 0000 0010
+	or a, $FD			; 1111 1101
+	ld b, a
+	ldh a, [$FFC5]
+	set 1, a
+	and b
+	ldh [$FFC5], a
+.jmp_2776
+	ld a, [$D003]
+	bit 4, a
+	jr z, .jmp_2789
+	and a, $01			; 0000 0001
+	or a, $FE			; 1111 1110
+	ld b, a
+	ldh a, [$FFC5]
+	set 0, a
+	and b
+	ldh [$FFC5], a
+.jmp_2789
+	pop hl
+	jp .jmp_26B5
 
-INCBIN "baserom.gb", $26F8, $2BBB - $26F8
+.jmp_278D
+	cp a, $F1
+	jr nz, .jmp_27A2
+	ld a, $0A			; temporarily store buffer
+	call CopyBufferToEnemySlot
+	call Call_24D6		; enemy launches projectile?
+	ld a, $0A			; restore buffer
+	call CopyEnemySlotToBuffer
+	pop hl
+	jp .jmp_26B5
+.jmp_27A2
+	cp a, $F2
+	jr nz, .jmp_27AF
+	ld a, [$D003]
+	ldh [$FFC7], a
+	pop hl
+	jp .jmp_26B5
 
-; sprite collision detection?
+.jmp_27AF
+	cp a, $F3
+	jr nz, .jmp_27D7
+	ld a, [$D003]
+	ldh [$FFC0], a
+	cp a, $FF
+	jp z, .jmp_2877
+	ld hl, $FFC0
+	call Call_2CBB		; init enemy
+	pop hl
+	ld hl, Data_349E
+	ldh a, [$FFC0]
+	rlca
+	ld d, $00
+	ld e, a
+	add hl, de
+	ldi a, [hl]
+	ld e, a
+	ld a, [hl]
+	ld d, a
+	ld h, d
+	ld l, e
+	jp .jmp_26B5
+
+.jmp_27D7
+	cp a, $F4
+	jr nz, .jmp_27E4
+	ld a, [$D003]
+	ldh [$FFC9], a
+	pop hl
+	jp .jmp_26B5
+
+.jmp_27E4
+	cp a, $F5
+	jr nz, .jmp_27F4
+	ldh a, [rDIV]
+	and a, $03			; "random" value from 0 to 3
+	ld a, $F1
+	jr z, .jmp_278D
+	pop hl
+	jp .jmp_26B5
+
+.jmp_27F4
+	cp a, $F6
+	jr nz, .jmp_2818
+	ld a, [$C202]		; Mario X
+	ld b, a
+	ldh a, [$FFC3]		; enemy X
+	sub b
+	add a, $14
+	cp a, $20
+	ld a, [$D003]
+	dec a
+	jr z, .jmp_280A
+	ccf
+.jmp_280A
+	jr c, .jmp_2814
+	ldh a, [$FFC4]
+	dec a
+	dec a
+	ldh [$FFC4], a
+	pop hl
+	ret
+
+.jmp_2814
+	pop hl
+	jp .jmp_26B5
+
+.jmp_2818
+	cp a, $F7
+	jr nz, .jmp_2821
+	call Call_2B2A
+	pop hl
+	ret
+
+.jmp_2821
+	cp a, $F9
+	jr nz, .jmp_282D
+	ld a, [$D003]
+	ld [$DFF8], a		; sound effect
+	pop hl
+	ret
+
+.jmp_282D
+	cp a, $FA
+	jr nz, .jmp_2839
+	ld a, [$D003]
+	ld [$DFE0], a		; sound effect
+	pop hl
+	ret
+
+.jmp_2839
+	cp a, $FB
+	jr nz, .jmp_2856
+	ld a, [$D003]
+	ld c, a
+	ld a, [$C202]
+	ld b, a
+	ldh a, [$FFC3]
+	sub b
+	cp c
+	jr c, .jmp_2852
+	xor a
+	ldh [$FFC4], a
+	pop hl
+	jp .jmp_26B5
+
+.jmp_2852				; Why?? Bug
+	pop hl
+	jp .jmp_26B5
+
+.jmp_2856
+	cp a, $FC
+	jr nz, .jmp_2867
+	ld a, [$D003]
+	ldh [$FFC2], a
+	ld a, $70
+	ldh [$FFC3], a
+	pop hl
+	jp .jmp_26B5
+
+.jmp_2867
+	cp a, $FD
+	jr nz, .jmp_2873
+	ld a, [$D003]
+	ld [$DFE8], a
+	pop hl
+	ret
+
+.jmp_2873
+	pop hl
+	jp .jmp_26B5
+
+.jmp_2877
+	pop hl
+	ret
+
+.jmp_2879
+	ldh a, [$FFC1]
+	and a, $0F
+	jp z, .jmp_2975
+	ldh a, [$FFC5]
+	bit 0, a
+	jr nz, .jmp_28F0
+	call Call_2B84	; some sort of collision detection. Sets carry on detection
+	jr nc, .jmp_28CE
+	ldh a, [$FFC7]
+	bit 0, a
+	jr z, .jmp_2896
+	call Call_2BE4	; checks for collision one tile down, 3 px to the right	
+	jr c, .jmp_28DA
+.jmp_2896
+	ldh a, [$FFC1]
+	and a, $0F
+	ld b, a
+	ldh a, [$FFC3]
+	sub b
+	ldh [$FFC3], a
+	ldh a, [$FFCB]
+	and a
+	jp z, .jmp_2975
+	ld a, [$C205]	; dir mario is facing?
+	ld c, a
+	push bc
+	ld a, $20		; 20 if facing left
+	ld [$C205], a
+	call Call_1AAD	; Mario side collision
+	pop bc
+	and a
+	jr nz, .jmp_28C7
+	ld a, [$C202]	; Y pos
+	sub b
+	ld [$C202], a
+	cp a, $0F
+	jr nc, .jmp_28C7
+	ld a, $0F
+	ld [$C202], a
+.jmp_28C7
+	ld a, c
+	ld [$C205], a
+	jp .jmp_2975
+
+.jmp_28CE
+	ldh a, [$FFC7]
+	and a, $0C
+	cp a, $00
+	jr z, .jmp_2896
+	cp a, $04
+	jr nz, .jmp_28E3
+.jmp_28DA
+	ldh a, [$FFC5]
+	set 0, a
+	ldh [$FFC5], a
+	jp .jmp_2975
+
+.jmp_28E3
+	cp a, $0C
+	jp nz, .jmp_2975
+	xor a
+	ldh [$FFC4], a
+	ldh [$FFC8], a
+	jp .jmp_2975
+
+.jmp_28F0
+	call Call_2B9A		; one of those collision detection routines
+	jr nc, .jmp_2958	; probably just right bound?
+	ldh a, [$FFC7]
+	bit 0, a
+	jr z, .jmp_2900
+	call Call_2BFE		; collision bottom right?
+	jr c, .jmp_2964
+.jmp_2900
+	ldh a, [$FFC1]		; YX speed
+	and a, $0F
+	ld b, a
+	ldh a, [$FFC3]		; Y
+	add b
+	ldh [$FFC3], a
+	ldh a, [$FFCB]
+	and a
+	jr z, .jmp_2975
+	ld a, [$C205]		; direction mario is facing
+	ld c, a
+	push bc
+	xor a
+	ld [$C205], a
+	call Call_1AAD		; mario collision?
+	pop bc
+	and a
+	jr nz, .jmp_2944
+	ld a, [$C202]		; Y pos
+	add b
+	ld [$C202], a
+	cp a, $51
+	jr c, .jmp_2944
+	ld a, [$C0D2]
+	cp a, $07
+	jr nc, .jmp_294A
+.jmp_2931
+	ld a, [$C202]		; X pos
+	sub a, $50
+	ld b, a
+	ld a, $50
+	ld [$C202], a
+	ldh a, [hScrollX]
+	add b
+	ldh [hScrollX], a
+	call Call_2C9F		; scroll enemies
+.jmp_2944
+	ld a, c
+	ld [$C205], a
+	jr .jmp_2975
+
+.jmp_294A
+	ldh a, [hScrollX]
+	and a, $0C			; 0000 1100
+	jr nz, .jmp_2931
+	ldh a, [hScrollX]
+	and a, $FC			; 1111 1100
+	ldh [hScrollX], a
+	jr .jmp_2944
+
+.jmp_2958
+	ldh a, [$FFC7]
+	and a, $0C			; 0000 1100
+	cp a, 0
+	jr z, .jmp_2900
+	cp a, $04
+	jr nz, .jmp_296C
+.jmp_2964
+	ldh a, [$FFC5]
+	res 0, a
+	ldh [$FFC5], a
+	jr .jmp_2975
+
+.jmp_296C
+	cp a, $0C
+	jr nz, .jmp_2975
+	xor a
+	ldh [$FFC4], a
+	ldh [$FFC8], a
+.jmp_2975
+
+INCBIN "baserom.gb", $2975, $2B2A - $2975
+
+; replace all enemies by explosions
+Call_2B2A:: ; 2B2A
+	ld hl, $D100
+.jmp_2B2D
+	ld a, [hl]
+	cp a, $FF
+	jr z, .jmp_2B47
+	push hl
+	ld [hl], $27	; 0 ID of mid air explosion
+	inc hl			; 1
+	inc hl			; 2 Y
+	inc hl			; 3 X
+	inc hl			; 4
+	ld [hl], $00
+	inc hl			; 5
+	inc hl			; 6
+	inc hl			; 7
+	inc hl			; 8
+	inc hl			; A dimensions
+	ld [hl], $00
+	inc hl			; B
+	inc hl			; C health?
+	ld [hl], $00
+	pop hl
+.jmp_2B47
+	ld a, l
+	add a, $10
+	ld l, a
+	cp a, $A0
+	jr c, .jmp_2B2D
+	ld a, $27
+	ldh [$FFC0], a
+	xor a
+	ldh [$FFC4], a
+	ldh [$FFC7], a
+	inc a
+	ld [$DFF8], a	; explosion
+	ret
+
+; enemy collision side check
+Call_2B5D:: ; 2B5D
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $04
+	ldh [$FFAE], a
+	ld c, a
+	ldh a, [$FFC5]		; 1 if facing right
+	bit 0, a
+	jr .jmp_2B76
+	ldh a, [$FFCA]
+	and a, $70			; width
+	rrca				; ...way more clever than the loop they usually use
+	add c				; add the width to the X coordinate
+	ldh [$FFAE], a
+.jmp_2B76
+	ldh a, [$FFC2]
+	ldh [$FFAD], a
+	call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+; another collision check, but not taking into account width (just left check?)
+; also doesn't add 4 like the previous one
+Call_2B84:: ; 2B84
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	ldh [$FFAE], a
+	ldh a, [$FFC2]
+	ldh [$FFAD], a
+	call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+; collision check, adding width unconditionally (right bound?)
+Call_2B9A:: ; 2B9A
+	ldh a, [$FFC3]
+	ld c, a
+	ldh a, [hScrollX]
+	add c
+	add a, $08
+	ld c, a
+	ldh a, [$FFCA]
+	and a, $70			; width in bits 4-6
+	rrca				; A = width * 8, as there are 8 pixels per tile
+	add c
+	sub a, $08			; why is 8 added and subtracted?
+	ldh [$FFAE], a
+	ldh a, [$FFC2]
+	ldh [$FFAD], a
+	call Mystery_153
+	cp a, $5F
+	ret c
+	cp a, $F0
+	ccf
+	ret
+
+; checks collision one tile lower
 Call_2BBB:: ; 2BBB
 	ldh a, [$FFC3]
 	ld c, a
@@ -5949,9 +6445,9 @@ Call_2BBB:: ; 2BBB
 	add a, $4
 	ldh [$FFAE], a
 	ld c, a
-	ldh a, [$FFC5]
+	ldh a, [$FFC5]	; bit 0 on if facing right
 	bit 0, a
-	jr .jmp_2BD4
+	jr .jmp_2BD4	; bug maybe? Should have been jr nz?
 
 .jmp_2BCC
 	ldh a, [$FFCA]	; mortality and dimensions?
@@ -5961,7 +6457,7 @@ Call_2BBB:: ; 2BBB
 	ldh [$FFAE], a
 .jmp_2BD4
 	ldh a, [$FFC2]
-	add a, $08
+	add a, $08		; one tile lower
 	ldh [$FFAD], a
 	Call Mystery_153
 	cp a, $5F
@@ -5970,6 +6466,8 @@ Call_2BBB:: ; 2BBB
 	ccf
 	ret
 
+; functionally identical to the previous one, apart from not clobbering C
+; unused?
 Call_2BE4:: ; 2BE4
 	ldh a, [$FFC3]
 	ld c, a
@@ -5987,8 +6485,9 @@ Call_2BE4:: ; 2BE4
 	ccf
 	ret
 
-; 4 collision detection routines of some kind
 
+; check for collision one tile down, 5 pixels to the right of the right bound?
+; unused?
 Call_2BFE:: ; 2BFE
 	ldh a, [$FFC3]
 	ld c, a
@@ -6000,7 +6499,7 @@ Call_2BFE:: ; 2BFE
 	and a, $70
 	rrca
 	add c
-	sub a, $8
+	sub a, $8		; to compensate for offset coordinates (Y-16, X-8)? todo
 	ldh [$FFAE], a
 	ldh a, [$FFC2]
 	add a, $8
@@ -6012,6 +6511,8 @@ Call_2BFE:: ; 2BFE
 	ccf
 	ret
 
+; another side collision, taking into account direction, width and height
+; unused?
 Call_2C21:: ; 2C21
 	ldh a, [$FFC3]
 	ld c, a
@@ -6045,6 +6546,7 @@ Call_2C21:: ; 2C21
 	ccf
 	ret
 
+; Yet another collision detection routine, upper left bound?
 Call_2C52:: ; 2C52
 	ldh a, [$FFC3]
 	ld c, a
@@ -6068,6 +6570,7 @@ Call_2C52:: ; 2C52
 	ccf
 	ret
 
+; another one. upper right bound?
 Call_2C74:: ; 2C74
 	ldh a, [$FFC3]
 	ld c, a
@@ -6137,9 +6640,9 @@ Call_2CBB:: ; 2CBB
 	ld b, a
 	ldi a, [hl]
 	ld d, a
-	ld a, [hl]
+	ld a, [hl]			; Store the data in B, D and A
 	pop hl
-	inc hl				; D1x1
+	inc hl				; D1x1 YX speed
 	inc hl				; D1x2
 	inc hl				; D1x3
 	inc hl				; D1x4
@@ -6160,13 +6663,13 @@ Call_2CBB:: ; 2CBB
 	ret
 
 ; Fill buffer from enemy slot
-Call_2CE5::
+CopyEnemySlotToBuffer:: ; 2CE5
 	swap a
 	ld hl, $D100
 	ld l, a
-.call_2CEB
+.fromHL
 	ld de, $FFC0
-	ld b, $0D
+	ld b, $0D			; bytes D, E, F are unused?
 .loop
 	ldi a, [hl]
 	ld [de], a
@@ -6176,11 +6679,11 @@ Call_2CE5::
 	ret
 
 ; Fills enemy slot from buffer
-Call_2CF7:: ; 2CF7
+CopyBufferToEnemySlot:: ; 2CF7
 	swap a				; same as multiplying by 16. Slots are 16 bytes apart
 	ld hl, $D100
 	ld l, a
-.call_2CFD
+.toHL
 	ld de, $FFC0
 	ld b, $0D
 .loop
@@ -6191,22 +6694,33 @@ Call_2CF7:: ; 2CF7
 	jr nz, .loop
 	ret
 
-; data used for whatever reason
+; instructions to build sprite?
+; pointed to by tables at 2FE2 and 30B4
 INCBIN "baserom.gb", $2D09, $2FE2 - $2D09
 
-; pointers for that data if facing left
+; 0x69 pointers for data if facing left
 Data_2FE2:: ; 2FE2
-INCBIN "baserom.gb", $2FE2, $30B4 - $2FE2
+INCBIN "baserom.gb", $2FE2, $D2
 
-; pointers for that data if facing left
+; 0x69 pointers for data if facing left
 Data_30B4:: ; 30B4
-INCBIN "baserom.gb", $30B4, $3375 - $30B4
+INCBIN "baserom.gb", $30B4, $D2
 
+; 0x63 entries of 5 bytes
+Data_3186::; 3186
+INCBIN "baserom.gb", $3186, $1EF
+
+; 0x63 entries of 3 bytes
 Data_3375:: ; 3375
-INCBIN "baserom.gb", $3375, $349E - $3375
+INCBIN "baserom.gb", $3375, $129
 
+; 0x63 pointers
 Data_349E:: ; 349E
-INCBIN "baserom.gb", $349E, $3D1A - $349E
+INCBIN "baserom.gb", $349E, $C6
+
+; pointed to by table at 349E
+Data_3564:: ; 3564
+INCBIN "baserom.gb", $3564, $3D1A - $3564
 
 ; called at level start, is some sort of init
 Call_3D1A; 3D1A
@@ -6311,7 +6825,7 @@ GameState_12:: ; 3D97
 	ldh [hScrollX], a
 	ld hl, wOAMBuffer
 	ld b, $A0
-.oamloop			; Remove all sprites
+.oamloop			; Remove all objects
 	ldi [hl], a
 	dec b
 	jr nz, .oamloop
@@ -6337,7 +6851,7 @@ GameState_12:: ; 3D97
 	swap a
 	ld [de], a		; Print lives at the appropriate position
 	ld a, $83	; todo
-	ld [rLCDC], a	; Turn on LCD, background, sprites
+	ld [rLCDC], a	; Turn on LCD, background, objects
 	ld a, $13	; todo
 	ldh [hGameState], a
 	ret
@@ -6521,21 +7035,22 @@ GameState_16:: ; 3EA7
 	ld [$DA27], a		; ladder position in floors?
 	jr .nextState
 
-; Transform mario's pixel coordinates into the block he's currently standing on
+; Find the tile located at pixel coordinates FFAD and FFAE
+; Return the memory location of the tile in FFAF and FFBO
 Call_3EE6:: ; 3EE6
-	ldh a, [$FFAD]		; ~Y coordinate in current level block?
-	sub a, $10			; todo mario is 16 pixels tall?
+	ldh a, [$FFAD]		; Y pixel coordinate
+	sub a, $10			; Probably to account for the HUD. Y coordinate 0 is
+	srl a				; exactly below the HUD
 	srl a
-	srl a
-	srl a				; divide by 8, the number of pixels per tile
+	srl a				; Divide by 8, the number of pixels per tile
 	ld de, $0000
 	ld e, a
 	ld hl, $9800
 	ld b, $20			; todo screen width
 .loopY
 	add hl, de
-	dec b				; would make more sense to loop on a
-	jr nz, .loopY
+	dec b				; would make more sense to loop on A, or do some shifts
+	jr nz, .loopY		; HL ← 9800 + A * screenWidth
 	ldh a, [$FFAE]		; ~X coordinate in current level block
 	sub a, $08			; mario stands on the middle of his 16 pixel wide body?
 	srl a

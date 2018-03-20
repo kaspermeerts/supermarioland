@@ -33,16 +33,24 @@ ds $C0D3 - $C0C3
 wInvincibilityTimer:: ; C0D3
 	db
 
-ds $C0E1 - $C0D4
+ds $C0DF - $C0D4
+
+wScrollY:: ; C0DF
+	db
+
+ds 1		; C0F0
 
 wWinCount:: ; C0E1
 	db
 
 ; D100 - D190: enemies
-ds $D014 - $C0E2
+ds $D013 - $C0E2
+
+wObjectsDrawn:: ; D013 The upper 20 objects are used for enemies
+	db
 
 wBackgroundAnimated::	; D014
-	ds 1
+	db
 
 ds $DA00 - $D015
 
