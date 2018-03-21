@@ -1239,7 +1239,7 @@ Call_84E:: ; 84E
 	pop hl
 	jr nz, .out
 	call Call_A10		; hit enemy
-	call $2A01
+	call Call_2A01
 	and a
 	jr z, .out
 	ld hl, $C20A		; 1 if on ground
@@ -1302,7 +1302,7 @@ Call_84E:: ; 84E
 	ldh a, [hSuperStatus]
 	cp a, $03
 	jr nc, .out				; if superstatus is 4 (or more?), Mario has some
-	call $2A44				; i-frames
+	call Call_2A44			; i-frames
 	and a
 	jr z, .out
 	ldh a, [hSuperStatus]
@@ -1324,7 +1324,7 @@ Call_84E:: ; 84E
 	jr .out
 
 .jmp_974
-	call $2B06				; like 2AXX calls, a lookup into tables
+	call Call_2B06			; like 2AXX calls, a lookup into tables
 	and a					; between $3000 and $4000
 	jr z, .out
 	jr .enemyKilled
@@ -1513,7 +1513,7 @@ Call_A2D:: ; A2D
 	dec l				; D1x0
 	push de
 	call Call_A10
-	Call $2A23			; prepares death animation
+	call Call_2A23		; prepares death animation
 	pop de
 	and a
 	jr z, .noHit
@@ -1675,7 +1675,7 @@ Call_AEA:: ; AEA
 	push hl
 	dec l
 	dec l				; D1x0
-	call $2A01
+	call Call_2A01
 	pop hl
 	ld bc, $0009
 	add hl, bc
@@ -4917,11 +4917,11 @@ Call_200A::
 	ldh a, [hGameState]
 	cp a, $0D
 	jr nz, .jmp_2064
-	call $2AAD
+	call Call_2AAD
 	jr .jmp_2067
 
 .jmp_2064
-	call $2A68
+	call Call_2A68
 .jmp_2067
 	pop de
 	and a
@@ -5893,7 +5893,7 @@ Call_2648:: ; 2648
 	ldh a, [$FFC8]
 	dec a
 	ldh [$FFC8], a
-	jp $2879
+	jp .jmp_2879
 
 .jmp_26B5
 	push hl
@@ -6327,8 +6327,319 @@ Call_2648:: ; 2648
 	ldh [$FFC4], a
 	ldh [$FFC8], a
 .jmp_2975
+	ldh a, [$FFC1]
+	and a, $F0
+	jp z, .jmp_29FD
+	ldh a, [$FFC5]
+	bit 1, a
+	jr nz, .jmp_29C1
+	call Call_2C21
+	jr nc, .jmp_29A1
+.jmp_2987
+	ldh a, [$FFC1]
+	and a, $F0
+	swap a
+	ld b, a
+	ldh a, [$FFC2]
+	sub b
+	ldh [$FFC2], a
+	ldh a, [$FFCB]
+	and a
+	jr z, .jmp_29FD
+	ld a, [$C201]
+	sub b
+	ld [$C201], a
+	jr .jmp_29FD
 
-INCBIN "baserom.gb", $2975, $2B2A - $2975
+.jmp_29A1
+	ldh a, [$FFC7]
+	and a, $C0
+	cp a, $00
+	jr z, .jmp_2987
+	cp a, $40
+	jp nz, .jmp_29B6		; could've been a JR, bug
+	ldh a, [$FFC5]
+	set 1, a
+	ldh [$FFC5], a
+	jr .jmp_29FD
+
+.jmp_29B6
+	cp a, $C0
+	jr nz, .jmp_29FD
+	xor a
+	ldh [$FFC4], a
+	ldh [$FFC8], a
+	jr .jmp_29FD
+
+.jmp_29C1
+	call Call_2BBB		; collision one tile down
+	jr nc, .jmp_29E0
+.jmp_29C6
+	ldh a, [$FFC1]
+	and a, $F0
+	swap a
+	ld b, a
+	ldh a, [$FFC2]
+	add b
+	ldh [$FFC2], a
+	ldh a, [$FFCB]
+	and a
+	jr z, .jmp_29FD
+	ld a, [$C201]
+	add b
+	ld [$C201], a
+	jr .jmp_29FD
+
+.jmp_29E0
+	ldh a, [$FFC7]
+	and a, $30
+	cp a, $00
+	jr z, .jmp_29C6
+	cp a, $10
+	jr nz, .jmp_29F4
+	ldh a, [$FFC5]
+	res 1, a
+	ldh [$FFC5], a
+	jr .jmp_29FD
+
+.jmp_29F4
+	cp a, $30
+	jr nz, .jmp_29FD
+	xor a
+	ldh [$FFC4], a
+	ldh [$FFC8], a
+.jmp_29FD
+	xor a
+	ldh [$FFCB], a
+	ret
+
+; stomp enemy
+Call_2A01:: ; 2A01
+	push hl
+	ld a, [hl]
+	ld e, a
+	ld d, $00
+	ld l, a
+	ld h, $00
+	sla e
+	rl d
+	sla e
+	rl d
+	add hl, de
+	ld de, Data_3186
+	add hl, de
+	ld a, [hl]
+	pop hl
+	and a
+	ret z
+	push hl
+	ld [hl], a
+	call Call_2CBB
+	ld a, $FF
+	pop hl
+	ret
+
+; enemy hit from down under
+Call_2A23:: ; 2A23
+	push hl
+	ld a, [hl]
+	ld e, a
+	ld d, $00
+	ld l, a
+	ld h, $00
+	sla e
+	rl d
+	sla e
+	rl d
+	add hl, de
+	ld de, Data_3186
+	add hl, de
+	inc hl
+	ld a, [hl]
+	pop hl
+	and a
+	ret z
+	ld [hl], a
+	call Call_2CBB
+	ld a, $FF
+	ret
+
+; called when an enemy hits us on the side?
+Call_2A44:: ; 2A44
+	push hl
+	ld a, [hl]
+	ld e, a
+	ld d, $00
+	ld l, a
+	ld h, $00
+	sla e
+	rl d
+	sla e
+	rl d
+	add hl, de
+	ld de, Data_3186
+	add hl, de
+	inc hl
+	inc hl
+	ld a, [hl]
+	pop hl
+	cp a, $FF
+	ret z
+	and a
+	ret z
+	ld [hl], a
+	call Call_2CBB
+	xor a
+	ret
+
+; hit by superball
+Call_2A68:: ; 2A68
+	push hl
+	ld a, l
+	add a, $0C
+	ld l, a
+	ld a, [hl]
+	and a, $3F		; health, like in 2AAD
+	jr z, .jmp_2A89
+	ld a, [hl]
+	dec a
+	ld [hl], a
+	pop hl
+	ld a, [hl]
+	cp a, $32		; Hiyoihoi
+	jr z, .jmp_2A81
+	cp a, $08		; King Totomesu
+	jr z, .jmp_2A81
+	jr .jmp_2A86
+
+.jmp_2A81
+	ld a, $01
+	ld [$DFF0], a	; creepy boss noise
+.jmp_2A86
+	ld a, $FE
+	ret
+
+.jmp_2A89
+	pop hl
+	push hl
+	ld a, [hl]
+	ld e, a
+	ld d, $00
+	ld l, a
+	ld h, $00
+	sla e
+	rl d
+	sla e
+	rl d
+	add hl, de
+	ld de, Data_3186
+	add hl, de
+	inc hl
+	inc hl
+	inc hl
+	ld a, [hl]
+	pop hl
+	and a
+	ret z
+	ld [hl], a
+	call Call_2CBB
+	ld a, $FF
+	ret
+
+; enemy hit by bullet in autoscroll
+Call_2AAD:: ; 2AAD
+	push hl
+	ld a, l
+	add a, $0C		; "health"?
+	ld l, a
+	ld a, [hl]
+	and a, $3F		; only the lower 6 bits are health
+	jr z, .jmp_2AD9
+	ld a, [hl]
+	dec a
+	ld [hl], a
+	pop hl
+	ld a, [hl]
+	cp a, $1A		; Dragonzamasu
+	jr z, .jmp_2AD1
+	cp a, $61		; Biokinton
+	jr z, .jmp_2AD1
+	cp a, $60		; Tatanga
+	jr z, .jmp_2ACA
+	jr .jmp_2AD6
+
+.jmp_2ACA
+	ld a, $01
+	ld [$DFF8], a	; explosion
+	jr .jmp_2AD6
+
+.jmp_2AD1
+	ld a, $01
+	ld [$DFF0], a	; that weird scream bosses make when hit
+.jmp_2AD6
+	ld a, $FE		; not dead yet?
+	ret
+
+.jmp_2AD9
+	pop hl
+	push hl
+	ld a, [hl]
+	cp a, $60		; tatanga
+	jr nz, .jmp_2AE3
+	ld [$D007], a
+.jmp_2AE3
+	ld a, [hl]
+	ld e, a
+	ld d, $00
+	ld l, a
+	ld h, $00
+	sla e
+	rl d
+	sla e
+	rl d
+	add hl, de
+	ld de, Data_3186
+	add hl, de
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	ld a, [hl]
+	pop hl
+	and a
+	ret z
+	ld [hl], a
+	call Call_2CBB
+	ld a, $FF		; dead
+	ret
+
+; HL refers to the slot of the enemy touched whilst invincible
+Call_2B06:: ; 2B06
+	push hl
+	ld a, [hl]
+	ld e, a
+	ld d, $00
+	ld l, a
+	ld h, $00
+	sla e
+	rl d			; rotates possible carry in
+	sla e
+	rl d
+	add hl, de		; HL = DE * 5
+	ld de, Data_3186
+	add hl, de
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	ld a, [hl]
+	pop hl
+	and a
+	ret z
+	ld [hl], a
+	call Call_2CBB		; init enemy?
+	ld a, $FF
+	ret
 
 ; replace all enemies by explosions
 Call_2B2A:: ; 2B2A
