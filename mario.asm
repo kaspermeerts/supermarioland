@@ -6,10 +6,11 @@ INCLUDE "macros.asm"
 
 SECTION "bank0", ROM0[$0000]
 
-; RST vectors
+; Unused
 SECTION "RST 0", ROM0[$0000]
 	jp Init
 
+; Unused
 SECTION "RST 8", ROM0[$0008]
 	jp Init
 
@@ -20,7 +21,7 @@ TableJump::
 	add a		; Multiply A by 2, as addresses are 16 bit
 	pop hl
 	ld e, a
-	ld d, 00
+	ld d, $00
 	add hl, de	; Add the offset to the base address
 	ld e, [hl]	; Load the address at that offset into DE
 	inc hl
@@ -81,64 +82,66 @@ VBlank:: ; $0060
 	reti
 
 ; Update scroll registers. Don't understand the logic yet
+; Called after the 16th scanline, so the HUD doesn't scroll. Also called later
+; to turn the window off
 LCDStatus::
 	push af
 	push hl
 	WAIT_FOR_HBLANK
-	ld a, [$C0A5]
+	ld a, [wGameOverWindowEnabled]
 	and a
-	jr nz, .jmp_CF
+	jr nz, .turnOffWindow
 	ldh a, [hScrollX]
 	ldh [rSCX], a
 	ld a, [$C0DE]
 	and a
-	jr z, .jmp_B2
+	jr z, .checkForGameOver
 	ld a, [wScrollY]
 	ldh [rSCY], a
-.jmp_B2
+.checkForGameOver
 	ldh a, [hGameState]
 	cp a, $3A
-	jr nz, .jmp_CC
+	jr nz, .out			; game not over
 	ld hl, rWY
 	ld a, [hl]
 	cp a, $40
-	jr z, .jmp_DE
-	dec [hl]
-	cp a, $87
-	jr nc, .jmp_CC
-.jmp_C5
-	add a, $08
-	ldh [rLYC], a
-	ld [$C0A5], a
-.jmp_CC
+	jr z, .countdownGameOverTimer
+	dec [hl]			; scroll the window with game over text up
+	cp a, $87			; Until the bottom is visible, don't bother switching
+	jr nc, .out			; it off
+.scheduleInterrupt
+	add a, $08			; schedule an interrupt in 8 scanlines to turn
+	ldh [rLYC], a		; the window off
+	ld [wGameOverWindowEnabled], a
+.out
 	pop hl
 	pop af
 	reti
 
-.jmp_CF
+.turnOffWindow
 	ld hl, rLCDC
 	res 5, [hl]		; Turn off Window
-	ld a, $0F
+	ld a, $0F		; height of the HUD
 	ldh [rLYC], a
 	xor a
-	ld [$C0A5], a
-	jr .jmp_CC
+	ld [wGameOverWindowEnabled], a
+	jr .out
 
-.jmp_DE
+.countdownGameOverTimer
 	push af
 	ldh a, [$FFFB]
 	and a
-	jr z, .jmp_EA
+	jr z, .timerExpired
 	dec a
 	ldh [$FFFB], a
-.jmp_E7
+.outTimer
 	pop af
-	jr .jmp_C5
+	jr .scheduleInterrupt
 
-.jmp_EA
+.timerExpired
 	ld a, $FF
-	ld [$C0AD], a
-	jr .jmp_E7
+	ld [wGameOverTimerExpired], a
+	jr .outTimer
 
 
 SECTION "Entry point", ROM0[$0100]
@@ -275,11 +278,11 @@ Init::	; 0185
 	jr nz, .clearHRAMloop
 
 	ld c, LOW(hDMARoutine)
-	ld b, DMARoutineEnd - DMARoutine + 2 ; TODO Bug?
+	ld b, DMARoutineEnd - DMARoutine + 2 ; Bug
 	ld hl, DMARoutine
 .copyDMAroutine		; No memory can be accessed during DMA other than HRAM,
 	ldi a, [hl]		; so the routine is copied and executed there
-	ld [$FF00+c], a ; together with two bytes I don't know the function of TODO
+	ld [$FF00+c], a
 	inc c
 	dec b
 	jr nz, .copyDMAroutine
@@ -350,6 +353,7 @@ Init::	; 0185
 	jr z, .jmp_283
 	dec [hl]
 	jr .jmp_293
+
 .jmp_283
 	ldh a, [hGameState]	; 0 corresponds to normal gameplay...
 	and a
@@ -453,8 +457,8 @@ GameState_0E::
 	dec b
 	jr nz, .clearOAMBufferLoop
 	ldh [hSuperStatus], a
-	ld [$C0A5], a	; these are in the hblank routine as well
-	ld [$C0AD], a
+	ld [wGameOverWindowEnabled], a
+	ld [wGameOverTimerExpired], a
 	ld hl, $C0D8
 	ldi [hl], a
 	ldi [hl], a
@@ -526,6 +530,7 @@ GameState_0E::
 	dec b
 	jr nz, .compareScores
 	jr .printTopScore
+
 .newTopScore			; This is so not the place to do this...
 	ld hl, wScore + 2
 	ld de, wTopScore + 2
@@ -539,7 +544,7 @@ GameState_0E::
 .printTopScore
 	ld de, wTopScore + 2
 	ld hl, $9969
-	call PrintScore
+	call DisplayScore.fromDEtoHL
 	ld hl, wOAMBuffer + 4
 	ld [hl], $78	; Y
 	ld a, [wNumContinues]
@@ -549,6 +554,7 @@ GameState_0E::
 	cp a, 2					; after two wins, you don't need 100k points,
 	jr c, .printContinues	; you can just always level select
 	jr .noContinues
+
 .printContinues
 	ld hl, $0446	; "CONTINUE *"
 	ld de, $99C6
@@ -648,6 +654,7 @@ GameState_0F::
 .storeAndStartLevel
 	ldh [hLevelIndex], a
 	jp .jmp_53D
+
 .dontContinue
 	xor a
 	ld [wNumContinues], a	; harsh
@@ -658,6 +665,7 @@ GameState_0F::
 	ldh [hWorldAndLevel], a
 	xor a
 	jr .storeAndStartLevel
+
 .selectPressed
 	ld a, [wNumContinues]
 	and a
@@ -667,6 +675,7 @@ GameState_0F::
 	xor a, $F8
 	ld [hl], a
 	jr .checkLevelSelect
+
 .entryPoint::
 	ldh a, [hJoyPressed]
 	ld b, a
@@ -1023,7 +1032,7 @@ GameState_02::
 	or c
 	ld [$C203], a
 .out
-	call Call_245C
+	call InitEnemySlots
 	ei
 	ret
 
@@ -1068,6 +1077,7 @@ pauseOrReset:: ; 7DA
 	cp a, $0F			; TODO constants
 	jr nz, .noReset
 	jp Init				; if at any point A+B+Start+Select are pressed, reset
+
 .noReset
 	ldh a, [hJoyPressed]
 	bit 3, a			; todo start button bit. (Un)Pause the game!
@@ -1212,6 +1222,7 @@ Call_84E:: ; 84E
 .jmp_8C3
 	dec l
 	jp .jmp_94B
+
 .jmp_8C7
 	ld a, [$C202]		; mario x pos
 	add a, $06
@@ -1787,6 +1798,7 @@ GameState_04:: ; BD6
 	jr nz, .deathState
 	ld a, $3B						; Prepare time up
 	jr .out
+
 .deathState
 	ld a, $90
 	ldh [hTimer], a					; 90 frames, 1.5 seconds
@@ -1820,13 +1832,13 @@ GameState_07:: ; C40
 	ldh [rTMA], a
 	ldh a, [hWorldAndLevel]
 	and a, $0F				; select just the level
-	cp a, 3
+	cp a, 3					; boss level
 	ret nz
-	call Call_2B2A			; if there was a boss fight. explode enemies?
+	call ExplodeAllEnemies
 	ldh a, [hWorldAndLevel]
 	cp a, $43				; last level
 	ret nz
-	ld a, $06				; n
+	ld a, $06				; don't count down score after Tatanga
 	ldh [hGameState], a
 	ret
 
@@ -1949,6 +1961,7 @@ GameState_08:: ; D49
 	ldh [rLCDC], a		; turn off LCD
 	call Call_5E7		; again? why????
 	jp .out
+
 .entryPoint:: ; D49
 	ld hl, hTimer
 	ld a, [hl]
@@ -3197,8 +3210,8 @@ GameState_38::
 	ld [$C0A4], a
 	xor a
 	ld [wGameTimer], a
-	ld [$C0A5], a
-	ld [$C0AD], a
+	ld [wGameOverWindowEnabled], a
+	ld [wGameOverTimerExpired], a
 	ld a, $03
 	ldh [rIE], a
 	ld a, $0E
@@ -3261,7 +3274,7 @@ GameState_0A:: ; 162F
 	ldh a, [$FFF4]
 	ldh [hLevelBlock], a
 	call Call_807		; draws the first screen of the "level"
-	call Call_245C
+	call InitEnemySlots
 	ld hl, $C201		; Mario Y position
 	ld [hl], $20		; up high
 	inc l				; Mario X position
@@ -3305,6 +3318,7 @@ GameState_0B:: ; 166C
 	inc [hl]
 	call Call_16F5		; animate mario?
 	ret
+
 .toOverworld
 	di
 	ldh a, [$FFF5]		; (one less than) the block we went in?
@@ -3347,7 +3361,7 @@ GameState_0B:: ; 166C
 	ldh [hScrollX], a
 	ld a, $5B
 	ldh [$FFE9], a		; first col not yet loaded in. IMO $807 should do this
-	call Call_245C
+	call InitEnemySlots
 	call Call_1ED4		; clears objects
 	ld a, $C3
 	ldh [rLCDC], a
@@ -3595,16 +3609,16 @@ Jmp_185D
 	ld a, [hl]
 	dec a
 	dec a
-	and a, $FC				; erase lowest 2 bits
-	or a, $06				; and set 2 and 1
+	and a, $FC				; erase 0000 0011
+	or a, $06				; set   0000 0110
 	ld [hl], a
 	xor a
 	ld hl, $C207			; jump status
-	ldi [hl], a				; C208 no clue
-	ldi [hl], a				; C209 no clue
-	ldi [hl], a				; C20A 1 if mario on the ground
-	ld [hl], $01			; C20B animation counter
-	ld hl, $C20C			; Why not just INC L... Bug. Momentum
+	ldi [hl], a				; C207 jump status
+	ldi [hl], a				; C208 
+	ldi [hl], a				; C209
+	ld [hl], $01			; C20A 1 if mario on the ground
+	ld hl, $C20C			; C20C Momentum
 	ld a, [hl]
 	cp a, $07
 	ret c
@@ -3635,7 +3649,7 @@ Jmp_185D
 	ld a, [hl]				; wait, why again?
 	pop hl
 	and a
-	jp z, $19E1
+	jp z, .jmp_19E1
 	cp a, $F0				; nothing, just a solid grey block
 	jr z, .jmp_18C0
 .jmp_189B
@@ -4264,6 +4278,7 @@ UpdateLives::
 	ldh [hGameState], a
 	ld [$C0A4], a
 	jr .out
+
 .loseLife
 	and a
 	jr z, .gameOver		; No lives anymore
@@ -4322,7 +4337,7 @@ GameState_39::	; 1C7C
 
 ; game over animation and wait until menu
 GameState_3A:: ; 1CE8
-	ld a, [$C0AD]
+	ld a, [wGameOverTimerExpired]
 	and a
 	call nz, GameState_38.resetToMenu
 	ret
@@ -4373,6 +4388,7 @@ Call_1D26::
 	inc l
 	ld [hl], $00		; C20D again
 	jr .jmp_1D71
+
 .jmp_1D38
 	dec [hl]			; decrease C20C, momentum?
 	ret
@@ -4456,6 +4472,7 @@ Call_1D26::
 	cp a, $20
 	jr nz, .skip
 	jp .reverseDirection	; too far to do a JR
+
 .skip
 	ld hl, $C205		; dir facing
 	ld [hl], $00		; facing right
@@ -4685,8 +4702,8 @@ Call_1F03:: ; 1F03
 	ld [$C200], a
 	ld a, [$DFE9]		; currently playing song
 	and a
-	ret nz
-.endOfInvincibility
+	ret nz				; invincibility stops when the timer runs out,
+.endOfInvincibility		; or the song stops
 	xor a
 	ld [wInvincibilityTimer], a
 	ld [$C200], a		; mario visible
@@ -5156,23 +5173,26 @@ LoadNextColumn::	; 21B1
 	cp a, $FD			; FD means fill the rest with the next byte
 	jr z, .repeatNextTile
 	ld [de], a
-	cp a, $70			; pipe?
+	cp a, $70			; vertical pipe left tile
 	jr nz, .notPipe
-	call Call_22A9
+	call CheckPipeForWarp
 	jr .incrementRow
+
 .notPipe
 	cp a, $80			; breakable block?
 	jr nz, .notBreakableBlock
-	call Call_2321
+	call CheckBlockForItem
 	jr .incrementRow
+
 .notBreakableBlock
 	cp a, $5F			; hidden block?
 	jr nz, .notHiddenBlock
-	call Call_2321
+	call CheckBlockForItem
 	jr .incrementRow
+
 .notHiddenBlock
 	cp a, $81			; coin block
-	call z, Call_2321
+	call z, CheckBlockForItem
 .incrementRow
 	inc e
 	dec b
@@ -5243,16 +5263,19 @@ DrawColumn:: ; 2258
 	jr nz, .notPipe
 	call Call_22FD
 	jr .incrementRow
+
 .notPipe
 	cp a, $80			; breakable block
 	jr nz, .notBreakableBlock
 	call Call_2363
 	jr .incrementRow
+
 .notBreakableBlock
 	cp a, $5F			; hidden block
 	jr nz, .notHiddenBlock
 	call Call_2363
 	jr .incrementRow
+
 .notHiddenBlock
 	cp a, $81			; coin block
 	call z, Call_2363
@@ -5268,8 +5291,8 @@ DrawColumn:: ; 2258
 	ldh [$FFEA], a
 	ret
 
-; is there are a warppipe at the column currently being drawn
-Call_22A9::
+; Does a lookup if this pipe is a warp pipe. Store data temporarily in HRAM
+CheckPipeForWarp:: ; 22A9
 	push hl
 	push de
 	push bc
@@ -5287,7 +5310,7 @@ Call_22A9::
 	inc hl
 	ld d, [hl]
 	push de
-	pop hl				; hl ← [651C + 2 * level]
+	pop hl				; hl ← [651C + 2 * level], pointer
 .checkPipeForWarp
 	ldh a, [hLevelBlock]	; first byte is level block of warping pipe
 	cp [hl]
@@ -5360,7 +5383,7 @@ Call_22FD::
 	pop hl
 	ret
 
-Call_2321:: ; 2321
+CheckBlockForItem:: ; 2321
 	push hl
 	push de
 	push bc
@@ -5425,7 +5448,7 @@ Call_2363:: ; 2363
 GameState_0D::
 INCBIN "baserom.gb", $2376, $2401 - $2376
 
-AnimateBackground::
+AnimateBackground:: ; 2401
 	ld a, [wBackgroundAnimated]
 	and a
 	ret z
@@ -5433,13 +5456,14 @@ AnimateBackground::
 	cp a, $0D			; For some reason, the background is only animated
 	ret nc				; in gamestates < 0D. This is mostly normal gameplay
 	ldh a, [hFrameCounter]
-	and a, $07			; Animate every 7 frames
+	and a, $07			; Animate every 8 frames
 	ret nz
 	ldh a, [hFrameCounter]
 	bit 3, a
 	jr z, .secondFrame
 	ld hl, $C600		; copied to here from where?
 	jr .copyTile
+
 .secondFrame
 	ld hl, Data_3FC4 ; todo
 	ldh a, [hWorldAndLevel]
@@ -5462,18 +5486,17 @@ AnimateBackground::
 	ret
 
 ; Levels with or without animated background tile. Pointless
-; todo name
-Data_2436::
+LevelsWithAnimatedBackground::
 	db 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0
 
 ; wBackgroundAnimated is clear. But what are the other variables?
 Call_2442::
 	ld a, $0C
 	ld [$C0AB], a
-	call Call_245C
+	call InitEnemySlots
 	xor a
 	ld [$D007], a
-	ld hl, Data_2436
+	ld hl, LevelsWithAnimatedBackground
 	ldh a, [hLevelIndex]
 	ld d, 0
 	ld e, a
@@ -5483,7 +5506,7 @@ Call_2442::
 	ret
 
 ; initializes objects? skips over enemies?
-Call_245C::
+InitEnemySlots:: ; 245C
 	ld hl, $401A		; after the level pointers?
 	ldh a, [hLevelIndex]
 	rlca				; why not ADD A?... Carry will be zero anyway
@@ -5501,13 +5524,13 @@ Call_245C::
 .next
 	ld a, [hl]			; enemy location?
 	cp b
-	jr nc, .storeNextEnemy	; todo name
+	jr nc, .storeFirstEnemyLocation
 	inc hl
 	inc hl
 	inc hl
 	jr .next
 
-.storeNextEnemy
+.storeFirstEnemyLocation
 	ld a, l
 	ld [$D010], a
 	ld a, h
@@ -5523,13 +5546,12 @@ Call_245C::
 	ret
 
 Call_2491:: ; 2491
-	call Call_249B
+	call SpawnEnemies
 	call Call_2648
 	call DrawEnemies
 	ret
 
-; spawns enemies?
-Call_249B:: ; 249B
+SpawnEnemies:: ; 249B
 	ld a, [$D010]
 	ld l, a
 	ld a, [$D011]
@@ -5565,11 +5587,11 @@ Call_249B:: ; 249B
 	ld [$D010], a
 	ld a, h
 	ld [$D011], a
-	jr Call_249B
+	jr SpawnEnemies
 
 ; enemy launches projectile?
 Call_24D6:: ; 24D6
-	ld a, [$D003]
+	ld a, [wCommandArgument]
 	ldh [$FFC0], a
 	cp a, $FF
 	ret z
@@ -5582,7 +5604,7 @@ Call_24D6:: ; 24D6
 	ld hl, Data_3375
 	add hl, de
 	ldi a, [hl]
-	ldh [$FFC7], a
+	ldh [$FFC7], a	; flags
 	jr Jmp_250B
 
 Call_24EF:: ; 24EF
@@ -5604,7 +5626,7 @@ Call_24EF:: ; 24EF
 	ld hl, Data_3375
 	add hl, de
 	ld a, [hl]
-	ldh [$FFC7], a
+	ldh [$FFC7], a	; flags
 
 Jmp_250B
 	xor a
@@ -5660,7 +5682,7 @@ Call_254D:: ; 254D
 	ld [$D192], a
 	ldh a, [$FFC3]		; X pos
 	ld [$D193], a
-	call Call_2CBB
+	call InitEnemy
 	ld a, $0B
 	ld [$DFE0], a
 	ret
@@ -5821,10 +5843,10 @@ DrawEnemies::; 2568
 
 Call_2648:: ; 2648
 	ld hl, $D100
-.jmp_264B
+.loop
 	ld a, [hl]
 	inc a
-	jr z, .jmp_266C
+	jr z, .nextSlot
 	push hl
 	call CopyEnemySlotToBuffer.fromHL
 	ld hl, Data_349E
@@ -5839,37 +5861,36 @@ Call_2648:: ; 2648
 	ld d, a
 	ld h, d
 	ld l, e
-	call .call_2676
+	call .updateEnemy
 	pop hl
 	push hl
 	call CopyBufferToEnemySlot.toHL
 	pop hl
-.jmp_266C
+.nextSlot
 	ld a, l
 	add a, $10
 	ld l, a
 	cp a, $A0
-	jp nz, .jmp_264B
+	jp nz, .loop
 	ret
 
-.call_2676
-.jmp_2676
-	ldh a, [$FFC8]			; state or animation index
+.updateEnemy
+	ldh a, [$FFC8]			;
 	and a
-	jr z, .jmp_26B5
-	ldh a, [$FFC7]			; 07 if gravity works on it??
+	jr z, .runScript
+	ldh a, [$FFC7]			; bit 1 set if gravity works on it?
 	bit 1, a
 	jr z, .jmp_2692
-	call Call_2BBB
-	jr nc, .jmp_268C
+	call Call_2BBB			; check collision one tile down?
+	jr nc, .jmp_268C		; no carry means the tile is solid
 	ldh a, [$FFC2]			; Y pos
-	inc a					; go down
+	inc a					; fall down
 	ldh [$FFC2], a
 	ret
 
 .jmp_268C
 	ldh a, [$FFC2]
-	and a, $F8
+	and a, $F8				; snap to tile grid
 	ldh [$FFC2], a
 .jmp_2692
 	ldh a, [$FFC9]
@@ -5895,167 +5916,169 @@ Call_2648:: ; 2648
 	ldh [$FFC8], a
 	jp .jmp_2879
 
-.jmp_26B5
+.runScript
 	push hl
 	ld d, $00
-	ldh a, [$FFC4]
+	ldh a, [$FFC4]			; script index
 	ld e, a
 	add hl, de
 	ld a, [hl]
-	ld [$D002], a
-	cp a, $FF
-	jr nz, .jmp_26CA
-	xor a
+	ld [wCurrentCommand], a
+	cp a, $FF				; end of script sentinel
+	jr nz, .runCommand
+	xor a					; end of script reached, restart
 	ldh [$FFC4], a
 	pop hl
-	jr .jmp_26B5
+	jr .runScript
 
-.jmp_26CA
+.runCommand
 	ldh a, [$FFC4]
 	inc a
 	ldh [$FFC4], a
-	ld a, [$D002]
+	ld a, [wCurrentCommand]
 	and a, $F0
 	cp a, $F0
-	jr z, .jmp_26F8
-	ld a, [$D002]
+	jr z, .specialCommand
+	ld a, [wCurrentCommand]
 	and a, $E0
 	cp a, $E0
-	jr nz, .jmp_26EB
-	ld a, [$D002]
-	and a, $0F
-	ldh [$FFC8], a
+	jr nz, .speedCommand
+	ld a, [wCurrentCommand]
+	and a, $0F				; wait command, wait the lower nibble number
+	ldh [$FFC8], a			; of frames
 	pop hl
-	jr .jmp_2676
+	jr .updateEnemy
 
-.jmp_26EB
-	ld a, [$D002]
-	ldh [$FFC1], a
+.speedCommand
+	ld a, [wCurrentCommand]
+	ldh [$FFC1], a			; the speed is just the command itself
 	ld a, $01
 	ldh [$FFC8], a
 	pop hl
-	jp .jmp_2676
+	jp .updateEnemy
 
-.jmp_26F8
-	ldh a, [$FFC4]
+.specialCommand
+	ldh a, [$FFC4]			; increment script index, load argument
 	inc a
 	ldh [$FFC4], a
 	inc hl
 	ld a, [hl]
-	ld [$D003], a
-	ld a, [$D002]
-	cp a, $F8
-	jr nz, .jmp_2711
-	ld a, [$D003]
+	ld [wCommandArgument], a
+	ld a, [wCurrentCommand]
+	cp a, $F8					; F8 - Change sprite
+	jr nz, .checkF0
+	ld a, [wCommandArgument]
 	ldh [$FFC6], a
 	pop hl
-	jr .jmp_26B5
-.jmp_2711
-	cp a, $F0
-	jr nz, .jmp_278D
-	ld a, [$D003]
-	and a, $C0
-	jr z, .jmp_2754
-	bit 7, a
-	jr z, .jmp_2733
+	jr .runScript
+
+.checkF0
+	cp a, $F0					; F0 - Change orientation
+	jr nz, .checkF1
+	ld a, [wCommandArgument]
+	and a, $C0					; 1100 0000
+	jr z, .checkBits2And3
+	bit 7, a			; bit 7, direct towards Mario in the Y direction?
+	jr z, .checkBit6
 	ldh a, [$FFC5]
-	and a, $FD			; %1111 1101
+	and a, $FD			; unset bit 1
 	ld b, a
 	ld a, [$C201]		; Y pos
 	ld c, a
-	ldh a, [$FFC2]
+	ldh a, [$FFC2]		; enemy Y pos
 	sub c
-	rla
-	rlca
+	rla					; Put carry flag in lowest bit of A
+	rlca				; Put carry flag in bit 1
 	and a, $02
 	or b
-	ldh [$FFC5], a
-.jmp_2733
-	ld a, [$D003]
-	bit 6, a
-	jr z, .jmp_2754
-	ld a, [$C202]
+	ldh [$FFC5], a		; and OR it into FFC5
+.checkBit6
+	ld a, [wCommandArgument]
+	bit 6, a			; Same but for X
+	jr z, .checkBits2And3
+	ld a, [$C202]		; Mario X
 	ld c, a
-	ldh a, [$FFC3]
+	ldh a, [$FFC3]		; Enemy X
 	ld b, a
 	ldh a, [$FFCA]
-	and a, $70
+	and a, $70			; width in tiles, times 16
 	rrca
-	rrca
-	add b
+	rrca				; half width in pixels
+	add b				; add to enemy X to get X coodinate of center of enemy
 	sub c
-	rla
+	rla					; Put carry flag in lowest bit of A
 	and a, $01
 	ld b, a
 	ldh a, [$FFC5]
-	and a, $FE			; %1111 1110
+	and a, $FE
 	or b
-	ldh [$FFC5], a
-.jmp_2754
-	ld a, [$D003]
-	and a, $0C			; %0000 1100
-	jr z, .jmp_2763
+	ldh [$FFC5], a		; And OR it into FFC5
+.checkBits2And3
+	ld a, [wCommandArgument]
+	and a, $0C			; bits 2 and 3, invert corresponding direction
+	jr z, .checkBits4and5
 	rra
 	rra
 	ld b, a
 	ldh a, [$FFC5]
-	xor b
+	xor b				; invert the corresponding bits in FFC5
 	ldh [$FFC5], a
-.jmp_2763
-	ld a, [$D003]
-	bit 5, a
-	jr z, .jmp_2776
-	and a, $02			; 0000 0010
-	or a, $FD			; 1111 1101
+.checkBits4and5
+	ld a, [wCommandArgument]
+	bit 5, a			; bit 5, replace Y direction with bit 1
+	jr z, .checkBit4
+	and a, $02
+	or a, $FD			; put bit 1 in a bitmask with all other bits set
 	ld b, a
 	ldh a, [$FFC5]
 	set 1, a
-	and b
+	and b				; and apply to FFC5
 	ldh [$FFC5], a
-.jmp_2776
-	ld a, [$D003]
-	bit 4, a
-	jr z, .jmp_2789
-	and a, $01			; 0000 0001
-	or a, $FE			; 1111 1110
+.checkBit4
+	ld a, [wCommandArgument]
+	bit 4, a			; bit 4, replace X direction with bit 0
+	jr z, .out
+	and a, $01			; same, but with bit 0
+	or a, $FE
 	ld b, a
 	ldh a, [$FFC5]
 	set 0, a
 	and b
 	ldh [$FFC5], a
-.jmp_2789
+.out
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_278D
-	cp a, $F1
-	jr nz, .jmp_27A2
-	ld a, $0A			; temporarily store buffer
+.checkF1
+	cp a, $F1			; F1 - launch projectile
+	jr nz, .checkF2
+	ld a, $0A			; Temporarily store the current buffer
 	call CopyBufferToEnemySlot
-	call Call_24D6		; enemy launches projectile?
-	ld a, $0A			; restore buffer
+	call Call_24D6		; Overwrite current buffer. This makes sure the projectile
+	ld a, $0A			; is spawned at the location of the enemy firing it
 	call CopyEnemySlotToBuffer
 	pop hl
-	jp .jmp_26B5
-.jmp_27A2
-	cp a, $F2
-	jr nz, .jmp_27AF
-	ld a, [$D003]
+	jp .runScript
+
+.checkF2
+	cp a, $F2			; F2 - set movement flags
+	jr nz, .checkF3
+	ld a, [wCommandArgument]
 	ldh [$FFC7], a
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_27AF
-	cp a, $F3
-	jr nz, .jmp_27D7
-	ld a, [$D003]
+.checkF3
+	cp a, $F3			; F3 - Change ID and reinitialize
+	jr nz, .checkF4
+	ld a, [wCommandArgument]
 	ldh [$FFC0], a
-	cp a, $FF
-	jp z, .jmp_2877
+	cp a, $FF			; FF stands for an empty slot
+	jp z, .enemyGone
 	ld hl, $FFC0
-	call Call_2CBB		; init enemy
+	call InitEnemy
 	pop hl
-	ld hl, Data_349E
+	ld hl, Data_349E	; reinitialize script
 	ldh a, [$FFC0]
 	rlca
 	ld d, $00
@@ -6067,37 +6090,37 @@ Call_2648:: ; 2648
 	ld d, a
 	ld h, d
 	ld l, e
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_27D7
+.checkF4
 	cp a, $F4
-	jr nz, .jmp_27E4
-	ld a, [$D003]
+	jr nz, .checkF5
+	ld a, [wCommandArgument]
 	ldh [$FFC9], a
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_27E4
-	cp a, $F5
-	jr nz, .jmp_27F4
+.checkF5
+	cp a, $F5			; F5 - 
+	jr nz, .checkF6
 	ldh a, [rDIV]
 	and a, $03			; "random" value from 0 to 3
 	ld a, $F1
-	jr z, .jmp_278D
+	jr z, .checkF1		; execute command F1 - launch projectile
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_27F4
-	cp a, $F6
-	jr nz, .jmp_2818
+.checkF6
+	cp a, $F6			; F6 - 
+	jr nz, .checkF7
 	ld a, [$C202]		; Mario X
 	ld b, a
 	ldh a, [$FFC3]		; enemy X
 	sub b
 	add a, $14
 	cp a, $20
-	ld a, [$D003]
-	dec a
+	ld a, [wCommandArgument]
+	dec a				; does not touch carry flag
 	jr z, .jmp_280A
 	ccf
 .jmp_280A
@@ -6111,74 +6134,74 @@ Call_2648:: ; 2648
 
 .jmp_2814
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_2818
-	cp a, $F7
-	jr nz, .jmp_2821
-	call Call_2B2A
+.checkF7
+	cp a, $F7			; F7 - Explode all enemies :)
+	jr nz, .checkF9
+	call ExplodeAllEnemies
 	pop hl
 	ret
 
-.jmp_2821
-	cp a, $F9
-	jr nz, .jmp_282D
-	ld a, [$D003]
+.checkF9
+	cp a, $F9			; F9 - Sound effect
+	jr nz, .checkFA
+	ld a, [wCommandArgument]
 	ld [$DFF8], a		; sound effect
 	pop hl
 	ret
 
-.jmp_282D
-	cp a, $FA
-	jr nz, .jmp_2839
-	ld a, [$D003]
+.checkFA
+	cp a, $FA			; FA - Sound effect
+	jr nz, .checkFB
+	ld a, [wCommandArgument]
 	ld [$DFE0], a		; sound effect
 	pop hl
 	ret
 
-.jmp_2839
-	cp a, $FB
-	jr nz, .jmp_2856
-	ld a, [$D003]
+.checkFB
+	cp a, $FB			; FB - reset script until enemy is close enough
+	jr nz, .checkFC
+	ld a, [wCommandArgument]
 	ld c, a
 	ld a, [$C202]
 	ld b, a
 	ldh a, [$FFC3]
 	sub b
 	cp c
-	jr c, .jmp_2852
+	jr c, .enemyClose
 	xor a
 	ldh [$FFC4], a
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_2852				; Why?? Bug
+.enemyClose				; Unnecessary. Bug
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_2856
-	cp a, $FC
-	jr nz, .jmp_2867
-	ld a, [$D003]
+.checkFC
+	cp a, $FC			; FC - position enemy at the right of the screen
+	jr nz, .checkFD		; Only used for Tatanga?
+	ld a, [wCommandArgument]
 	ldh [$FFC2], a
 	ld a, $70
 	ldh [$FFC3], a
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_2867
-	cp a, $FD
-	jr nz, .jmp_2873
-	ld a, [$D003]
+.checkFD
+	cp a, $FD			; FD - Music
+	jr nz, .unknownCommand
+	ld a, [wCommandArgument]
 	ld [$DFE8], a
 	pop hl
 	ret
 
-.jmp_2873
+.unknownCommand			; silently ignore...
 	pop hl
-	jp .jmp_26B5
+	jp .runScript
 
-.jmp_2877
+.enemyGone
 	pop hl
 	ret
 
@@ -6189,13 +6212,13 @@ Call_2648:: ; 2648
 	ldh a, [$FFC5]
 	bit 0, a
 	jr nz, .jmp_28F0
-	call Call_2B84	; some sort of collision detection. Sets carry on detection
+	call Call_2B84	; some sort of collision detection. left bound?
 	jr nc, .jmp_28CE
 	ldh a, [$FFC7]
 	bit 0, a
 	jr z, .jmp_2896
 	call Call_2BE4	; checks for collision one tile down, 3 px to the right	
-	jr c, .jmp_28DA
+	jr c, .jmp_28DA	; carry means the tile isn't solid
 .jmp_2896
 	ldh a, [$FFC1]
 	and a, $0F
@@ -6229,12 +6252,12 @@ Call_2648:: ; 2648
 
 .jmp_28CE
 	ldh a, [$FFC7]
-	and a, $0C
-	cp a, $00
-	jr z, .jmp_2896
-	cp a, $04
+	and a, $0C			; test bits 2 and 3
+	cp a, 0
+	jr z, .jmp_2896		; bit 2 and 3 not set
+	cp a, $4
 	jr nz, .jmp_28E3
-.jmp_28DA
+.jmp_28DA				; bit 2 set, bit 3 unset
 	ldh a, [$FFC5]
 	set 0, a
 	ldh [$FFC5], a
@@ -6252,7 +6275,7 @@ Call_2648:: ; 2648
 	call Call_2B9A		; one of those collision detection routines
 	jr nc, .jmp_2958	; probably just right bound?
 	ldh a, [$FFC7]
-	bit 0, a
+	bit 0, a			; bit 0: don't walk off edges?
 	jr z, .jmp_2900
 	call Call_2BFE		; collision bottom right?
 	jr c, .jmp_2964
@@ -6309,12 +6332,12 @@ Call_2648:: ; 2648
 
 .jmp_2958
 	ldh a, [$FFC7]
-	and a, $0C			; 0000 1100
+	and a, $0C			; test bit 2 and 3
 	cp a, 0
-	jr z, .jmp_2900
-	cp a, $04
+	jr z, .jmp_2900		; neither bit set
+	cp a, $4
 	jr nz, .jmp_296C
-.jmp_2964
+.jmp_2964				; bit 2 set, bit 3 not set
 	ldh a, [$FFC5]
 	res 0, a
 	ldh [$FFC5], a
@@ -6323,10 +6346,10 @@ Call_2648:: ; 2648
 .jmp_296C
 	cp a, $0C
 	jr nz, .jmp_2975
-	xor a
-	ldh [$FFC4], a
+	xor a				; both bits set
+	ldh [$FFC4], a		; reset script
 	ldh [$FFC8], a
-.jmp_2975
+.jmp_2975				; bit 3 set
 	ldh a, [$FFC1]
 	and a, $F0
 	jp z, .jmp_29FD
@@ -6353,12 +6376,12 @@ Call_2648:: ; 2648
 
 .jmp_29A1
 	ldh a, [$FFC7]
-	and a, $C0
+	and a, $C0				; test bits 6 and 7
 	cp a, $00
-	jr z, .jmp_2987
+	jr z, .jmp_2987			; jump if neither set
 	cp a, $40
 	jp nz, .jmp_29B6		; could've been a JR, bug
-	ldh a, [$FFC5]
+	ldh a, [$FFC5]			; bit 6 set
 	set 1, a
 	ldh [$FFC5], a
 	jr .jmp_29FD
@@ -6406,7 +6429,7 @@ Call_2648:: ; 2648
 	cp a, $30
 	jr nz, .jmp_29FD
 	xor a
-	ldh [$FFC4], a
+	ldh [$FFC4], a		; reset script
 	ldh [$FFC8], a
 .jmp_29FD
 	xor a
@@ -6434,7 +6457,7 @@ Call_2A01:: ; 2A01
 	ret z
 	push hl
 	ld [hl], a
-	call Call_2CBB
+	call InitEnemy
 	ld a, $FF
 	pop hl
 	ret
@@ -6460,7 +6483,7 @@ Call_2A23:: ; 2A23
 	and a
 	ret z
 	ld [hl], a
-	call Call_2CBB
+	call InitEnemy
 	ld a, $FF
 	ret
 
@@ -6488,7 +6511,7 @@ Call_2A44:: ; 2A44
 	and a
 	ret z
 	ld [hl], a
-	call Call_2CBB
+	call InitEnemy
 	xor a
 	ret
 
@@ -6542,7 +6565,7 @@ Call_2A68:: ; 2A68
 	and a
 	ret z
 	ld [hl], a
-	call Call_2CBB
+	call InitEnemy
 	ld a, $FF
 	ret
 
@@ -6609,7 +6632,7 @@ Call_2AAD:: ; 2AAD
 	and a
 	ret z
 	ld [hl], a
-	call Call_2CBB
+	call InitEnemy
 	ld a, $FF		; dead
 	ret
 
@@ -6637,17 +6660,16 @@ Call_2B06:: ; 2B06
 	and a
 	ret z
 	ld [hl], a
-	call Call_2CBB		; init enemy?
+	call InitEnemy
 	ld a, $FF
 	ret
 
-; replace all enemies by explosions
-Call_2B2A:: ; 2B2A
+ExplodeAllEnemies:: ; 2B2A
 	ld hl, $D100
-.jmp_2B2D
+.loop
 	ld a, [hl]
 	cp a, $FF
-	jr z, .jmp_2B47
+	jr z, .nextEnemySlot
 	push hl
 	ld [hl], $27	; 0 ID of mid air explosion
 	inc hl			; 1
@@ -6665,19 +6687,19 @@ Call_2B2A:: ; 2B2A
 	inc hl			; C health?
 	ld [hl], $00
 	pop hl
-.jmp_2B47
+.nextEnemySlot
 	ld a, l
 	add a, $10
 	ld l, a
 	cp a, $A0
-	jr c, .jmp_2B2D
+	jr c, .loop
 	ld a, $27
 	ldh [$FFC0], a
 	xor a
 	ldh [$FFC4], a
 	ldh [$FFC7], a
 	inc a
-	ld [$DFF8], a	; explosion
+	ld [$DFF8], a	; explosion sound
 	ret
 
 ; enemy collision side check
@@ -6692,6 +6714,7 @@ Call_2B5D:: ; 2B5D
 	ldh a, [$FFC5]		; 1 if facing right
 	bit 0, a
 	jr .jmp_2B76
+
 	ldh a, [$FFCA]
 	and a, $70			; width
 	rrca				; ...way more clever than the loop they usually use
@@ -6730,13 +6753,13 @@ Call_2B9A:: ; 2B9A
 	ld c, a
 	ldh a, [hScrollX]
 	add c
-	add a, $08
+	add a, $8
 	ld c, a
 	ldh a, [$FFCA]
 	and a, $70			; width in bits 4-6
 	rrca				; A = width * 8, as there are 8 pixels per tile
 	add c
-	sub a, $08			; why is 8 added and subtracted?
+	sub a, $8			; why is 8 added and subtracted?
 	ldh [$FFAE], a
 	ldh a, [$FFC2]
 	ldh [$FFAD], a
@@ -6753,14 +6776,13 @@ Call_2BBB:: ; 2BBB
 	ld c, a
 	ldh a, [hScrollX]
 	add c
-	add a, $4
+	add a, $4		; middle of leftmost tile?
 	ldh [$FFAE], a
 	ld c, a
 	ldh a, [$FFC5]	; bit 0 on if facing right
 	bit 0, a
 	jr .jmp_2BD4	; bug maybe? Should have been jr nz?
 
-.jmp_2BCC
 	ldh a, [$FFCA]	; mortality and dimensions?
 	and a, $70
 	rrca
@@ -6835,6 +6857,7 @@ Call_2C21:: ; 2C21
 	ldh a, [$FFC5]
 	bit 0, a
 	jr .jmp_2C3A
+
 	ldh a, [$FFCA]
 	and a, $70
 	rrca
@@ -6936,7 +6959,7 @@ Call_2C9F:: ; 2C9F
 	ret
 
 ; HL points to enemy slot (powerup slot?)
-Call_2CBB:: ; 2CBB
+InitEnemy:: ; 2CBB
 	push hl
 	ld a, [hl]			; enemy ID
 	ld d, $00
@@ -6953,24 +6976,24 @@ Call_2CBB:: ; 2CBB
 	ld d, a
 	ld a, [hl]			; Store the data in B, D and A
 	pop hl
-	inc hl				; D1x1 YX speed
-	inc hl				; D1x2
-	inc hl				; D1x3
-	inc hl				; D1x4
-	ld [hl], $00
-	inc hl				; D1x5
-	inc hl				; D1x6
-	inc hl				; D1x7
-	ld [hl], b			; some sort of behaviour? goomba is 6. koopa is 7
-	inc hl				; D1x8
-	ld [hl], $00
-	inc hl				; D1x9
-	ld [hl], $00
-	inc hl				; D1xA mortality and dimensions
-	ld [hl], d
-	inc hl				; D1xB
-	inc hl				; D1xC "health"
-	ld [hl], a
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	ld [hl], $00		; D1x4
+	inc hl
+	inc hl
+	inc hl
+	ld [hl], b			; D1x7 first byte
+	inc hl				; some sort of behaviour? goomba is 6. koopa is 7
+	ld [hl], $00		; D1x8
+	inc hl
+	ld [hl], $00		; D1x9
+	inc hl
+	ld [hl], d			; D1xA second byte
+	inc hl				; hittable and dimensions
+	inc hl
+	ld [hl], a			; D1xC third byte
 	ret
 
 ; Fill buffer from enemy slot
@@ -7407,6 +7430,7 @@ Call_3F13::	; 3F13
 	ret
 
 ; Display the score at wScore to the top right corner
+; Print spaces instead of leading zeroes TODO Reuses FFB1?
 DisplayScore:: ; 3F39
 	ldh a, [$FFB1]	; Some check to see if the score needs to be  
 	and a				; updated?
@@ -7419,11 +7443,9 @@ DisplayScore:: ; 3F39
 	ret z
 	ld de, wScore + 2	; Start with the ten and hundred thousands
 	ld hl, $9820		; TODO VRAM layout
-PrintScore::
-; Displays BCD encoded score at DE, DE-1 and DE-2 to the VRAM at HL
-; Print spaces instead of leading zeroes TODO Reuses FFB1?
+.fromDEtoHL
 	xor a
-	ldh [$FFB1], a	; Start by printing spaces instead of leading zeroes
+	ldh [$FFB1], a		; Start by printing spaces instead of leading zeroes
 	ld c, $03			; Maximum 3 digit pairs
 .printDigitPair
 	ld a, [de]

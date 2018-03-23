@@ -10,7 +10,9 @@ wLivesEarnedLost::
 	ds 1	; C0A3
 
 ds 1		; C0A4
-ds 1		; C0A5
+
+wGameOverWindowEnabled :: ; C0A5
+	db
 
 wNumContinues::	; C0A6
 	db
@@ -23,7 +25,12 @@ wContinueWorldAndLevel:: ; C0A8
 wSuperballTTL:: ; C0A9
 	db
 
-ds $C0 - $AA
+ds $AD - $AA
+
+wGameOverTimerExpired:: ; C0AD
+	db
+
+ds $C0 - $AE
 
 wTopScore:: ; C0C0
 	ds 3
@@ -43,8 +50,15 @@ ds 1		; C0F0
 wWinCount:: ; C0E1
 	db
 
-; D100 - D190: enemies
-ds $D013 - $C0E2
+ds $D002 - $C0E2
+
+wCurrentCommand:: ; D002
+	db
+
+wCommandArgument:: ; D003
+	db
+
+ds $D013 - $D004
 
 wObjectsDrawn:: ; D013 The upper 20 objects are used for enemies
 	db
@@ -52,6 +66,7 @@ wObjectsDrawn:: ; D013 The upper 20 objects are used for enemies
 wBackgroundAnimated::	; D014
 	db
 
+; D100 - D190: enemies
 ds $DA00 - $D015
 
 wGameTimer:: ; DA00-DA02
