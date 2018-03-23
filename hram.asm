@@ -64,12 +64,16 @@ ds $DF - $C0
 hPauseMusic::	; FFDF
 	ds 1
 
-ds 1
+ds 1			; FFE0
 
 hSavedRomBank::	; FFE1
 	ds 1
 
-ds $E4 - $E2
+hTextCursorHi:: ; FFE2
+	ds 1
+
+hTextCursorLo:: ; FFE3
+	ds 1
 
 hLevelIndex::	; FFE4
 	ds 1

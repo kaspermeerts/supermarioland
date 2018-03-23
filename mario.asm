@@ -3,6 +3,7 @@ INCLUDE "gbhw.asm"
 INCLUDE "wram.asm"
 INCLUDE "hram.asm"
 INCLUDE "macros.asm"
+INCLUDE "enemies.asm"
 
 SECTION "bank0", ROM0[$0000]
 
@@ -81,7 +82,7 @@ VBlank:: ; $0060
 	pop af
 	reti
 
-; Update scroll registers. Don't understand the logic yet
+; Update scroll registers.
 ; Called after the 16th scanline, so the HUD doesn't scroll. Also called later
 ; to turn the window off
 LCDStatus::
@@ -2307,9 +2308,9 @@ GameState_23:: ; F33
 	jr nz, .nowrap
 	sub a, $20
 .nowrap
-	ldh [$FFE3], a		; probably where the text will appear
+	ldh [hTextCursorLo], a
 	ld a, $98
-	ldh [$FFE2], a
+	ldh [hTextCursorHi], a
 	xor a
 	ldh [$FFFB], a
 	ld hl, hGameState
@@ -2318,8 +2319,8 @@ GameState_23:: ; F33
 
 ; Fake Daisy speaking
 GameState_24:: ; F6A
-	ld hl, .text_FE1
-	call .fakeDaisySpeech
+	ld hl, Text_FE1
+	call PrintVictoryMessage
 	cp a, $FF		; end of speech
 	ret nz
 	ld hl, hGameState
@@ -2334,11 +2335,11 @@ GameState_24:: ; F6A
 	ld [$DFE8], a	; music
 	ret
 
-.fakeDaisySpeech	; todo name
+PrintVictoryMessage:: ; F8A
 	ldh a, [hTimer]
 	and a
 	ret nz
-	ld a, [$FFFB]	; keeps track of letters
+	ld a, [$FFFB]	; keeps track of how many letters were already printed
 	ld e, a
 	ld d, $00
 	add hl, de
@@ -2348,9 +2349,9 @@ GameState_24:: ; F6A
 	jr z, .newline
 	cp a, $FF
 	ret z
-	ldh a, [$FFE2]
+	ldh a, [hTextCursorHi]
 	ld h, a
-	ld a, [$FFE3]
+	ldh a, [hTextCursorLo]
 	ld l, a
 .printLetter
 	WAIT_FOR_HBLANK
@@ -2358,7 +2359,7 @@ GameState_24:: ; F6A
 	ld [hl], b
 	inc hl
 	ld a, h
-	ldh [$FFE2], a
+	ldh [hTextCursorHi], a
 	ld a, l
 	and $0F
 	jr nz, .nowrap
@@ -2367,7 +2368,7 @@ GameState_24:: ; F6A
 	ld a, l
 	sub a, $20
 .nextLetter
-	ldh [$FFE3], a
+	ldh [hTextCursorLo], a
 	inc e
 	ld a, e
 	ldh [$FFFB], a
@@ -2386,9 +2387,9 @@ GameState_24:: ; F6A
 	ld b, $00
 	ld a, [hl]
 	push af
-	ldh a, [$FFE2]
+	ldh a, [hTextCursorHi]
 	ld h, a
-	ldh a, [$FFE3]
+	ldh a, [hTextCursorLo]
 	ld l, a
 	add hl, bc
 	pop bc
@@ -2396,9 +2397,9 @@ GameState_24:: ; F6A
 	inc de
 	jr .printLetter
 
-.text_FE1
+Text_FE1
 	db "thank you mario.", $FE, $73
-	db "oh! daisy", $FF	
+	db "oh! daisy", $FF
 
 ; Fake Daisy morphing
 GameState_25:: ; FFD
@@ -2599,9 +2600,9 @@ GameState_29:: ; 1116
 	jr nz, .loop
 	call Call_1736
 	ld a, $98
-	ldh [$FFE2], a
+	ldh [hTextCursorHi], a
 	ld a, $A5
-	ldh [$FFE3], a
+	ldh [hTextCursorLo], a
 	ld a, $0F
 	ld [$DFE8], a
 	ld a, $C3
@@ -2613,15 +2614,15 @@ GameState_29:: ; 1116
 
 GameState_2A:: ; 1165
 	ld hl, .text_1183
-	call GameState_24.fakeDaisySpeech	; todo
+	call PrintVictoryMessage
 	cp a, $FF
 	ret nz
 	xor a
 	ldh [$FFFB], a
 	ld a, $99
-	ldh [$FFE2], a
+	ldh [hTextCursorHi], a
 	ld a, $02
-	ldh [$FFE3], a
+	ldh [hTextCursorLo], a
 	ld a, $23
 	ld [$C213], a		; animation index?
 	ld hl, hGameState
@@ -2634,7 +2635,7 @@ GameState_2A:: ; 1165
 ; Daisy running towards Mario
 GameState_2B:: ; 1194
 	ld hl, .text_11BF
-	call GameState_24.fakeDaisySpeech
+	call PrintVictoryMessage
 	ldh a, [hFrameCounter]
 	and a, $03
 	ret nz
@@ -2704,9 +2705,9 @@ GameState_2C:: ; 11D0
 	xor a
 	ldh [$FFFB], a
 	ld a, $99
-	ldh [$FFE2], a
+	ldh [hTextCursorHi], a
 	ld a, $00
-	ldh [$FFE3], a
+	ldh [hTextCursorLo], a
 	ld hl, hGameState
 	inc [hl]			; 2C → 2D
 	ret
@@ -2714,7 +2715,7 @@ GameState_2C:: ; 11D0
 ; your quest is over
 GameState_2D:: ; 121B
 	ld hl, .text_123F
-	call GameState_24.fakeDaisySpeech
+	call PrintVictoryMessage
 	cp a, $FF
 	ret nz
 	ld hl, $C213	; daisy run
@@ -2956,9 +2957,9 @@ GameState_32:: ; 138E
 	ldh [rLYC], a
 	ld hl, Text_1557
 	ld a, h
-	ldh [$FFE2], a
+	ldh [hTextCursorHi], a
 	ld a, l
-	ldh [$FFE3], a
+	ldh [hTextCursorLo], a
 	ld a, $F0
 	ldh [hTimer], a
 	ld hl, hGameState
@@ -3005,9 +3006,9 @@ GameState_33:: ; 13C4
 	ldh a, [hTimer]
 	and a
 	ret nz
-	ldh a, [$FFE2]
+	ldh a, [hTextCursorHi]
 	ld h, a
-	ldh a, [$FFE3]
+	ldh a, [hTextCursorLo]
 	ld l, a
 	ld de, $9A42	; start of first line. Below the stage, scrolled in later
 .printLine
@@ -3047,9 +3048,9 @@ GameState_33:: ; 13C4
 	ld [$C0DE], a
 .nextState
 	ld a, h
-	ldh [$FFE2], a
+	ldh [hTextCursorHi], a
 	ld a, l
-	ldh [$FFE3], a
+	ldh [hTextCursorLo], a
 	ld hl, hGameState
 	inc [hl]			; 33 → 34
 	ret
@@ -3932,7 +3933,7 @@ Jmp_185D
 	ret
 
 ; Clears A if it's a solid block that does not have side or top collision,
-; but can be stood upon, like a platform
+; but can be stood upon, like a platform. Semi-solid platform
 Call_1A6B:: ; 1A6B
 	push hl
 	push af
@@ -7048,11 +7049,12 @@ INCBIN "baserom.gb", $3186, $1EF
 Data_3375:: ; 3375
 INCBIN "baserom.gb", $3375, $129
 
-; 0x63 pointers
+; 0x63 pointers to Data_3564
 Data_349E:: ; 349E
 INCBIN "baserom.gb", $349E, $C6
 
 ; pointed to by table at 349E
+; enemy scripts
 Data_3564:: ; 3564
 INCBIN "baserom.gb", $3564, $3D1A - $3564
 
