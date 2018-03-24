@@ -2,7 +2,7 @@
 .SUFFIXES:
 .SUFFIXES: .asm .o .gb
 
-objects := mario.o
+objects := bank0.o bank1.o bank2.o bank3.o
 
 all: mario.gb check
 
@@ -14,9 +14,12 @@ clean:
 check: mario.gb
 	@sha1sum -c --quiet rom.sha1
 
+# Export everything for the moment, to make debugging easier
 %.o: %.asm
-	rgbasm -h -o $@ $<
+	@echo " CC	$@"
+	@rgbasm -E -h -o $@ $<
 
 mario.gb: $(objects)
-	rgblink -d -n $*.sym -m $*.map -o $@ $^
-	rgbfix -v $@
+	@echo " LD	$@"
+	@rgblink -d -n $*.sym -m $*.map -o $@ $^
+	@rgbfix -v $@

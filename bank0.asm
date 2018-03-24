@@ -7527,13 +7527,3 @@ Data_3FC4::
 	db $D3	; ....
 
 	ds 1
-
-SECTION "bank1", ROMX, BANK[1]
-INCBIN "baserom.gb", $4000, $4000
-
-SECTION "bank2", ROMX, BANK[2]
-INCBIN "baserom.gb", $8000, $4000
-
-SECTION "bank3", ROMX, BANK[3]
-INCBIN "baserom.gb", $C000, $4000
-
