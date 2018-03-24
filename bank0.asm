@@ -1925,7 +1925,7 @@ GameState_06:: ; CCB
 	ld hl, hLevelIndex
 	ld a, [hl]
 	ldh [$FFFB], a
-	ld [hl], $0C
+	ld [hl], $0C		; The end of game hangar is stored in level 13 of bank 3
 	inc l				; hl ← level screen
 	xor a
 	ldi [hl], a			; hl = hScreenIndex
@@ -5131,8 +5131,8 @@ LoadNextColumn::	; 21B1
 	jr .decodeLoop
 
 .startNewScreen
-	ld hl, $4000		; contains a table with 4*3+1 pointers?
-	ldh a, [hLevelIndex]; but the levels are spread around over the banks...?
+	ld hl, LevelPointers	; table of 4*3 + 1 pointers
+	ldh a, [hLevelIndex]
 	add a
 	ld e, a
 	ld d, $00
@@ -5510,7 +5510,7 @@ Call_2442::
 
 ; initializes objects? skips over enemies?
 InitEnemySlots:: ; 245C
-	ld hl, $401A		; after the level pointers?
+	ld hl, LevelEnemyPointers
 	ldh a, [hLevelIndex]
 	rlca				; why not ADD A?... Carry will be zero anyway
 	ld d, $00
