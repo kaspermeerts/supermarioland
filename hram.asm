@@ -78,7 +78,7 @@ hTextCursorLo:: ; FFE3
 hLevelIndex::	; FFE4
 	ds 1
 
-hLevelBlock::	; FFE5
+hScreenIndex::	; FFE5
 	ds 1
 
 hColumnIndex::	; FFE6

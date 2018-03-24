@@ -493,7 +493,7 @@ GameState_0E::
 	call CopyData	; same, but to the other tile data bank
 	call Call_5CF
 	xor a
-	ldh [hLevelBlock], a
+	ldh [hScreenIndex], a
 	ldh a, [hLevelIndex]
 	push af
 	ld a, $0C
@@ -938,13 +938,13 @@ GameState_02::
 	ldh [rLCDC], a
 	call Call_1ED4		; clears sprites
 	call Call_165E		; clears "overlay"
-	ld hl, hLevelBlock
+	ld hl, hScreenIndex
 	ld a, [$FFF9]		; nonzero if underground
 	and a
 	jr z, .overworld
 	xor a
 	ldh [$FFF9], a		; not underground anymore
-	ldh a, [$FFF5]		; block in which we'd've exited out of pipe
+	ldh a, [$FFF5]		; screen which we'd've exited out of pipe
 	inc a				; to be decremented immediately after
 	jr .jmp_6F8
 
@@ -977,7 +977,7 @@ GameState_02::
 	ld [hl], 0
 	ld a, c
 	ld [$C0AB], a		; "progress" in level, used to spawn enemies?
-	call Call_807		; draw first block of the level
+	call Call_807		; draw first screen of the level
 	ld hl, $982B		; right next to the coins
 	ld [hl], " "
 	inc l
@@ -1926,9 +1926,9 @@ GameState_06:: ; CCB
 	ld a, [hl]
 	ldh [$FFFB], a
 	ld [hl], $0C
-	inc l				; hl ← level block
+	inc l				; hl ← level screen
 	xor a
-	ldi [hl], a			; hl = hLevelBlock
+	ldi [hl], a			; hl = hScreenIndex
 	ldi [hl], a			; hl = hColumnIndex
 	ldh [$FFA3], a
 	inc l
@@ -2068,7 +2068,7 @@ GameState_08:: ; D49
 	ldh [rLCDC], a	; TODO
 	ei
 	ld a, $03
-	ldh [hLevelBlock], a	; do all levels start on block 3 todo
+	ldh [hScreenIndex], a	; do all levels start on screen 3 todo
 	xor a
 	ld [$C0D2], a
 	ldh [$FFF9], a
@@ -2776,7 +2776,7 @@ GameState_2E::
 .walkMarioDaisy
 	call GameState_20.walkRight
 	call Call_2198		; level rendering
-	ldh a, [hLevelBlock]
+	ldh a, [hScreenIndex]
 	cp a, $03
 	ret nz
 	ldh a, [hColumnIndex]
@@ -3275,7 +3275,7 @@ GameState_0A:: ; 162F
 	call Call_1ED4		; clears objects that aren't player, enemy or platform?
 	call Call_165E
 	ldh a, [$FFF4]
-	ldh [hLevelBlock], a
+	ldh [hScreenIndex], a
 	call Call_807		; draws the first screen of the "level"
 	call InitEnemySlots
 	ld hl, $C201		; Mario Y position
@@ -3324,8 +3324,8 @@ GameState_0B:: ; 166C
 
 .toOverworld
 	di
-	ldh a, [$FFF5]		; (one less than) the block we went in?
-	ldh [hLevelBlock], a
+	ldh a, [$FFF5]		; (one less than) the screen we went in?
+	ldh [hScreenIndex], a
 	xor a
 	ldh [rLCDC], a		; turn off lcd
 	ldh [hColumnIndex], a
@@ -3349,7 +3349,7 @@ GameState_0B:: ; 166C
 	ldh [$FFF8], a		; of pipe?
 	ld a, e
 	ld [hl], a
-	ldh a, [hLevelBlock]
+	ldh a, [hScreenIndex]
 	sub a, $04
 	ld b, a
 	rlca
@@ -3357,7 +3357,7 @@ GameState_0B:: ; 166C
 	rlca
 	add b
 	add b
-	add a, $0C			; a = (hLevelBlock - 4)* 10 + 0xC....?
+	add a, $0C			; a = (hScreenIndex - 4)* 10 + 0xC....?
 	ld [$C0AB], a		; sort of progress in the level in columns / 2?
 	xor a
 	ldh [rIF], a
@@ -5115,7 +5115,7 @@ Call_2198:: ; 2198
 ; decompress a column from the level
 LoadNextColumn::	; 21B1
 	ld b, $10			; the screen without hud is exactly 16 tiles high
-	ld hl, $C0B0		; tilemap column cache
+	ld hl, $C0B0		; tilemap column cache todo
 	ld a, " "			; blank tile
 .clearLoop
 	ldi [hl], a
@@ -5123,14 +5123,14 @@ LoadNextColumn::	; 21B1
 	jr nz, .clearLoop
 	ldh a, [hColumnIndex]
 	and a
-	jr z, .startNewBlock; if zero, start a new "block" ?
+	jr z, .startNewScreen		; if zero, start a new screen
 	ldh a, [hColumnPointerHi]	; pointer to next column?
 	ld h, a
 	ldh a, [hColumnPointerLo]	; eww big endian
 	ld l, a
 	jr .decodeLoop
 
-.startNewBlock
+.startNewScreen
 	ld hl, $4000		; contains a table with 4*3+1 pointers?
 	ldh a, [hLevelIndex]; but the levels are spread around over the banks...?
 	add a
@@ -5141,16 +5141,16 @@ LoadNextColumn::	; 21B1
 	inc hl
 	ld d, [hl]
 	push de
-	pop hl				; hl ← [$4000 + level * 2] ; address of table of blocks
-	ldh a, [hLevelBlock]
+	pop hl				; hl ← [$4000 + level * 2] ; address of table of screen
+	ldh a, [hScreenIndex]
 	add a				; * 2
 	ld e, a
 	ld d, $00
-	add hl, de			; hl ← [hl + block * 2]
+	add hl, de			; hl ← [hl + screen * 2]
 	ldi a, [hl]
 	cp a, $FF			; end of level?
 	jr z, .endOfLevel
-	ld e, a				; if not, this is a pointer to the block?
+	ld e, a				; if not, this is a pointer to the screen?
 	ld d, [hl]
 	push de
 	pop hl
@@ -5214,12 +5214,12 @@ LoadNextColumn::	; 21B1
 	ldh [hColumnPointerLo], a		; save a pointer to the next column
 	ldh a, [hColumnIndex]
 	inc a
-	cp a, $14			; 20 columns per block?
-	jr nz, .blockNotFinished
-	ld hl, hLevelBlock	; next block
+	cp a, $14			; 20 columns per screen?
+	jr nz, .screenNotFinished
+	ld hl, hScreenIndex	; next block
 	inc [hl]
 	xor a
-.blockNotFinished
+.screenNotFinished
 	ldh [hColumnIndex], a
 	ldh a, [hScrollX]
 	ld [$C0AA], a
@@ -5315,9 +5315,9 @@ CheckPipeForWarp:: ; 22A9
 	push de
 	pop hl				; hl ← [651C + 2 * level], pointer
 .checkPipeForWarp
-	ldh a, [hLevelBlock]	; first byte is level block of warping pipe
+	ldh a, [hScreenIndex]	; first byte is level screen of warping pipe
 	cp [hl]
-	jr z, .matchingLevelBlock
+	jr z, .matchingLevelScreen
 	ld a, [hl]
 	cp a, $FF				; ff is end of list
 	jr z, .restoreROMBankAndOut
@@ -5330,7 +5330,7 @@ CheckPipeForWarp:: ; 22A9
 	inc hl
 	jr .checkPipeForWarp
 
-.matchingLevelBlock
+.matchingLevelScreen
 	ldh a, [hColumnIndex]	; second byte is column on which the pipe is
 	inc hl
 	cp [hl]
@@ -5395,31 +5395,31 @@ CheckBlockForItem:: ; 2321
 	add a
 	ld e, a
 	ld d, $00
-	ld hl, $6536		; another lookup table
-	add hl, de
-	ld e, [hl]
+	ld hl, $6536		; Table of items
+	add hl, de			; Three bytes per item: level screen, column in screen
+	ld e, [hl]			; contents
 	inc hl
 	ld d, [hl]
 	push de
-	pop hl
-.checkBlock
-	ldh a, [hLevelBlock]
+	pop hl				; table
+.checkScreen
+	ldh a, [hScreenIndex]
 	cp [hl]
-	jr z, .matchingLevelBlock
+	jr z, .matchingLevelScreen
 	ld a, [hl]
 	cp a, $FF			; again, end of list
 	jr z, .restoreROMBankAndOut
 	inc hl
-.nextBlock
+.nextItem
 	inc hl
 	inc hl
-	jr .checkBlock
+	jr .checkScreen
 
-.matchingLevelBlock
+.matchingLevelScreen
 	ldh a, [hColumnIndex]
 	inc hl
 	cp [hl]
-	jr nz, .nextBlock
+	jr nz, .nextItem
 	inc hl
 	ld a, [hl]
 	ld [$C0CD], a		; contents of block
@@ -7389,18 +7389,18 @@ Call_3EE6:: ; 3EE6
 	add hl, de
 	dec b				; would make more sense to loop on A, or do some shifts
 	jr nz, .loopY		; HL ← 9800 + A * screenWidth
-	ldh a, [$FFAE]		; ~X coordinate in current level block
-	sub a, $08			; mario stands on the middle of his 16 pixel wide body?
+	ldh a, [$FFAE]		; ~X coordinate on screen?
+	sub a, $08			; TODO why?
 	srl a
 	srl a
 	srl a
 	ld de, $0000
 	ld e, a
 	add hl, de
-	ld a, h				; "Y"
+	ld a, h
 	ldh [$FFB0], a
-	ld a, l				; "X"
-	ldh [$FFAF], a		; we've seen these before
+	ld a, l
+	ldh [$FFAF], a
 	ret
 
 ; called when mario hits a block that "moves" up and down
