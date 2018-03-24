@@ -32,4 +32,10 @@ LevelEnemyPointersBank1:: ; 1:401A
 	dw $5405	; 4-2
 	dw $54D5	; 4-3
 
-INCBIN "baserom.gb", $4032, $8000 - $4032
+INCBIN "gfx/enemiesWorld2.2bpp"
+INCBIN "gfx/backgroundWorld2.2bpp"
+
+INCBIN "gfx/enemiesWorld4.2bpp"
+INCBIN "gfx/backgroundWorld4.2bpp"
+
+INCBIN "baserom.gb", $4FB2, $8000 - $4FB2

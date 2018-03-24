@@ -28,4 +28,13 @@ LevelEnemyPointersBank2:: ; 2:401A
 	dw $6073
 	dw $60FE
 
-INCBIN "baserom.gb", $8032, $8000 - $4032
+INCBIN "gfx/commonTiles1.2bpp"
+INCBIN "gfx/enemiesWorld1.2bpp"
+INCBIN "gfx/commonTiles2.2bpp"
+INCBIN "gfx/backgroundWorld1.2bpp"
+INCBIN "gfx/commonTiles3.2bpp"
+
+INCBIN "baserom.gb", $9832, $791A - $5832
+
+INCBIN "gfx/menuTiles1.2bpp"
+INCBIN "gfx/menuTiles2.2bpp"

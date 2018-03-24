@@ -855,8 +855,10 @@ EraseTileMap:: ; 5D5
 	jr nz, .loop
 	ret
 
-CopyData::	; 05DE
 ; Copy BC bytes from HL to DE
+; Very useful, and used like 5 times... I suspect the other loops are expansions
+; of some macro, as it's not like the game is ever starved for CPU time
+CopyData::	; 05DE
 	ldi a, [hl]
 	ld [de], a
 	inc de
