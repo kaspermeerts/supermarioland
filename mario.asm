@@ -309,9 +309,9 @@ Init::	; 0185
 	ldh [hActiveRomBank], a
 
 .jmp_226				; MAIN LOOP (well, i think)
-	ld a, [wGameTimerExpiringFlag]		;  0 in normal play, 1 if time < 100
-	cp a, 3				; 2 if time < 50, 3 if time = 0, FF if time up
-	jr nz, .timeNotUp
+	ld a, [wGameTimerExpiringFlag]
+	cp a, 3					; 0 in normal play, 1 if time < 100
+	jr nz, .timeNotUp		; 2 if time < 50, 3 if time = 0, FF if time up
 	ld a, $FF
 	ld [wGameTimerExpiringFlag], a
 	call KillMario
@@ -322,12 +322,12 @@ Init::	; 0185
 	RESTORE_ROM_BANK
 	ldh a, [$FF9F]	; Demo mode?
 	and a
-	jr nz, .jmp_25A
+	jr nz, .decrementTimers	; Can't pause the demo
 	call pauseOrReset
 	ldh a, [hGamePaused]
 	and a
 	jr nz, .halt
-.jmp_25A
+.decrementTimers
 	ld hl, hTimer
 	ld b, 2
 .nextTimer
@@ -654,14 +654,14 @@ GameState_0F::
 	ld a, e
 .storeAndStartLevel
 	ldh [hLevelIndex], a
-	jp .jmp_53D
+	jp .startLevel
 
 .dontContinue
 	xor a
 	ld [wNumContinues], a	; harsh
 	ldh a, [hWinCount]
 	cp a, 2
-	jp nc, .jmp_53D
+	jp nc, .startLevel
 	ld a, $11
 	ldh [hWorldAndLevel], a
 	xor a
@@ -671,9 +671,9 @@ GameState_0F::
 	ld a, [wNumContinues]
 	and a
 	jr z, .checkLevelSelect	; if we have no continues, pretend like nothing happened
-	ld hl, $C004
+	ld hl, wOAMBuffer + 4*1
 	ld a, [hl]
-	xor a, $F8
+	xor a, $F8				; Clever... Switches between 80 and 78
 	ld [hl], a
 	jr .checkLevelSelect
 
@@ -756,7 +756,8 @@ GameState_0F::
 	xor a
 	ldh [hWinCount], a ; to avoid expert mode in demos. Mirrored at C0E1
 	ret
-.jmp_53D
+
+.startLevel
 	ld a, $11
 	ldh [hGameState], a
 	xor a
@@ -783,7 +784,7 @@ GameState_0F::
 db $11, $00, $12, $01, $33, $08
 
 ; What kind of garbage is this?
-FillStartMenuTopRow:
+FillStartMenuTopRow: ; 56F
 	ld b, $14
 .loop
 	ldi [hl], a
@@ -1096,6 +1097,7 @@ pauseOrReset:: ; 7DA
 .pauseMusic
 	ldh [hPauseMusic], a
 	ret
+
 .unpaused
 	res 5, [hl]
 	ld a, 2				; Unpause music
@@ -5887,7 +5889,7 @@ Call_2648:: ; 2648
 	ldh a, [$FFC2]			; Y pos
 	inc a					; fall down
 	ldh [$FFC2], a
-	ret
+	ret						; resume script when back on the ground
 
 .jmp_268C
 	ldh a, [$FFC2]
@@ -5915,7 +5917,7 @@ Call_2648:: ; 2648
 	ldh a, [$FFC8]
 	dec a
 	ldh [$FFC8], a
-	jp .jmp_2879
+	jp .moveEnemy
 
 .runScript
 	push hl
@@ -5939,14 +5941,14 @@ Call_2648:: ; 2648
 	ld a, [wCurrentCommand]
 	and a, $F0
 	cp a, $F0
-	jr z, .specialCommand
+	jr z, .specialCommand	; Fx command with argument
 	ld a, [wCurrentCommand]
 	and a, $E0
-	cp a, $E0
+	cp a, $E0				; Ex wait
 	jr nz, .speedCommand
 	ld a, [wCurrentCommand]
 	and a, $0F				; wait command, wait the lower nibble number
-	ldh [$FFC8], a			; of frames
+	ldh [$FFC8], a			; of ticks? todo
 	pop hl
 	jr .updateEnemy
 
@@ -6095,45 +6097,45 @@ Call_2648:: ; 2648
 
 .checkF4
 	cp a, $F4
-	jr nz, .checkF5
+	jr nz, .checkF5		; F4 - tick timer of some sort
 	ld a, [wCommandArgument]
 	ldh [$FFC9], a
 	pop hl
 	jp .runScript
 
 .checkF5
-	cp a, $F5			; F5 - 
+	cp a, $F5			; F5 - Shoot with a 1 in 4 probability - Unused?
 	jr nz, .checkF6
 	ldh a, [rDIV]
-	and a, $03			; "random" value from 0 to 3
+	and a, $3			; "random" value from 0 to 3
 	ld a, $F1
 	jr z, .checkF1		; execute command F1 - launch projectile
 	pop hl
 	jp .runScript
 
 .checkF6
-	cp a, $F6			; F6 - 
+	cp a, $F6			; F6 - Halt until Mario is close
 	jr nz, .checkF7
 	ld a, [$C202]		; Mario X
 	ld b, a
 	ldh a, [$FFC3]		; enemy X
 	sub b
-	add a, $14
-	cp a, $20
+	add a, $14			; set carry flag if Mario is within [-$14, $20 - $14 - 1]
+	cp a, $20			; pixels of enemy
 	ld a, [wCommandArgument]
-	dec a				; does not touch carry flag
-	jr z, .jmp_280A
-	ccf
-.jmp_280A
-	jr c, .jmp_2814
-	ldh a, [$FFC4]
-	dec a
-	dec a
+	dec a				; does not touch carry flag, but can set zero flag
+	jr z, .checkCarry
+	ccf					; invery carry flag if argument is not 1
+.checkCarry
+	jr c, .dontHalt
+	ldh a, [$FFC4]		; put script index back to the start of this command
+	dec a				; effectively halting the script until Mario is close
+	dec a				; or conversely not close
 	ldh [$FFC4], a
 	pop hl
 	ret
 
-.jmp_2814
+.dontHalt
 	pop hl
 	jp .runScript
 
@@ -6206,40 +6208,40 @@ Call_2648:: ; 2648
 	pop hl
 	ret
 
-.jmp_2879
+.moveEnemy				; X movement first
 	ldh a, [$FFC1]
-	and a, $0F
-	jp z, .jmp_2975
+	and a, $0F			; X speed
+	jp z, .jmp_2975		; if zero, no point in doing collision detection
 	ldh a, [$FFC5]
-	bit 0, a
-	jr nz, .jmp_28F0
-	call Call_2B84	; some sort of collision detection. left bound?
+	bit 0, a			; going right
+	jr nz, .goingRight
+	call Call_2B84		; some sort of collision detection. left bound?
 	jr nc, .jmp_28CE
 	ldh a, [$FFC7]
-	bit 0, a
+	bit 0, a			; set if enemy doesn't walk off edges
 	jr z, .jmp_2896
-	call Call_2BE4	; checks for collision one tile down, 3 px to the right	
-	jr c, .jmp_28DA	; carry means the tile isn't solid
+	call Call_2BE4		; checks for collision bottom left bound, one tile down?
+	jr c, .reverseAndGoRight	; carry means the tile isn't solid
 .jmp_2896
 	ldh a, [$FFC1]
 	and a, $0F
 	ld b, a
-	ldh a, [$FFC3]
+	ldh a, [$FFC3]		; X
 	sub b
 	ldh [$FFC3], a
 	ldh a, [$FFCB]
 	and a
 	jp z, .jmp_2975
-	ld a, [$C205]	; dir mario is facing?
+	ld a, [$C205]		; dir mario is facing?
 	ld c, a
 	push bc
-	ld a, $20		; 20 if facing left
+	ld a, $20			; 20 if facing left
 	ld [$C205], a
-	call Call_1AAD	; Mario side collision
+	call Call_1AAD		; Mario side collision
 	pop bc
 	and a
 	jr nz, .jmp_28C7
-	ld a, [$C202]	; Y pos
+	ld a, [$C202]		; Y pos
 	sub b
 	ld [$C202], a
 	cp a, $0F
@@ -6258,7 +6260,7 @@ Call_2648:: ; 2648
 	jr z, .jmp_2896		; bit 2 and 3 not set
 	cp a, $4
 	jr nz, .jmp_28E3
-.jmp_28DA				; bit 2 set, bit 3 unset
+.reverseAndGoRight		; bit 2 set, bit 3 unset
 	ldh a, [$FFC5]
 	set 0, a
 	ldh [$FFC5], a
@@ -6272,19 +6274,19 @@ Call_2648:: ; 2648
 	ldh [$FFC8], a
 	jp .jmp_2975
 
-.jmp_28F0
-	call Call_2B9A		; one of those collision detection routines
-	jr nc, .jmp_2958	; probably just right bound?
-	ldh a, [$FFC7]
+.goingRight
+	call Call_2B9A		; bottom right collision
+	jr nc, .sideCollisionRight
+	ldh a, [$FFC7]		; carry, so non-solid tile
 	bit 0, a			; bit 0: don't walk off edges?
 	jr z, .jmp_2900
-	call Call_2BFE		; collision bottom right?
-	jr c, .jmp_2964
+	call Call_2BFE		; collision bottom right, one tile down
+	jr c, .reverseAndGoLeft		; jump if not solid
 .jmp_2900
-	ldh a, [$FFC1]		; YX speed
-	and a, $0F
+	ldh a, [$FFC1]
+	and a, $0F			; X speed
 	ld b, a
-	ldh a, [$FFC3]		; Y
+	ldh a, [$FFC3]		; X
 	add b
 	ldh [$FFC3], a
 	ldh a, [$FFCB]
@@ -6299,7 +6301,7 @@ Call_2648:: ; 2648
 	pop bc
 	and a
 	jr nz, .jmp_2944
-	ld a, [$C202]		; Y pos
+	ld a, [$C202]		; X pos
 	add b
 	ld [$C202], a
 	cp a, $51
@@ -6331,36 +6333,36 @@ Call_2648:: ; 2648
 	ldh [hScrollX], a
 	jr .jmp_2944
 
-.jmp_2958
+.sideCollisionRight
 	ldh a, [$FFC7]
 	and a, $0C			; test bit 2 and 3
 	cp a, 0
 	jr z, .jmp_2900		; neither bit set
 	cp a, $4
 	jr nz, .jmp_296C
-.jmp_2964				; bit 2 set, bit 3 not set
+.reverseAndGoLeft		; bit 2 set, bit 3 not set | at an edge
 	ldh a, [$FFC5]
-	res 0, a
+	res 0, a			; moving left | reverse direction
 	ldh [$FFC5], a
 	jr .jmp_2975
 
-.jmp_296C
+.jmp_296C				; bit 2 and 3 set
 	cp a, $0C
 	jr nz, .jmp_2975
 	xor a				; both bits set
 	ldh [$FFC4], a		; reset script
 	ldh [$FFC8], a
-.jmp_2975				; bit 3 set
+.jmp_2975				; 
 	ldh a, [$FFC1]
 	and a, $F0
-	jp z, .jmp_29FD
+	jp z, .jmp_29FD		; no Y speed, get out
 	ldh a, [$FFC5]
-	bit 1, a
+	bit 1, a			; gravity
 	jr nz, .jmp_29C1
-	call Call_2C21
+	call Call_2C21		; upper left collision?
 	jr nc, .jmp_29A1
 .jmp_2987
-	ldh a, [$FFC1]
+	ldh a, [$FFC1]		; update Y position with Y speed
 	and a, $F0
 	swap a
 	ld b, a
@@ -6371,7 +6373,7 @@ Call_2648:: ; 2648
 	and a
 	jr z, .jmp_29FD
 	ld a, [$C201]
-	sub b
+	sub b				; if carrying Mario, add the displacement to his Y coord
 	ld [$C201], a
 	jr .jmp_29FD
 
@@ -6380,10 +6382,10 @@ Call_2648:: ; 2648
 	and a, $C0				; test bits 6 and 7
 	cp a, $00
 	jr z, .jmp_2987			; jump if neither set
-	cp a, $40
+	cp a, $40				; test bit 6
 	jp nz, .jmp_29B6		; could've been a JR, bug
 	ldh a, [$FFC5]			; bit 6 set
-	set 1, a
+	set 1, a				; moving down
 	ldh [$FFC5], a
 	jr .jmp_29FD
 
@@ -6400,17 +6402,17 @@ Call_2648:: ; 2648
 	jr nc, .jmp_29E0
 .jmp_29C6
 	ldh a, [$FFC1]
-	and a, $F0
+	and a, $F0			; Y speed
 	swap a
 	ld b, a
 	ldh a, [$FFC2]
 	add b
 	ldh [$FFC2], a
-	ldh a, [$FFCB]
+	ldh a, [$FFCB]		; carrying Mario
 	and a
 	jr z, .jmp_29FD
 	ld a, [$C201]
-	add b
+	add b				; if carrying, add to Mario's X position
 	ld [$C201], a
 	jr .jmp_29FD
 
@@ -6422,7 +6424,7 @@ Call_2648:: ; 2648
 	cp a, $10
 	jr nz, .jmp_29F4
 	ldh a, [$FFC5]
-	res 1, a
+	res 1, a			; moving up
 	ldh [$FFC5], a
 	jr .jmp_29FD
 
@@ -6520,7 +6522,7 @@ Call_2A44:: ; 2A44
 Call_2A68:: ; 2A68
 	push hl
 	ld a, l
-	add a, $0C
+	add a, $0C		; D1xC
 	ld l, a
 	ld a, [hl]
 	and a, $3F		; health, like in 2AAD
@@ -6530,13 +6532,13 @@ Call_2A68:: ; 2A68
 	ld [hl], a
 	pop hl
 	ld a, [hl]
-	cp a, $32		; Hiyoihoi
-	jr z, .jmp_2A81
-	cp a, $08		; King Totomesu
-	jr z, .jmp_2A81
+	cp a, HIYOIHOI
+	jr z, .bossHitSFX
+	cp a, KING_TOTOMESU
+	jr z, .bossHitSFX
 	jr .jmp_2A86
 
-.jmp_2A81
+.bossHitSFX
 	ld a, $01
 	ld [$DFF0], a	; creepy boss noise
 .jmp_2A86
@@ -6584,20 +6586,20 @@ Call_2AAD:: ; 2AAD
 	ld [hl], a
 	pop hl
 	ld a, [hl]
-	cp a, $1A		; Dragonzamasu
-	jr z, .jmp_2AD1
-	cp a, $61		; Biokinton
-	jr z, .jmp_2AD1
-	cp a, $60		; Tatanga
-	jr z, .jmp_2ACA
+	cp a, DRAGONZAMASU
+	jr z, .bossHitSFX
+	cp a, BIOKINTON
+	jr z, .bossHitSFX
+	cp a, TATANGA
+	jr z, .explosionSFX
 	jr .jmp_2AD6
 
-.jmp_2ACA
+.explosionSFX
 	ld a, $01
 	ld [$DFF8], a	; explosion
 	jr .jmp_2AD6
 
-.jmp_2AD1
+.bossHitSFX
 	ld a, $01
 	ld [$DFF0], a	; that weird scream bosses make when hit
 .jmp_2AD6
@@ -6845,8 +6847,7 @@ Call_2BFE:: ; 2BFE
 	ccf
 	ret
 
-; another side collision, taking into account direction, width and height
-; unused?
+; top collision? upper left?
 Call_2C21:: ; 2C21
 	ldh a, [$FFC3]
 	ld c, a
@@ -6857,19 +6858,19 @@ Call_2C21:: ; 2C21
 	ld c, a
 	ldh a, [$FFC5]
 	bit 0, a
-	jr .jmp_2C3A
+	jr .jmp_2C3A		; Should've been JR NZ?
 
 	ldh a, [$FFCA]
-	and a, $70
+	and a, $70			; 
 	rrca
 	add c
 	ldh [$FFAE], a
 .jmp_2C3A
 	ldh a, [$FFCA]
-	and a, $07
+	and a, $07			; height
 	dec a
 	swap a
-	rrca
+	rrca				; multiply by 8
 	ld c, a
 	ldh a, [$FFC2]
 	sub c
@@ -7134,6 +7135,7 @@ DisplayTimer:: ; 3D6A ; TODO better name?
 	ret nz
 	call .printTimer	; well, that's silly, could've just fallen through. Bug?
 	ret
+
 .printTimer ; 3D7E
 	ld de, $9833		; TODO VRAM
 	ld a, [wGameTimer + 1]	; Ones and Tens
