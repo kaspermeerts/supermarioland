@@ -16,10 +16,10 @@ check: mario.gb
 
 # Export everything for the moment, to make debugging easier
 %.o: %.asm
-	@echo " CC	$@"
+	@echo " ASM	$@"
 	@rgbasm -E -h -o $@ $<
 
 mario.gb: $(objects)
-	@echo " LD	$@"
+	@echo " LINK	$@"
 	@rgblink -d -n $*.sym -m $*.map -o $@ $^
 	@rgbfix -v $@
