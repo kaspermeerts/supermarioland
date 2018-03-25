@@ -318,7 +318,7 @@ Init::	; 0185
 	call Call_1736
 .timeNotUp
 	SAVE_AND_SWITCH_ROM_BANK 3
-	call $47F2			; Determines pressed buttons (FF80) and new buttons (FF81)
+	call ReadJoypad
 	RESTORE_ROM_BANK
 	ldh a, [$FF9F]	; Demo mode?
 	and a
@@ -1275,12 +1275,12 @@ Call_84E:: ; 84E
 	ld [$DFE0], a		; stomp sound
 	ld a, [$C202]		; X pos
 	add a, -$4
-	ldh [$FFEB], a		; floaty X pos
+	ldh [hFloatyX], a	; todo comment
 	ld a, [$C201]
 	sub a, $10
-	ldh [$FFEC], a		; floaty Y pos
+	ldh [hFloatyY], a
 	ldh a, [$FF9E]
-	ldh [$FFED], a		; floaty control
+	ldh [hFloatyControl], a
 	ldh a, [hStompChainTimer]
 	and a
 	jr z, .resetStompChain
@@ -1291,14 +1291,14 @@ Call_84E:: ; 84E
 	ldh [hStompChain], a
 .calculateScoreReward
 	ld b, a
-	ldh a, [$FFED]
+	ldh a, [hFloatyControl]
 	cp a, $50			; Floaties above $50 are not score but coins and 1UPs
 	jr z, .resetStompChain
 .loop					; Shift BCD encoded score reward. Works out to a 
 	sla a				; multiplication by 2, except for a weird jump
 	dec b				; from 800 → 1000
 	jr nz, .loop
-	ldh [$FFED], a		; floaty control
+	ldh [hFloatyControl], a
 .resetStompChainTimer	; 50 frames? 5/6ths of a second? No wonder chaining
 	ld a, $32			; is so hard in this game
 	ldh [hStompChainTimer], a
@@ -1365,14 +1365,14 @@ Call_84E:: ; 84E
 	ld [$DFE0], a
 .spawn1000ScoreFloaty
 	ld a, $10
-	ldh [$FFED], a			; floatey numbers and coins, 1000 score?
+	ldh [hFloatyControl], a
 .positionFloaty
 	ld a, [$C202]
 	add a, -$4
-	ldh [$FFEB], a			; X position of floaty number?
+	ldh [hFloatyX], a		; todo comment
 	ld a, [$C201]
 	sub a, $10
-	ldh [$FFEC], a			; Y position of floaty number
+	ldh [hFloatyY], a			; Y position of floaty number
 	dec l
 	dec l
 	dec l
@@ -1399,7 +1399,7 @@ Call_84E:: ; 84E
 
 .pickup1UP
 	ld a, $FF
-	ldh [$FFED], a				; 1UP floaty
+	ldh [hFloatyControl], a		; 1UP floaty
 	ld a, $08
 	ld [$DFE0], a				; life up
 	ld a, 1
@@ -1535,12 +1535,12 @@ Call_A2D:: ; A2D
 	jr z, .noHit
 	ld a, [$C202]		; X pos
 	add a, $FC			; or -4
-	ldh [$FFEB], a
+	ldh [hFloatyX], a
 	ld a, [$C201]		; Y pos
 	sub a, $10
-	ldh [$FFEC], a
+	ldh [hFloatyY], a
 	ldh a, [$FF9E]
-	ldh [$FFED], a
+	ldh [hFloatyControl], a
 .noHit
 	pop hl
 	pop bc
@@ -1868,7 +1868,7 @@ GameState_05:: ; C73
 	ld a, 1
 	ld [wGameTimer], a
 	SAVE_AND_SWITCH_ROM_BANK 2
-	call $5844		; counts the timer down. For some reason in bank 2
+	call UpdateTimerAndFloaties		; why
 	RESTORE_ROM_BANK
 	ld de, $0010
 	call AddScore
@@ -3670,9 +3670,9 @@ Jmp_185D
 	ld [$DFE0], a			; coin sound effect
 	ld a, [$C201]			; Y pos
 	sub a, $10
-	ldh [$FFEC], a
+	ldh [hFloatyY], a
 	ld a, $C0
-	ldh [$FFED], a
+	ldh [hFloatyControl], a
 	ldh [$FFFE], a
 	ld a, [$C0CE]
 	and a
@@ -3778,7 +3778,7 @@ Jmp_185D
 	ldi [hl], a
 	inc l
 	ld [hl], $00
-	ldh [$FFEB], a
+	ldh [hFloatyX], a		; why
 	ret
 
 ; hitting a Mystery Block
@@ -3800,9 +3800,9 @@ Jmp_185D
 	ld [$C02E], a
 	ld a, [$C201]			; ypos
 	sub a, $10
-	ldh [$FFEC], a
+	ldh [hFloatyY], a
 	ld a, $C0
-	ldh [$FFED], a
+	ldh [hFloatyControl], a
 	jr .jmp_1937
 
 .call_198C
@@ -4192,12 +4192,12 @@ Call_1B86:: ; 1B86
 	ld b, a
 	ldh a, [$FFAE]
 	sub b
-	ldh [$FFEB], a
+	ldh [hFloatyX], a	; todo comment
 	ldh a, [$FFAD]
 	add a, $14
-	ldh [$FFEC], a
+	ldh [hFloatyY], a
 	ld a, $C0
-	ldh [$FFED], a
+	ldh [hFloatyControl], a
 	call AddCoin
 	ret
 
@@ -4951,17 +4951,17 @@ Call_200A::
 	push af
 	ld a, [de]
 	sub a, $08
-	ldh [$FFEC], a			; we seen this before in the coin collision routine
+	ldh [hFloatyY], a		; todo comment
 	inc e
 	ld a, [de]
-	ldh [$FFEB], a
+	ldh [hFloatyX], a
 	pop af
 	cp a, $FF
 	jr nz, .jmp_2083
 	ld a, $03
 	ld [$DFE0], a			; enemy dieing sound effect
 	ldh a, [$FF9E]
-	ldh [$FFED], a
+	ldh [hFloatyControl], a
 .jmp_2083
 	xor a
 	ld [de], a

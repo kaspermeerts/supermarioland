@@ -72,7 +72,37 @@ ds $DA00 - $D015
 wGameTimer:: ; DA00-DA02
 	ds 3
 
-ds $DA15 - $DA03
+wFloaty0_TTL:: ; DA03-DA06
+	db
+wFloaty1_TTL::
+	db
+wFloaty2_TTL::
+	db
+wFloaty3_TTL::
+	db
+
+wFloaty0_SpriteIfCoin:: ; DA07-DA0A
+	db
+wFloaty1_SpriteIfCoin::
+	db
+wFloaty2_SpriteIfCoin::
+	db
+wFloaty3_SpriteIfCoin::
+	db
+
+wNextFloatyOAMIndex :: ; DA0B
+	ds 1
+
+wFloaty0_IsCoin:: ; DA0C - DA0F
+	db
+wFloaty1_IsCoin::
+	db
+wFloaty2_IsCoin::
+	db
+wFloaty3_IsCoin::
+	db
+
+ds $DA15 - $DA10
 
 wLives::	db	; $DA15
 

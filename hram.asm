@@ -90,7 +90,18 @@ hColumnPointerHi::	; FFE7
 hColumnPointerLo:: ; FFE8
 	ds 1
 
-ds $FA - $E9
+ds 2 ; FFE9 FFEA
+
+hFloatyX:: ; FFEB
+	ds 1
+
+hFloatyY:: ; FFEC
+	ds 1
+
+hFloatyControl:: ; FFED
+	ds 1
+
+ds $FA - $EE
 
 hCoins::	; FFFA
 	ds 1
