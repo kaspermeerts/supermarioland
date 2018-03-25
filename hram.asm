@@ -59,9 +59,12 @@ hSuperballMario::; FFB5
 hDMARoutine::	; FFB6
 	ds $A
 
-ds $DF - $C0
+ds $DE - $C0
 
-hPauseMusic::	; FFDF
+hPauseTuneTimer:: ; FFDE
+	ds 1
+
+hPauseUnpauseMusic::; FFDF
 	ds 1
 
 ds 1			; FFE0

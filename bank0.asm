@@ -1097,7 +1097,7 @@ pauseOrReset:: ; 7DA
 	set 5, [hl]			; Display window with pause
 	ld a, 1				; Pause music
 .pauseMusic
-	ldh [hPauseMusic], a
+	ldh [hPauseUnpauseMusic], a
 	ret
 
 .unpaused
