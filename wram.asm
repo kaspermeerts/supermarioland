@@ -106,7 +106,23 @@ ds $DA15 - $DA10
 
 wLives::	db	; $DA15
 
-ds $1D - $16
+ds 2			; DA16, DA17
+
+wLadderLocationHi::	; DA18
+	db
+
+wLadderLocationLo:: ; DA19
+	db
+
+ds $1D - $1A
 
 wGameTimerExpiringFlag:: ; DA1D do i have a better name?
 	db
+
+ds $22 - $1E
+
+wBonusGameFrameCounter:: ; DA22
+	db
+
+wLadderTiles:: ; DA23
+	ds 4

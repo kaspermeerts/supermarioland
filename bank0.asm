@@ -169,23 +169,20 @@ SECTION "Header", ROM0[$104]
 Start::	; 0150
 	jp Init
 
-; FFAD is ~ x coordinate, FFAE ~ y coordinate
-; FFAF least significant 5 bits are x, rest 3 are y??
-; 3EE6 shifts and ands them together. But why?
-; maybe find scroll coordinates from Mario's position in the level?
-Mystery_153::
-	call Call_3EE6
-	WAIT_FOR_HBLANK
-	ld b, [hl]
-	WAIT_FOR_HBLANK
-	ld a, [hl]
-	and b
-	ret
+; X and Y coordinates in FFAD and FFAE
+LookupTile:: ; 153
+	call _LookupTile	; If we're really unlucky, a timer interrupt might
+	WAIT_FOR_HBLANK		; fire between the WAIT_FOR_HBLANK, and the actual
+	ld b, [hl]			; load into B. If that interrupt takes too long, the
+	WAIT_FOR_HBLANK		; PPU can go into mode 3, where reading from VRAM is 
+	ld a, [hl]			; impossible, and $FF is returned. So the tile number is
+	and b				; read twice, and ANDed together. Without this, Mario
+	ret					; very occasionally bumps into an invisible solid block
 
 ; Add BCD encoded DE to the score. Signal that the displayed version
 ; needs to be updated
 AddScore:: ; 0166
-	ldh a, [$FF9F]	; Demo mode?
+	ldh a, [$FF9F]		; Demo mode?
 	and a
 	ret nz
 	ld a, e
@@ -402,13 +399,13 @@ dw $05CE ; 0x10 ✓ Unused? todo
 dw $0576 ; 0x11 ✓ Level start
 dw $3D97 ; 0x12 ✓ Go to Bonus game
 dw $3DD7 ; 0x13 ✓ Entering Bonus game
-dw $5832 ; 0x14  
-dw $5835 ; 0x15   Bonus game
+dw $5832 ; 0x14 ✓ Setup Mario sprite
+dw $5835 ; 0x15 ✓ Bonus game
 dw $3EA7 ; 0x16 ✓ Move the ladder
-dw $5838 ; 0x17   Bonus game walking
-dw $583B ; 0x18   Bonus game descending ladder
-dw $583E ; 0x19   Bonus game ascending ladder
-dw $5841 ; 0x1A   Getting price
+dw $5838 ; 0x17 ✓ Bonus game walking
+dw $583B ; 0x18 ✓ Bonus game descending ladder
+dw $583E ; 0x19 ✓ Bonus game ascending ladder
+dw $5841 ; 0x1A ✓ Getting price
 dw $0DF9 ; 0x1B ✓ Leaving Bonus game
 dw $0E15 ; 0x1C ✓ Smth with the gate after a boss
 dw $0E31 ; 0x1D ✓
@@ -1882,6 +1879,7 @@ GameState_05:: ; C73
 	ld a, $0A
 	ld [$DFE0], a
 	ret
+
 .endLevel
 	ld a, $06
 	ldh [hGameState], a
@@ -3527,7 +3525,7 @@ Call_17BC:: ; 17BC
 	add b
 	add a, $FE				; -2?
 	ldh [$FFAE], a
-	call Mystery_153
+	call LookupTile
 	cp a, $70				; standing on pipe
 	jr z, Jmp_1765
 	cp a, $E1				; boss switch
@@ -3546,7 +3544,7 @@ Call_17BC:: ; 17BC
 	ldh a, [$FFAE]
 	add b
 	ldh [$FFAE], a
-	call Mystery_153
+	call LookupTile
 	cp a, $60
 	jr nc, .jmp_181E
 .jmp_1801
@@ -3818,7 +3816,7 @@ Jmp_185D
 	add b
 	add a, $02
 	ldh [$FFAE], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F				; Hidden Block
 	jp z, .jmp_187B
 	cp a, $60
@@ -3826,7 +3824,7 @@ Jmp_185D
 	ldh a, [$FFAE]
 	add a, -$4
 	ldh [$FFAE], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F
 	jp z, .jmp_187B
 	cp a, $60
@@ -4024,7 +4022,7 @@ Call_1AAD:: ; 1AAD
 	add b					; add to find X coordinate in tile coordinates
 	ldh [$FFAE], a			; used in block detection
 	push de
-	call Mystery_153		; block finding routine?
+	call LookupTile
 	call Call_1A6B			; detect if the block is passthrougable from the side
 	pop de
 	and a
@@ -4845,7 +4843,7 @@ FindNeighboringTile::	; gets called in autoscroll from 514F?
 	ldh [$FFAE], a
 	push de
 	push hl
-	call Mystery_153
+	call LookupTile
 	cp a, $F4			; Coin sprite
 	jr nz, .checkForBreakableBlock
 	ldh a, [hGameState]
@@ -6728,7 +6726,7 @@ Call_2B5D:: ; 2B5D
 .jmp_2B76
 	ldh a, [$FFC2]
 	ldh [$FFAD], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6745,7 +6743,7 @@ Call_2B84:: ; 2B84
 	ldh [$FFAE], a
 	ldh a, [$FFC2]
 	ldh [$FFAD], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6768,7 +6766,7 @@ Call_2B9A:: ; 2B9A
 	ldh [$FFAE], a
 	ldh a, [$FFC2]
 	ldh [$FFAD], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6797,7 +6795,7 @@ Call_2BBB:: ; 2BBB
 	ldh a, [$FFC2]
 	add a, $08		; one tile lower
 	ldh [$FFAD], a
-	Call Mystery_153
+	Call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6816,7 +6814,7 @@ Call_2BE4:: ; 2BE4
 	ldh a, [$FFC2]
 	add a, $08
 	ldh [$FFAD], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6842,7 +6840,7 @@ Call_2BFE:: ; 2BFE
 	ldh a, [$FFC2]
 	add a, $8
 	ldh [$FFAD], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6877,7 +6875,7 @@ Call_2C21:: ; 2C21
 	ldh a, [$FFC2]
 	sub c
 	ldh [$FFAD], a
-	call Mystery_153
+	call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6901,7 +6899,7 @@ Call_2C52:: ; 2C52
 	ldh a, [$FFC2]
 	sub c
 	ldh [$FFAD], a
-	Call Mystery_153
+	Call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -6931,7 +6929,7 @@ Call_2C74:: ; 2C74
 	ldh a, [$FFC2]
 	sub c
 	ldh [$FFAD], a
-	Call Mystery_153
+	Call LookupTile
 	cp a, $5F
 	ret c
 	cp a, $F0
@@ -7332,16 +7330,16 @@ GameState_13:: ; 3DD7
 	ldh [hGameState], a
 	ret
 
-GameState_16:: ; 3EA7
 ; draw the ladder
+GameState_16:: ; 3EA7
 	ld bc, $0020		; todo screen width
 .drawLadder
-	ld de, $DA23		; TODO name... 4 tile numbers for the ladder
-	ld a, [$DA18]		; high bytes of y position of top of ladder
+	ld de, wLadderTiles
+	ld a, [wLadderLocationHi]	; eww, big endian
 	cp $9A
 	jr z, .jmp_3EE0
 	ld h, a
-	ld a, [$DA19]		; low bytes of y position of top of ladder
+	ld a, [wLadderLocationLo]
 	ld l, a
 .drawLadderLoop
 	ld a, [de]
@@ -7370,6 +7368,7 @@ GameState_16:: ; 3EA7
 	ld a, $15
 	ldh [hGameState], a
 	ret
+
 .jmp_3EE0				; TODO how could this ever get triggered :/
 	xor a
 	ld [$DA27], a		; ladder position in floors?
@@ -7377,23 +7376,24 @@ GameState_16:: ; 3EA7
 
 ; Find the tile located at pixel coordinates FFAD and FFAE
 ; Return the memory location of the tile in FFAF and FFBO
-Call_3EE6:: ; 3EE6
-	ldh a, [$FFAD]		; Y pixel coordinate
-	sub a, $10			; Probably to account for the HUD. Y coordinate 0 is
-	srl a				; exactly below the HUD
-	srl a
+; only called from LookupTile at $153
+_LookupTile:: ; 3EE6
+	ldh a, [$FFAD]
+	sub a, $10			; Possibly to account for offset object coordinates
+	srl a				; a coordinate of (8, 16) corresponds to the top-left
+	srl a				; pixel.
 	srl a				; Divide by 8, the number of pixels per tile
 	ld de, $0000
 	ld e, a
-	ld hl, $9800
+	ld hl, $9800		; Start of background tile map
 	ld b, $20			; todo screen width
 .loopY
 	add hl, de
 	dec b				; would make more sense to loop on A, or do some shifts
 	jr nz, .loopY		; HL ← 9800 + A * screenWidth
-	ldh a, [$FFAE]		; ~X coordinate on screen?
-	sub a, $08			; TODO why?
-	srl a
+	ldh a, [$FFAE]
+	sub a, $08			; TODO why? Something to do with object coordinates
+	srl a				; being offset?
 	srl a
 	srl a
 	ld de, $0000
