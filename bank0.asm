@@ -44,7 +44,7 @@ SECTION "Interrupt Timer", ROM0[$0050]
 	push af
 	ld a, $03
 	ld [MBC1RomBank], a
-	call $7FF0 ; TODO
+	call Call_7FF0 ; TODO
 	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	pop af
@@ -300,7 +300,7 @@ Init::	; 0185
 	ld a, 0
 	ld [wWinCount], a
 	ldh [hWinCount], a
-	call $7FF3			; This seems to set up sound
+	call Call_7FF3			; This seems to set up sound
 	ld a, 2
 	ld [MBC1RomBank], a
 	ldh [hActiveRomBank], a
@@ -765,7 +765,7 @@ GameState_0F::
 	ld [$DFE8], a
 	ld a, 3
 	ld [MBC1RomBank], a
-	call $7FF3			; setup sound effects
+	call Call_7FF3			; setup sound
 	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	xor a
@@ -1046,7 +1046,7 @@ StartLevelMusic::
 	ret nz
 	ld a, 3
 	ld [MBC1RomBank], a	; no need to save rom bank, interrupts are disabled
-	call $7FF3
+	call Call_7FF3
 	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	ldh a, [$FFF4]		; underground?
@@ -1951,7 +1951,7 @@ GameState_06:: ; CCB
 	ldh [hTimer], a
 	ld a, $27			; tatanga dying
 	ldh [hGameState], a
-	call $7FF3
+	call Call_7FF3
 	ret
 
 GameState_08:: ; D49
@@ -2177,7 +2177,7 @@ GameState_1E:: ; E5D
 	ld a, $03
 	ldh [hActiveRomBank], a
 	ld [MBC1RomBank], a
-	call $7FF3
+	call Call_7FF3
 	ld hl, hGameState
 	inc [hl]			; 1E → 1F
 	ret
@@ -3204,7 +3204,7 @@ GameState_38::
 	ldh a, [hJoyPressed]
 	and a
 	ret z
-	call $7FF3
+	call Call_7FF3
 .resetToMenu
 	ld a, $02
 	ldh [hActiveRomBank], a
@@ -7099,18 +7099,18 @@ Call_3D1A; 3D1A
 	dec a
 	ldi [hl], a		; DA16 - TODO
 	xor a
-	ldi [hl], a		; DA17 - Bonus game from here...
+	ldi [hl], a		; DA17 - wPrizeAwarded
 	ldi [hl], a		; DA18
 	ldi [hl], a		; DA19
 	ldi [hl], a		; DA1A
 	ld a, $40
-	ldi [hl], a		; DA1B
+	ldi [hl], a		; DA1B - wBonusGameEndTimer
 	xor a
 	ldi [hl], a		; DA1C
-	ldi [hl], a		; DA1D wGameTimerExpiringFlag
-	ldi [hl], a		; DA1E
+	ldi [hl], a		; DA1D - wGameTimerExpiringFlag
+	ldi [hl], a		; DA1E - wBonusGameGrowAnimationFlag
 	ld a, $40
-	ldi [hl], a		; DA1F
+	ldi [hl], a		; DA1F - wBonusGameAnimationTimer
 	xor a
 	ld b, $08
 .loop2

@@ -106,7 +106,8 @@ ds $DA15 - $DA10
 
 wLives::	db	; $DA15
 
-ds 2			; DA16, DA17
+ds 1	; DA16
+ds 1 	; DA17
 
 wLadderLocationHi::	; DA18
 	db
@@ -114,12 +115,23 @@ wLadderLocationHi::	; DA18
 wLadderLocationLo:: ; DA19
 	db
 
-ds $1D - $1A
+ds 1 ; DA1A
+
+wBonusGameEndTimer:: ; DA1B
+	db
+
+ds 1				; DA1C
 
 wGameTimerExpiringFlag:: ; DA1D do i have a better name?
 	db
 
-ds $22 - $1E
+wBonusGameGrowAnimationFlag :: ; DA1E Long name...
+	db
+
+wBonusGameAnimationTimer:: ; DA1F
+	db
+
+ds $22 - $20
 
 wBonusGameFrameCounter:: ; DA22
 	db

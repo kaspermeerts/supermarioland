@@ -838,8 +838,8 @@ _GameState_1A:: ; 5CDE
 	ld a, [$DA17]
 	and a
 	jp nz, .jmp_5D69
-	ld c, $02
-.jmp_5CE7
+	ld c, 2
+.erasePrizes
 	ld hl, $98D1			; the * of the top prize
 	ld de, $0060
 	ld a, [wOAMBuffer + 4*$C]	; Y coordinate
@@ -874,8 +874,8 @@ _GameState_1A:: ; 5CDE
 	ldi [hl], a				; erase the *
 	ld [hl], a				; and the prize
 .checkPrize
-	dec c
-	jr nz, .jmp_5CE7
+	dec c					; erase prizes twice. todo why
+	jr nz, .erasePrizes
 	ld hl, wOAMBuffer + 4*$C + 1	; X
 	ldd a, [hl]
 	add a, $18				; 3 tiles ahead
@@ -927,37 +927,37 @@ _GameState_1A:: ; 5CDE
 
 .jmp_5D69
 	ld a, [$DA17]
-	cp a, $10
+	cp a, $10			; grow into superball mario
 	jr nc, .jmp_5DA0
-	cp a, $02
+	cp a, $02			; add lives
 	jp nc, .jmp_5E02
-	ld a, [$DA1B]
+	ld a, [wBonusGameEndTimer]
 	dec a
-	ld [$DA1B], a
+	ld [wBonusGameEndTimer], a
 	ret nz
 	ld a, $40
-	ld [$DA1B], a
+	ld [wBonusGameEndTimer], a
 	xor a
 	ld [$DA17], a
 	ld [$DA14], a
 	ld [$DA1C], a
-	ld [$DA1E], a
+	ld [wBonusGameGrowAnimationFlag], a
 	ld [$DA20], a
 	inc a
 	ld [$DA16], a
 	ld a, $40
-	ld [$DA1F], a
+	ld [wBonusGameAnimationTimer], a
 	ld a, $1B
 	ldh [hGameState], a		; Leave bonus game
 	ret
 
 .jmp_5DA0
-	ld a, [$DA1F]
+	ld a, [wBonusGameAnimationTimer]
 	dec a
-	ld [$DA1F], a
+	ld [wBonusGameAnimationTimer], a
 	ret nz
 	ld a, $03
-	ld [$DA1F], a
+	ld [wBonusGameAnimationTimer], a
 	ld a, [$DA17]
 	inc a
 	ld [$DA17], a
@@ -965,7 +965,7 @@ _GameState_1A:: ; 5CDE
 	jr z, .jmp_5DF7
 	ld a, [$DA1C]
 	and a
-	jr nz, .jmp_5DCE
+	jr nz, .powerupAnimation
 	inc a
 	ld [$DA1C], a
 	ld hl, $DFE0
@@ -974,14 +974,14 @@ _GameState_1A:: ; 5CDE
 	ldh a, [hSuperStatus]
 	cp a, $02
 	jr z, .jmp_5DF7
-.jmp_5DCE
-	ld hl, wOAMBuffer + 4*$C + 2
-	ld b, $04
-	ld a, [$DA1E]
+.powerupAnimation
+	ld hl, wOAMBuffer + 4*$C + 2	; tile number
+	ld b, $04				; 4 objects
+	ld a, [wBonusGameGrowAnimationFlag]
 	and a
 	jr nz, .makeMarioSmall
 	inc a
-	ld [$DA1E], a
+	ld [wBonusGameGrowAnimationFlag], a
 .superLoop
 	ld a, [hl]
 	add a, $20
@@ -995,7 +995,7 @@ _GameState_1A:: ; 5CDE
 
 .makeMarioSmall
 	dec a
-	ld [$DA1E], a
+	ld [wBonusGameGrowAnimationFlag], a
 .smallLoop
 	ld a, [hl]
 	sub a, $20
@@ -1016,12 +1016,12 @@ _GameState_1A:: ; 5CDE
 	ret
 
 .jmp_5E02
-	ld a, [$DA1F]
+	ld a, [wBonusGameAnimationTimer]
 	dec a
-	ld [$DA1F], a
+	ld [wBonusGameAnimationTimer], a
 	ret nz
 	ld a, $04
-	ld [$DA1F], a
+	ld [wBonusGameAnimationTimer], a
 	ld a, [$DA20]
 	and a
 	jr nz, .jmp_5E3F
