@@ -1,4 +1,5 @@
 INCLUDE "gbhw.asm"
+INCLUDE "sound_constants.asm"
 
 SECTION "bank 3", ROMX, BANK[3]
 LevelPointersBank3:: ; 3:4000
@@ -338,15 +339,62 @@ Call_490D:: ; 490D
 INCBIN "baserom.gb", $C966, $6600 - $4966
 
 Data_6600
-	dw $67AF, $67E4, $683D, $687A, $6813, $68C4, $68A5, $68F0, $677B, $676E, $6868
+	dw StartJumpSFX
+	dw StartSuperballSFX
+	dw StartStompSFX
+	dw StartGrowSFX
+	dw StartCoinSFX
+	dw StartInjurySFX
+	dw StartBumpSFX
+	dw StartOneUpSFX
+	dw StartGiraSFX
+	dw StartTimerTickSFX
+	dw StartFlowerSFX
+
 Data_6616
-	dw $67C4, $67F0, $6849, $6887, $681D, $68D2, $67F0, $6916, $67F0, $67F0, $6887
+	dw ContinueJumpSFX
+	dw ContinueSquareSFX
+	dw ContinueStompSFX
+	dw ContinueSweepSquareSFX
+	dw ContinueCoinSFX
+	dw ContinueInjurySFX
+	dw ContinueSquareSFX
+	dw ContinueOneUpSFX
+	dw ContinueSquareSFX
+	dw ContinueSquareSFX
+	dw ContinueSweepSquareSFX
+
 Data_662C
-	dw Call_6957, Call_69A3, Call_6970, Call_6997
+	dw StartExplosionSFX
+	dw StartBrickShatterSFX
+	dw StartDeathCrySFX
+	dw StartFireBreathSFX
 Data_6634
-	dw Call_69AF, Call_69AF, Call_697C, Call_69AF
+	dw ContinueNoiseSFX
+	dw ContinueNoiseSFX
+	dw ContinueDeathCrySFX
+	dw ContinueNoiseSFX
+
 Data_663C
-	dw $6F98, $6FA3, $6FAE, $6FB9, $6FC4, $6FCF, $6FDA, $6FE5, $78DC, $78E7, $78F2, $78FD, $7908, $7913, $791E, $7929, $7D6A, $7934, $793F
+	dw $6F98
+	dw $6FA3
+	dw $6FAE
+	dw $6FB9
+	dw $6FC4
+	dw $6FCF
+	dw $6FDA
+	dw $6FE5
+	dw $78DC
+	dw $78E7
+	dw $78F2
+	dw $78FD
+	dw $7908
+	dw $7913
+	dw $791E
+	dw $7929
+	dw $7D6A
+	dw $7934
+	dw $793F
 
 _Call_7FF0:: ; 6662
 	push af
@@ -373,9 +421,9 @@ _Call_7FF0:: ; 6662
 	ld a, $08		; 1UP sound
 	ld [$DFE0], a
 .jmp_6688
-	call Call_6A6A	; play square sfx
-	call Call_6A8E	; play noise sfx
-	call Call_66F6	; play wave sfx
+	call PlaySquareSFX
+	call PlayNoiseSFX	; play noise sfx
+	call PlayWaveSFX	; play wave sfx
 	call Call_6AB5	; music stuff?
 	call Call_6CBE
 	call Call_6B09
@@ -395,7 +443,7 @@ _Call_7FF0:: ; 6662
 	reti			; Interrupts are already enabled, necessary? Maybe to alert
 					; peripherals to reset their interrupt flags
 .pauseMusic
-	call _Call_7FF3.call_6A54
+	call _InitSound.muteChannels
 	xor a
 	ld [$DFE1], a
 	ld [$DFF1], a
@@ -403,13 +451,13 @@ _Call_7FF0:: ; 6662
 	ld a, $30
 	ldh [hPauseTuneTimer], a
 .playFirstNote
-	ld hl, .data_66EE
+	ld hl, .pauseFirstNoteData
 .playNote
-	call Call_69E5.square2
+	call SetupChannel.square2
 	jr .out
 
 .playSecondNote
-	ld hl, .data_66F2
+	ld hl, .pauseSecondNoteData
 	jr .playNote
 
 .unpauseMusic
@@ -432,12 +480,12 @@ _Call_7FF0:: ; 6662
 	inc [hl]				; Keep the hPauseTuneTimer non-zero, keeps the music
 	jr .out					; paused
 
-.data_66EE
+.pauseFirstNoteData
 	db $B2, $E3, $83, $C7	; 1048.6 Hz ~ C6
-.data_66F2
+.pauseSecondNoteData
 	db $B2, $E3, $C1, $C7	; 2080.5 Hz ~ C7
 
-Call_66F6:: ; 66F6
+PlayWaveSFX:: ; 66F6
 	ld a, [$DFF0]	; SFX channel, only has boss cry
 	cp a, $01
 	jr z, .startBossCry
@@ -446,7 +494,7 @@ Call_66F6:: ; 66F6
 	jr z, .continueBossCry
 	ret
 
-.data_6705
+.bossCryChannelData
 	db $80, $3A, $20, $B0, $C6	; 198/256 seconds, full volume, ~195 Hz (~G3)
 
 .startBossCry
@@ -457,15 +505,15 @@ Call_66F6:: ; 66F6
 	ld [$DFF4], a
 	ldh [rNR30], a		; wave DAC power
 	ld hl, $6F4B
-	call Call_6A26		; copy HL to wave pattern
+	call SetupWavePattern
 	ldh a, [rDIV]		; supposedly random, but because the music code is
 	and a, $1F			; linked to the timer interrupt, rDIV might always be 1
 	ld b, a				; here? Bug?
 	ld a, $D0
 	add b
 	ld [$DFF5], a		; "random" number from D0 to FF (always ~D1?)
-	ld hl, .data_6705
-	jp Call_69E5.wave	; copy HL to wave registers
+	ld hl, .bossCryChannelData
+	jp SetupChannel.wave	; copy HL to wave registers
 
 .continueBossCry
 	ldh a, [rDIV]
@@ -507,42 +555,344 @@ Call_66F6:: ; 66F6
 	inc c
 	ld a, [bc]
 	ld h, a
-	jp Call_6A26
+	jp SetupWavePattern
 
-INCBIN "baserom.gb", $E769, $6953 - $6769
+; no sweep, 50% duty, 1/16 second, envelope?, 1024 Hz, trigger, counter mode
+TimerTickChannelData:: ; 6769
+	db $00, $B0, $53, $80, $C7
 
-; EXPLOSION noise channel data
-Data_6953:: ; 6953
+StartTimerTickSFX:: ; 676E
+	ld a, $03
+	ld hl, TimerTickChannelData
+	jp Jmp_69C6
+
+GiraChannelData:: ; 6776
+	db $3C, $80, $A0, $50, $84 ; 138.9 Hz, C#3
+
+StartGiraSFX:: ; 677B
+	call Call_6791.jmp_679C
+	ret z
+	ld a, $0E
+	ld hl, GiraChannelData
+	jp Jmp_69C6
+
+JumpChannelData:: ; 6787
+	db $00, $80, $D2, $0A, $86 ; 261.1 Hz C4
+
+; Superball?
+SuperballChannelData:: ; 678C
+	db $3D, $80, $A3, $09, $87 ; 530.7 Hz ~ C5 (24 cents off...)
+
+; used to check if new SFX overrides the one currently playing
+Call_6791:: ; 6791
+	ld a, [$DFE1]
+	jr .jmp_67A2 ; WTF is this bullshit
+
+.jmp_6796
+	ld a, [$DFE1]
+	cp a, SFX_STOMP
+	ret z
+.jmp_679C
+	ld a, [$DFE1]
+	cp a, SFX_COIN
+	ret z
+.jmp_67A2
+	cp a, SFX_GROW
+	ret z
+	cp a, SFX_INJURY
+	ret z
+	cp a, SFX_1UP
+	ret z
+	cp a, SFX_FLOWER
+	ret z
+	ret
+
+StartJumpSFX:: ; 67AF
+	call Call_6791.jmp_6796
+	ret z
+	ld a, $10
+	ld hl, JumpChannelData
+	call Jmp_69C6
+	ld hl, $DFE4
+	ld [hl], $0A
+	inc l
+	ld [hl], $86
+	ret
+
+ContinueJumpSFX:: ; 67C4
+	call updateSoundProgress
+	and a
+	jp z, ContinueSquareSFX.stop
+	ld hl, $DFE4
+	ld e, [hl]
+	inc l
+	ld d, [hl]
+	push hl
+	ld hl, $000F		; some sort of sweep implementation
+	add hl, de
+	ld c, LOW(rNR13)
+	ld a, l
+	ld [$FF00+c], a
+	ld b, a
+	inc c
+	ld a, h
+	and a, $3F
+	ld [$FF00+c], a		; rNR14
+	pop hl
+	ldd [hl], a
+	ld [hl], b
+	ret
+
+StartSuperballSFX:: ; 67E4
+	call Call_6791.jmp_6796
+	ret z
+	ld a, $03
+	ld hl, SuperballChannelData
+	jp Jmp_69C6
+
+ContinueSquareSFX
+	call updateSoundProgress
+	and a
+	ret nz
+.stop
+	xor a
+	ld [$DFE1], a
+	ldh [rNR10], a
+	ld a, $08
+	ldh [rNR12], a
+	ld a, $80
+	ldh [rNR14], a
+	ld hl, $DF1F
+	res 7, [hl]				; unlock
+	ret
+
+CoinChannelData1::
+	db $00, $80, $E2, $06, $87 ; 524.3 Hz ~ C5
+CoinChannelData2::
+	db $00, $80, $E2, $83, $87 ; 1049 Hz ~ C6
+
+StartCoinSFX:: ; 6813
+	call Call_6791
+	ret z
+	ld hl, CoinChannelData1
+	jp Jmp_69C6
+
+ContinueCoinSFX:: ; 681D
+	ld hl, $DFE4
+	inc [hl]
+	ld a, [hl]
+	cp a, $04
+	jr z, .secondTone
+	cp a, $18
+	jp z, ContinueSquareSFX.stop
+	ret
+
+.secondTone
+	ld hl, CoinChannelData2
+	call SetupChannel.square1
+	ret
+
+StompChannelData1::
+	db $57, $96, $8C, $30, $C7 ; 630 Hz
+StompChannelData2::
+	db $57, $96, $8C, $35, $C7 ; 645 Hz
+
+StartStompSFX:: ; 683D
+	call Call_6791.jmp_679C
+	ret z
+	ld a, $08
+	ld hl, StompChannelData1
+	jp Jmp_69C6
+
+ContinueStompSFX:: ; 6849
+	call updateSoundProgress
+	and a
+	ret nz
+	ld hl, $DFE4
+	ld a, [hl]
+	inc [hl]
+	cp a, $00
+	jr z, .jmp_685D
+	cp a, $01
+	jp z, ContinueSquareSFX.stop
+	ret
+
+.jmp_685D
+	ld hl, StompChannelData2
+	jp SetupChannel.square1
+
+FlowerChannelData:: ; 6863
+	db $54, $00, $9A, $20, $87 ; 585.1 Hz ~ D5 (though 721 is closer)
+
+StartFlowerSFX:: ; 6868
+	ld a, $60
+	ld [$DFE6], a
+	ld a, $05
+	ld hl, FlowerChannelData
+	jp Jmp_69C6
+
+GrowChannelData
+	db $27, $80, $8A, $10, $86 ; 264.3 Hz ~ C4 (17 cents off though)
+
+StartGrowSFX:: ; 687A
+	ld a, $10
+	ld [$DFE6], a
+	ld a, $05
+	ld hl, GrowChannelData
+	jp Jmp_69C6
+
+ContinueSweepSquareSFX::
+	call updateSoundProgress
+	and a
+	ret nz
+	ld hl, $DFE6
+	ld a, $10				; sweep frequency up
+	add [hl]
+	ld [hl], a
+	cp a, $E0
+	jp z, ContinueSquareSFX.stop
+	ld c, LOW(rNR13)
+	ld [$FF00+c], a
+	inc c
+	ld a, $86
+	ld [$FF00+c], a			; rNR14
+	ret
+
+BumpChannelData:: ; 
+	db $2C, $80, $D3, $40, $84 ; 136.5 Hz
+
+StartBumpSFX:: ; 68A5
+	call Call_6791.jmp_679C
+	ret z
+	ld a, $08
+	ld hl, BumpChannelData
+	jp Jmp_69C6
+
+InjuryChannelData::
+	db $3A, $80, $E3, $20, $86 ; 273.1 Hz (one octave above the bump thing?)
+InjuryEnvelopeData
+	db $F3, $B3, $A3, $93, $83, $73, $63, $53, $43, $33, $23, $23, $13, $00
+
+StartInjurySFX::
+	ld a, [$DFE1]
+	cp a, SFX_1UP
+	ret z
+	ld a, $06
+	ld hl, InjuryChannelData
+	jp Jmp_69C6
+
+ContinueInjurySFX::
+	call updateSoundProgress
+	and a
+	ret nz
+	ld hl, $DFE4
+	ld c, [hl]
+	inc [hl]
+	ld b, $00
+	ld hl, InjuryEnvelopeData
+	add hl, bc
+	ld a, [hl]
+	and a
+	jp z, ContinueSquareSFX.stop
+	ld c, LOW(rNR12)
+	ld [$FF00+c], a
+	inc c
+	inc c
+	ld a, $87			; 609.6 Hz? Trigger
+	ld [$FF00+c], a		; rNR14
+	ret
+
+StartOneUpSFX::
+	ld a, $06
+	ld hl, OneUpNote1
+	jp Jmp_69C6
+
+; Pentatonic riff. CDEGC'A in C major
+OneUpNote1::
+	db $00, $30, $F0, $A7, $C7 ; 1472 Hz ~ F#6
+OneUpNote2::
+	db $00, $30, $F0, $B1, $C7 ; 1659 Hz ~ G#6
+OneUpNote3::
+	db $00, $30, $F0, $BA, $C7 ; 1872 Hz ~ A#6
+OneUpNote4::
+	db $00, $30, $F0, $C4, $C7 ; 2184 Hz ~ C#7 (25 cents flat, bug, 7C5 is closer)
+OneUpNote5::
+	db $00, $30, $F0, $D4, $C7 ; 2978 Hz ~ F#7 (11 cents sharp)
+OneUpNote6::
+	db $00, $30, $F0, $CB, $C7 ; 2473 Hz ~ D#7 (11 cents flat)
+
+ContinueOneUpSFX:: ; 6916
+	call updateSoundProgress
+	and a
+	ret nz
+	ld a, [$DFE4]		; when sound has ended, increment and load a new note
+	inc a
+	ld [$DFE4], a
+	cp a, $01
+	jr z, .playNote2
+	cp a, $02
+	jr z, .playNote3
+	cp a, $03
+	jr z, .playNote4
+	cp a, $04
+	jr z, .playNote5
+	cp a, $05
+	jr z, .playNote6
+	jp ContinueSquareSFX.stop
+
+.playNote2
+	ld hl, OneUpNote2
+	jr .playNote
+
+.playNote3
+	ld hl, OneUpNote3
+	jr .playNote
+
+.playNote4
+	ld hl, OneUpNote4
+	jr .playNote
+
+.playNote5
+	ld hl, OneUpNote5
+	jr .playNote
+
+.playNote6
+	ld hl, OneUpNote6
+.playNote
+	jp SetupChannel.square1
+
+ExplosionChannelData:: ; 6953
 	db $00, $F4, $57, $80
 
-Call_6957:: ; 6957
+StartExplosionSFX:: ; 6957
 	ld a, $30
-	ld hl, Data_6953
+	ld hl, ExplosionChannelData
 	jp Jmp_69C6
 
 Call_695F:: ; 695F
 	ld a, [$DFF9]
-	cp a, $01
+	cp a, SFX_EXPLOSION
 	ret z
 	ret
 
-; Death Cry noise?
-Data_6966:: ; 6966
+DeathCryChannelData:: ; 6966
 	db $00, $2C, $1E, $80
 
-; Death cry envelope of sorts?
+; Death cry envelope of sorts? TODO
+; first nibble: clock shift, increasing, 
+; second nibble: width (always narrow), divisor code
 Data_696A:: ; 696A
 	db $1F, $2D, $2F, $3D, $3F, $00
 
-Call_6970:: ; 6970
+StartDeathCrySFX:: ; 6970
 	call Call_695F
 	ret z
 	ld a, $06
-	ld hl, Data_6966
+	ld hl, DeathCryChannelData
 	jp Jmp_69C6
 
-Call_697C:: ; 697C
-	call Call_6A19
+ContinueDeathCrySFX:: ; 697C
+	call updateSoundProgress
 	and a
 	ret nz
 	ld hl, $DFFC
@@ -553,34 +903,33 @@ Call_697C:: ; 697C
 	add hl, bc
 	ld a, [hl]
 	and a
-	jr z, Call_69AF.jmp_69B4
+	jr z, ContinueNoiseSFX.stop
 	ldh [rNR43], a		; noise characteristics
 	ret
 
-Data_6993:: ; 6993
+FireBreathChannelData:: ; 6993
 	db $00, $6D, $54, $80
 
-Call_6997:: ; 6997
+StartFireBreathSFX:: ; 6997
 	ld a, $16
-	ld hl, Data_6993
+	ld hl, FireBreathChannelData
 	jp Jmp_69C6
 
-; Fire breath noise channel data?
-Data_699F:: ; 699F
+BlockShatterChannelData:: ; 699F
 	db $00, $F2, $55, $80
 
-Call_69A3:: ; 69A3
+StartBrickShatterSFX:: ; 69A3
 	call Call_695F
 	ret z
 	ld a, $15
-	ld hl, Data_699F
+	ld hl, BlockShatterChannelData
 	jp Jmp_69C6
 
-Call_69AF:: ; 69AF
-	call Call_6A19		; check progress in sound
+ContinueNoiseSFX:: ; 69AF
+	call updateSoundProgress
 	and a
 	ret nz
-.jmp_69B4
+.stop
 	xor a
 	ld [$DFF9], a
 	ld a, $08
@@ -592,101 +941,102 @@ Call_69AF:: ; 69AF
 	ret
 
 ; write SFX data to the channels (from where?)
+; DE starts at DFxx + 2 (DFE2, DFFA, like that)
 Jmp_69C6:: ; 69C6
 	push af
-	dec e
+	dec e			; using DFE- as example, but it holds for other engines as well
 	ldh a, [$FFD1]
-	ld [de], a
+	ld [de], a		; DFE1 - currently playing sound
 	inc e
 	pop af
 	inc e
-	ld [de], a
+	ld [de], a		; DFE3 - sound duration
 	dec e
 	xor a
-	ld [de], a
+	ld [de], a		; DFE2 - position
 	inc e
 	inc e
-	ld [de], a
+	ld [de], a		; DFE4
 	inc e
-	ld [de], a
+	ld [de], a		; DFE5
 	ld a, e
 	cp a, $E5
-	jr z, Call_69E5.square1
+	jr z, SetupChannel.square1
 	cp a, $F5
-	jr z, Call_69E5.wave
+	jr z, SetupChannel.wave
 	cp a, $FD
-	jr z, Call_69E5.noise
+	jr z, SetupChannel.noise
 	ret
 
-; copy HL to channel
-Call_69E5:: ; 69E5
+; copy HL to channel registers
+SetupChannel:: ; 69E5
 .square1
 	push bc
 	ld c, LOW(rNR10)
 	ld b, $05
-	jr .jmp_69FF
+	jr .loopCopy
 
 .square2
 	push bc
 	ld c, LOW(rNR21)
 	ld b, $04
-	jr .jmp_69FF
+	jr .loopCopy
 
 .wave
 	push bc
 	ld c, LOW(rNR30)
 	ld b, $05
-	jr .jmp_69FF
+	jr .loopCopy
 
 .noise
 	push bc
 	ld c, LOW(rNR41)
 	ld b, $04
-.jmp_69FF
+.loopCopy				; copy B bytes from HL to the channel in C
 	ldi a, [hl]
 	ld [$FF00+c], a
 	inc c
 	dec b
-	jr nz, .jmp_69FF
+	jr nz, .loopCopy
 	pop bc
 	ret
 
 ; do a lookup in HL
-Call_6A07:: ; 6A07
+LookupSoundPointer:: ; 6A07
 	inc e
 	ldh [$FFD1], a
-.call_6A0A
+.lookup
 	inc e
-	dec a
-	sla a
+	dec a				; go from 1-based to 0-based
+	sla a				; a pointer is two bytes
 	ld c, a
 	ld b, $00
 	add hl, bc
 	ld c, [hl]
 	inc hl
-	ld b, [hl]
+	ld b, [hl]			; load in BC
 	ld l, c
 	ld h, b
-	ld a, h
+	ld a, h				; HL ← BC
 	ret
 
-Call_6A19 ;; 6A19
-	push de
+updateSoundProgress:: ;; 6A19
+	push de			; DE is DFE0(or other) + 2 here
 	ld l, e
 	ld h, d			; HL ← DE
-	inc [hl]
+	inc [hl]		; increment position
 	ldi a, [hl]
-	cp [hl]			; increment and compare to the next value
-	jr nz, .jmp_6A24
-	dec l
+	cp [hl]			; and compare with sound length
+	jr nz, .out
+	dec l			; end of sound, return zero
 	xor a
 	ld [hl], a
-.jmp_6A24
+.out
 	pop de
 	ret
 
 ; copy HL to wave pattern
-Call_6A26:: ; 6A26
+SetupWavePattern:: ; 6A26
 	push bc
 	ld c, $30		; wave pattern RAM
 .loop
@@ -699,8 +1049,7 @@ Call_6A26:: ; 6A26
 	pop bc
 	ret
 
-; reset sound
-_Call_7FF3:: ; 6A33
+_InitSound:: ; 6A33
 	xor a
 	ld [$DFE1], a
 	ld [$DFE9], a
@@ -714,7 +1063,7 @@ _Call_7FF3:: ; 6A33
 	ldh [$FFDE], a
 	ld a, $FF
 	ldh [rNR51], a	; enable all channels to both outputs
-.call_6A54
+.muteChannels
 	ld a, $08
 	ldh [rNR12], a
 	ldh [rNR22], a
@@ -728,59 +1077,59 @@ _Call_7FF3:: ; 6A33
 	ldh [rNR30], a	; disable wave
 	ret
 
-Call_6A6A:: ; 6A6A
-	ld de, $DFE0	; non zero to start sfx
+PlaySquareSFX:: ; 6A6A
+	ld de, $DFE0			; non zero to start sfx
 	ld a, [de]
 	and a
-	jr z, .jmp_6A81	; if zero, play the current sound
-	cp a, $C
-	jr nc, .jmp_6A81; bounds check, $B sound effects in this "channel"
-	ld hl, $DF1F	; lock square channel 1
+	jr z, .continue			; if zero, play the current sound
+	cp a, 12
+	jr nc, .continue		; bounds check, 11 sound effects in this "channel"
+	ld hl, $DF1F			; lock square channel 1
 	set 7, [hl]
 	ld hl, Data_6600
-	call Call_6A07
+	call LookupSoundPointer	; also sets FFD1
 	jp hl
 
-.jmp_6A81
+.continue
 	inc e
 	ld a, [de]
 	and a
-	jr z, .jmp_6A8D
+	jr z, .out
 	ld hl, Data_6616
-	call Call_6A07.call_6A0A
+	call LookupSoundPointer.lookup
 	jp hl
 
-.jmp_6A8D				; RET Z? Bug
+.out					; RET Z? Bug
 	ret
 
-Call_6A8E:: ; 6A8E
+PlayNoiseSFX:: ; 6A8E
 	ld de, $DFF8
 	ld a, [de]
 	and a
-	jr z, .jmp_6AA5
-	cp a, $05
-	jr nc, .jmp_6AA5
+	jr z, .continue
+	cp a, 5
+	jr nc, .continue
 	ld hl, $DF4F
-	set 7, [hl]
+	set 7, [hl]			; lock noise channel
 	ld hl, Data_662C
-	call Call_6A07
+	call LookupSoundPointer
 	jp hl
 
-.jmp_6AA5
+.continue
 	inc e
 	ld a, [de]
 	and a
-	jr z, .jmp_6AB1
+	jr z, .out
 	ld hl, Data_6634
-	call Call_6A07.call_6A0A
+	call LookupSoundPointer.lookup
 	jp hl
 
-.jmp_6AB1				; forgot about RET Z? Bug
+.out				; forgot about RET Z? Bug
 	ret
 
 ; Seriously?? Bug
 Jmp_6AB2 ; 6AB2
-	jp _Call_7FF3
+	jp _InitSound
 
 ; setup new music
 Call_6AB5:: ; 6AB5
@@ -789,17 +1138,17 @@ Call_6AB5:: ; 6AB5
 	and a
 	ret z
 	cp a, $14
-	ret nc		; 19 songs, bounds check
-	ld [hl], a
-	cp a, $FF	; can this ever be true?
+	ret nc				; 19 songs, bounds check
+	ld [hl], a			; DFE9
+	cp a, $FF			; can this ever be true?
 	jr z, Jmp_6AB2
 	ld b, a
 	ld hl, Data_663C
 	ld a, b
 	and a, $1F
-	call Call_6A07.call_6A0A	; another lookup
+	call LookupSoundPointer.lookup
 	call Call_6B8C
-	jp .jmp_6AD3	; seriously... bug
+	jp .jmp_6AD3		; seriously... bug
 
 .jmp_6AD3
 	ld a, [$DFE9]
@@ -914,7 +1263,7 @@ Call_6B86:: ; 6B86
 
 ; setup array of addresses and such at DF00-DF4F
 Call_6B8C::; 6B8C
-	call _Call_7FF3.call_6A54
+	call _InitSound.muteChannels
 	xor a
 	ldh [$FFD5], a
 	ldh [$FFD7], a
@@ -965,7 +1314,7 @@ Jmp_6BF4 ; 6BF4
 	ldh [rNR30], a		; disable wave channel
 	ld l, e
 	ld h, d
-	call Call_6A26		; copy HL to wave pattern
+	call SetupWavePattern
 	pop hl
 	jr Jmp_6C00.jmp_6C2A
 
@@ -1110,7 +1459,7 @@ Jmp_6C4C
 	ld [hl], $00
 	ld a, $FF
 	ldh [rNR51], a
-	call _Call_7FF3.call_6A54
+	call _InitSound.muteChannels
 	ret
 
 Call_6CBE:: ; 6CBE
@@ -1412,5 +1761,6 @@ ds $E9 ; todo use SECTION?
 ; gets called from timer interrupt
 Call_7FF0:: ; 7FF0
 	jp _Call_7FF0
-Call_7FF3:: ; 7FF3
-	jp _Call_7FF3
+
+InitSound:: ; 7FF3
+	jp _InitSound

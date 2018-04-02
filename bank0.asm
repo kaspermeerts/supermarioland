@@ -300,7 +300,7 @@ Init::	; 0185
 	ld a, 0
 	ld [wWinCount], a
 	ldh [hWinCount], a
-	call Call_7FF3			; This seems to set up sound
+	call InitSound
 	ld a, 2
 	ld [MBC1RomBank], a
 	ldh [hActiveRomBank], a
@@ -765,7 +765,7 @@ GameState_0F::
 	ld [$DFE8], a
 	ld a, 3
 	ld [MBC1RomBank], a
-	call Call_7FF3			; setup sound
+	call InitSound
 	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	xor a
@@ -1046,7 +1046,7 @@ StartLevelMusic::
 	ret nz
 	ld a, 3
 	ld [MBC1RomBank], a	; no need to save rom bank, interrupts are disabled
-	call Call_7FF3
+	call InitSound
 	ldh a, [hActiveRomBank]
 	ld [MBC1RomBank], a
 	ldh a, [$FFF4]		; underground?
@@ -1951,7 +1951,7 @@ GameState_06:: ; CCB
 	ldh [hTimer], a
 	ld a, $27			; tatanga dying
 	ldh [hGameState], a
-	call Call_7FF3
+	call InitSound
 	ret
 
 GameState_08:: ; D49
@@ -2177,7 +2177,7 @@ GameState_1E:: ; E5D
 	ld a, $03
 	ldh [hActiveRomBank], a
 	ld [MBC1RomBank], a
-	call Call_7FF3
+	call InitSound
 	ld hl, hGameState
 	inc [hl]			; 1E → 1F
 	ret
@@ -3204,7 +3204,7 @@ GameState_38::
 	ldh a, [hJoyPressed]
 	and a
 	ret z
-	call Call_7FF3
+	call InitSound
 .resetToMenu
 	ld a, $02
 	ldh [hActiveRomBank], a
