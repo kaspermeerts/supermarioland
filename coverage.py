@@ -70,6 +70,11 @@ PALETTE1 = [(255,255,255), (160,160,160), (85,85,85), (0,0,0)]
 PALETTE2 = [(155,188,15), (139,172,15), (48,98,48), (15,56,16)]
 
 img = Image.new("P", (PX_WIDTH, PX_HEIGHT), 8)
+#img.putpalette([
+#    255,255,255, 180,180,180, 105,105,105, 0,0,0,      # Monochrome
+#    0xE0,0xF8,0xD0, 0x88,0xC0,0x70, 0x34,0x68,0x56, 0x08,0x18,0x20,     # Game Boy palette
+#    255,255,200
+#])
 img.putpalette([
     255,255,255, 160,160,160, 85,85,85, 0,0,0,      # Monochrome
     155,188,15, 139,172,15, 48,98,48, 15,56,16,     # Game Boy palette
@@ -83,8 +88,8 @@ def copy_tile(ix, iy, covered, bank, kb):
     tile = rom[(iy*WIDTH + ix) * 16:(iy*WIDTH + ix) * 16 + 16]
 
     for row in range(8):
-        hi_byte = tile[row * 2]
-        lo_byte = tile[row * 2 + 1]
+        hi_byte = tile[row * 2 + 1]
+        lo_byte = tile[row * 2]
 
         y = iy * 8 + row + bank * BANK_MARGIN + kb * KB_MARGIN
 

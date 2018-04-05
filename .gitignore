@@ -1,3 +1,5 @@
+coverage_map.png
+*.sn?
 *.o
 *.gb
 *.sym
