@@ -335,7 +335,6 @@ Call_490D:: ; 490D
 	ld [bc], a
 	ret
 
-
 INCBIN "baserom.gb", $C966, $6600 - $4966
 
 Data_6600
@@ -376,25 +375,25 @@ Data_6634
 	dw ContinueNoiseSFX
 
 Data_663C
-	dw $6F98
+	dw $6F98	; 1
 	dw $6FA3
 	dw $6FAE
 	dw $6FB9
-	dw $6FC4
+	dw $6FC4	; 5
 	dw $6FCF
 	dw $6FDA
 	dw $6FE5
 	dw $78DC
-	dw $78E7
+	dw $78E7	; 10
 	dw $78F2
 	dw $78FD
 	dw $7908
 	dw $7913
-	dw $791E
+	dw $791E	; 15
 	dw $7929
 	dw $7D6A
 	dw $7934
-	dw $793F
+	dw $793F	; 19
 
 _Call_7FF0:: ; 6662
 	push af
@@ -424,7 +423,7 @@ _Call_7FF0:: ; 6662
 	call PlaySquareSFX
 	call PlayNoiseSFX	; play noise sfx
 	call PlayWaveSFX	; play wave sfx
-	call Call_6AB5	; music stuff?
+	call Call_6AB5		; setup new music
 	call Call_6CBE
 	call Call_6B09
 .out
@@ -504,7 +503,7 @@ PlayWaveSFX:: ; 66F6
 	xor a
 	ld [$DFF4], a
 	ldh [rNR30], a		; wave DAC power
-	ld hl, $6F4B
+	ld hl, BossCryWavePattern
 	call SetupWavePattern
 	ldh a, [rDIV]		; supposedly random, but because the music code is
 	and a, $1F			; linked to the timer interrupt, rDIV might always be 1
@@ -1038,7 +1037,7 @@ updateSoundProgress:: ;; 6A19
 ; copy HL to wave pattern
 SetupWavePattern:: ; 6A26
 	push bc
-	ld c, $30		; wave pattern RAM
+	ld c, $30		; FF30 Wave pattern RAM
 .loop
 	ldi a, [hl]
 	ld [$FF00+c], a
@@ -1145,7 +1144,7 @@ Call_6AB5:: ; 6AB5
 	ld b, a
 	ld hl, Data_663C
 	ld a, b
-	and a, $1F
+	and a, $1F			; huh?
 	call LookupSoundPointer.lookup
 	call Call_6B8C
 	jp .jmp_6AD3		; seriously... bug
@@ -1239,7 +1238,7 @@ Data_6B2F:: ; 6B2F
 	db $01, $00, $DE, $00	; Music 19
 
 ; copy 2 bytes from the address at HL to DE
-Call_6B7B:: ; 6B7B
+CopyWordIndirect:: ; 6B7B
 	ldi a, [hl]
 	ld c, a
 	ld a, [hl]
@@ -1253,7 +1252,7 @@ Call_6B7B:: ; 6B7B
 	ret
 
 ; copy 2 bytes from HL to DE
-Call_6B86:: ; 6B86
+CopyWord:: ; 6B86
 	ldi a, [hl]
 	ld [de], a
 	inc e
@@ -1262,6 +1261,7 @@ Call_6B86:: ; 6B86
 	ret
 
 ; setup array of addresses and such at DF00-DF4F
+; HL contains the pointer from Data_663C
 Call_6B8C::; 6B8C
 	call _InitSound.muteChannels
 	xor a
@@ -1270,33 +1270,33 @@ Call_6B8C::; 6B8C
 	ld de, $DF00
 	ld b, $00
 	ldi a, [hl]
-	ld [de], a
+	ld [de], a				; byte 0 goes into DF00 (unused, always zero?)
 	inc e
-	call Call_6B86
+	call CopyWord			; byte 1,2 into DF01, DF02
 	ld de, $DF10
-	call Call_6B86
+	call CopyWord			; byte 3,4 DF10
 	ld de, $DF20
-	call Call_6B86
+	call CopyWord			; byte 5,6 DF20
 	ld de, $DF30
-	call Call_6B86
+	call CopyWord			; byte 7,8 DF30
 	ld de, $DF40
-	call Call_6B86
-	ld hl, $DF10
+	call CopyWord			; byte 9,10 DF40
+	ld hl, $DF10			; 
 	ld de, $DF14
-	call Call_6B7B
+	call CopyWordIndirect
 	ld hl, $DF20
 	ld de, $DF24
-	call Call_6B7B
+	call CopyWordIndirect
 	ld hl, $DF30
 	ld de, $DF34
-	call Call_6B7B
+	call CopyWordIndirect
 	ld hl, $DF40
 	ld de, $DF44
-	call Call_6B7B
+	call CopyWordIndirect
 	ld bc, $0410		; 4 loops, $10 bytes between each DFx2
 	ld hl, $DF12
 .loop
-	ld [hl], $01
+	ld [hl], $01		; set them all to 1
 	ld a, c
 	add l
 	ld l, a
@@ -1319,44 +1319,45 @@ Jmp_6BF4 ; 6BF4
 	jr Jmp_6C00.jmp_6C2A
 
 Jmp_6C00 ; 6C00
-	call Call_6C30
-	call Call_6C45
+	call IncrementWord
+	call LoadBfromAddressAtHL
 	ld e, a
-	call Call_6C30
-	call Call_6C45
+	call IncrementWord
+	call LoadBfromAddressAtHL
 	ld d, a
-	call Call_6C30
-	call Call_6C45
+	call IncrementWord
+	call LoadBfromAddressAtHL
 	ld c, a
 	inc l
 	inc l
-	ld [hl], e
+	ld [hl], e					; DFx6
 	inc l
-	ld [hl], d
+	ld [hl], d					; DFx7
 	inc l
-	ld [hl], c
+	ld [hl], c					; DFx8
 	dec l
 	dec l
 	dec l
 	dec l
 	push hl
-	ld hl, $FFD0
+	ld hl, hCurrentChannel
 	ld a, [hl]
 	pop hl
-	cp a, $03
+	cp a, $03			; wave channel
 	jr z, Jmp_6BF4
 .jmp_6C2A
-	call Call_6C30
+	call IncrementWord
 	jp Call_6CBE.jmp_6CD7
 
-Call_6C30
+; increment the address located at HL
+IncrementWord:: ; 6C30
 	push de
 	ldi a, [hl]
 	ld e, a
 	ldd a, [hl]
 	ld d, a
 	inc de
-.jmp_6C36
+.storeDE
 	ld a, e
 	ldi [hl], a
 	ld a, d
@@ -1364,7 +1365,7 @@ Call_6C30
 	pop de
 	ret
 
-Call_6C3C
+IncrementWordTwice:: ; 6C3C
 	push de
 	ldi a, [hl]
 	ld e, a
@@ -1372,15 +1373,16 @@ Call_6C3C
 	ld d, a
 	inc de
 	inc de
-	jr Call_6C30.jmp_6C36
+	jr IncrementWord.storeDE
 
-Call_6C45
+; todo name
+LoadBfromAddressAtHL:: ; 6C45
 	ldi a, [hl]
 	ld c, a
 	ldd a, [hl]
-	ld b, a
-	ld a, [bc]
-	ld b, a
+	ld b, a				; BC ← [HL]
+	ld a, [bc]			; A ← [BC]
+	ld b, a				; B ← [BC]
 	ret
 
 Jmp_6C4C
@@ -1388,13 +1390,13 @@ Jmp_6C4C
 	jr .jmp_6C7A
 
 .jmp_6C4F
-	ldh a, [$FFD0]
-	cp a, $03
+	ldh a, [hCurrentChannel]
+	cp a, $03			; wave
 	jr nz, .jmp_6C65
 	ld a, [$DF38]
 	bit 7, a
 	jr z, .jmp_6C65
-	ld a, [hl]
+	ld a, [hl]			; DF32?
 	cp a, $06
 	jr nz, .jmp_6C65
 	ld a, $40
@@ -1404,57 +1406,57 @@ Jmp_6C4C
 	ld a, l
 	add a, $09
 	ld l, a
-	ld a, [hl]
+	ld a, [hl]			; DFxB
 	and a
 	jr nz, Jmp_6C4C
 	ld a, l
 	add a, $04
 	ld l, a
-	bit 7, [hl]
-	jr nz, Jmp_6C4C
+	bit 7, [hl]			; DFxF lock status
+	jr nz, Jmp_6C4C		; jump if locked
 	pop hl
 	call Call_6CBE.jmp_6DDC
 .jmp_6C7A
 	dec l
 	dec l
-	jp Call_6CBE.jmp_6DB0
+	jp Call_6CBE.nextChannel
 
 .jmp_6C7F
 	dec l
 	dec l
 	dec l
 	dec l
-	call Call_6C3C
+	call IncrementWordTwice
 .jmp_6C86
 	ld a, l
 	add a, $04
 	ld e, a
 	ld d, h
-	call Call_6B7B
+	call CopyWordIndirect
 	cp a, $00
-	jr z, .jmp_6CB1
+	jr z, .stopSong
 	cp a, $FF
-	jr z, .jmp_6C9A
+	jr z, .restartChannel
 	inc l
 	jp Call_6CBE.jmp_6CD5
 
-.jmp_6C9A
+.restartChannel
 	dec l
 	push hl
-	call Call_6C3C
-	call Call_6C45
+	call IncrementWordTwice		; skip over FFFF
+	call LoadBfromAddressAtHL
 	ld e, a
-	call Call_6C30
-	call Call_6C45
-	ld d, a
+	call IncrementWord
+	call LoadBfromAddressAtHL
+	ld d, a						; DE is restart pointer
 	pop hl
 	ld a, e
-	ldi [hl], a
+	ldi [hl], a					; put it in DFx0-DFx1
 	ld a, d
 	ldd [hl], a
 	jr .jmp_6C86
 
-.jmp_6CB1
+.stopSong
 	ld hl, $DFE9
 	ld [hl], $00
 	ld a, $FF
@@ -1468,26 +1470,26 @@ Call_6CBE:: ; 6CBE
 	and a
 	ret z
 	ld a, 1
-	ldh [$FFD0], a
+	ldh [hCurrentChannel], a
 	ld hl, $DF10
 .jmp_6CCB
 	inc l
-	ldi a, [hl]
+	ldi a, [hl]					; DFx1
 	and a
 	jp z, Jmp_6C4C.jmp_6C7A
-	dec [hl]
+	dec [hl]					; DFx2
 	jp nz, Jmp_6C4C.jmp_6C4F
 .jmp_6CD5
 	inc l
 	inc l
 .jmp_6CD7
-	call Call_6C45
-	cp a, $00
+	call LoadBfromAddressAtHL	; reads a byte from the channel?
+	cp a, $00					; stores a copy in B
 	jp z, Jmp_6C4C.jmp_6C7F
 	cp a, $9D
 	jp z, Jmp_6C00
 	and a, $F0
-	cp a, $A0
+	cp a, $A0					; set note length?
 	jr nz, .jmp_6D04
 	ld a, b
 	and a, $0F
@@ -1505,15 +1507,15 @@ Call_6CBE:: ; 6CBE
 	pop hl
 	dec l
 	ldi [hl], a
-	call Call_6C30
-	call Call_6C45
+	call IncrementWord
+	call LoadBfromAddressAtHL
 .jmp_6D04
 	ld a, b
 	ld c, a
 	ld b, $00
-	call Call_6C30
-	ldh a, [$FFD0]
-	cp a, $04
+	call IncrementWord
+	ldh a, [hCurrentChannel]
+	cp a, $04					; Noise
 	jp z, .jmp_6D34
 	push hl
 	ld a, l
@@ -1527,13 +1529,13 @@ Call_6CBE:: ; 6CBE
 	cp a, $01
 	jr z, .jmp_6D2F
 	ld [hl], 00
-	ld hl, $6E74
+	ld hl, NotePitches
 	add hl, bc
 	ldi a, [hl]
-	ld [de], a
+	ld [de], a					; DFx9 ?
 	inc e
 	ld a, [hl]
-	ld [de], a
+	ld [de], a					; DFxA
 	pop hl
 	jp .jmp_6D4B
 
@@ -1542,30 +1544,30 @@ Call_6CBE:: ; 6CBE
 	pop hl
 	jr .jmp_6D4B
 
-.jmp_6D34
+.jmp_6D34						; Noisy stuff
 	push hl
-	ld de, $DF46
-	ld hl, $6F06
+	ld de, $DF46				; volume (envelope)?
+	ld hl, Data_6F06
 	add hl, bc
-.jmp_6D3C
+.loop
 	ldi a, [hl]
 	ld [de], a
 	inc e
 	ld a, e
 	cp a, $4B
-	jr nz, .jmp_6D3C
-	ld c, $20
+	jr nz, .loop
+	ld c, LOW(rNR41)
 	ld hl, $DF44
 	jr .jmp_6D78
 
 .jmp_6D4B
 	push hl
-	ldh a, [$FFD0]
-	cp a, $01
+	ldh a, [hCurrentChannel]
+	cp a, $01				; Square 1
 	jr z, .jmp_6D73
-	cp a, $02
+	cp a, $02				; Square 2
 	jr z, .jmp_6D6F
-	ld c, $1A
+	ld c, LOW(rNR30)
 	ld a, [$DF3F]
 	bit 7, a
 	jr nz, .jmp_6D64
@@ -1585,70 +1587,70 @@ Call_6CBE:: ; 6CBE
 	jr .jmp_6D84
 
 .jmp_6D6F
-	ld c, $16
+	ld c, LOW(rNR21)
 	jr .jmp_6D78
 
 .jmp_6D73
-	ld c, $10
+	ld c, LOW(rNR10)
 	ld a, $00
 	inc c
 .jmp_6D78
 	inc l
 	inc l
 	inc l
-	ldd a, [hl]
+	ldd a, [hl]				; DFx7
 	and a
 	jr nz, .jmp_6DCE
-	ldi a, [hl]
+	ldi a, [hl]				; DFx6
 	ld e, a
 .jmp_6D81
 	inc l
-	ldi a, [hl]
+	ldi a, [hl]				; DFx8
 	ld d, a
 .jmp_6D84
 	push hl
 	inc l
 	inc l
-	ldi a, [hl]
+	ldi a, [hl]				; DFxB
 	and a
 	jr z, .jmp_6D8D
 	ld e, $08
 .jmp_6D8D
 	inc l
 	inc l
-	ld [hl], $00
+	ld [hl], $00			; DFxE
 	inc l
-	ld a, [hl]
+	ld a, [hl]				; DFxF lock
 	pop hl
 	bit 7, a
-	jr nz, .jmp_6DAB
+	jr nz, .jmp_6DAB		; if locked, dont adjust channels
 	ld a, d
-	ld [$FF00+c], a
+	ld [$FF00+c], a			; NRx1
 	inc c
 	ld a, e
-	ld [$FF00+c], a
+	ld [$FF00+c], a			; NRx2
 	inc c
-	ldi a, [hl]
-	ld [$FF00+c], a
+	ldi a, [hl]				; DFx9 freq lo
+	ld [$FF00+c], a			; NRx3
 	inc c
-	ld a, [hl]
-	or a, $80
-	ld [$FF00+c], a
+	ld a, [hl]				; DFxA freq hi
+	or a, $80				; trigger
+	ld [$FF00+c], a			; NRx4
 	ld a, l
-	or a, $05
+	or a, $05				; euhm
 	ld l, a
-	res 0, [hl]
+	res 0, [hl]				; DFxF lock? lowest bit
 .jmp_6DAB
 	pop hl
 	dec l
 	ldd a, [hl]
 	ldd [hl], a
 	dec l
-.jmp_6DB0
-	ld de, $FFD0
+.nextChannel
+	ld de, hCurrentChannel
 	ld a, [de]
 	cp a, $04
-	jr z, .jmp_6DC1
+	jr z, .jmp_6DC1			; done after 4 channels
 	inc a
 	ld [de], a
 	ld de, $0010
@@ -1683,19 +1685,19 @@ Call_6CBE:: ; 6CBE
 	ld a, l
 	add a, $06
 	ld l, a
-	ld a, [hl]
+	ld a, [hl]				; DFx8
 	and a, $0F
 	jr z, .jmp_6DFC
 	ldh [$FFD1], a
-	ldh a, [$FFD0]
-	ld c, $13
-	cp a, $01
+	ldh a, [hCurrentChannel]
+	ld c, LOW(rNR13)
+	cp a, $01				; square 1
 	jr z, .jmp_6DFE
-	ld c, $18
-	cp a, $02
+	ld c, LOW(rNR23)
+	cp a, $02				; square 2
 	jr z, .jmp_6DFE
-	ld c, $1D
-	cp a, $03
+	ld c, LOW(rNR33)
+	cp a, $03				; wave
 	jr z, .jmp_6DFE
 .jmp_6DFC
 	pop hl
@@ -1703,22 +1705,22 @@ Call_6CBE:: ; 6CBE
 
 .jmp_6DFE
 	inc l
-	ldi a, [hl]
+	ldi a, [hl]				; DFx9 freq lo
 	ld e, a
-	ld a, [hl]
+	ld a, [hl]				; DFxA freq hi
 	ld d, a
-	push de
+	push de					; DE ← frequency
 	ld a, l
 	add a, $04
 	ld l, a
-	ld b, [hl]
+	ld b, [hl]				; DFxE
 	ldh a, [$FFD1]
-	cp a, $01
-	jr .jmp_6E18
+	cp a, $01				; wut
+	jr .jmp_6E18			; huh?
 
 .jmp_6E0F
 	cp a, $03
-	jr .jmp_6E13		; huh?
+	jr .jmp_6E13			; huh?
 
 .jmp_6E13
 	ld hl, $FFFF
@@ -1726,13 +1728,13 @@ Call_6CBE:: ; 6CBE
 
 .jmp_6E18
 	ld de, Data_6E3D
-	call .call_6DD3
-	bit 0, b
+	call .call_6DD3			; loads the value at DE + B/2 into E
+	bit 0, b				; if B is even
 	jr nz, .jmp_6E24
-	swap e
+	swap e					; select high nibble
 .jmp_6E24
 	ld a, e
-	and a, $0F
+	and a, $0F				; lower nibble
 	bit 3, a
 	jr z, .jmp_6E31
 	ld h, $FF
@@ -1747,17 +1749,134 @@ Call_6CBE:: ; 6CBE
 	pop de
 	add hl, de
 	ld a, l
-	ld [$FF00+c], a
+	ld [$FF00+c], a		; freq lo
 	inc c
 	ld a, h
-	ld [$FF00+c], a
+	ld [$FF00+c], a		; freq hi
 	jr .jmp_6DFC
 
-Data_6E3D
-INCBIN "baserom.gb", $EE3D, $7F07 - $6E3D
+Data_6E3D:: ; 6E3D
+	db $00, $00, $00, $00, $00, $00, $10, $00, $0F, $00, $00
+	db $11, $00, $0F, $F0, $01, $12, $10, $FF, $EF, $01, $12
+	db $10, $FF, $EF, $01, $12, $10, $FF, $EF, $01, $12, $10
+	db $FF, $EF, $01, $12, $10, $FF, $EF, $01, $12, $10, $FF
+	db $EF, $01, $12, $10, $FF, $EF, $01, $12, $10, $FF, $EF
 
-ds $E9 ; todo use SECTION?
+; Chromatic pitches. The number in brackets shows how many cents the pitch
+; is off from ideal
+NotePitches:: ; 6E74
+	dw $F00 ; Bug? Functions as $700, 512 Hz (no note)
+	dw $02C ;   65.4 Hz C 2 (-0)
+	dw $09C ;   69.3 Hz C#2 (-0) Bug! 09D is closer
+	dw $106 ;   73.4 Hz D 2 (-1) Bug! 107 is closer
+	dw $16B ;   77.8 Hz D#2 (+0)
+	dw $1C9 ;   82.4 Hz E 2 (-0)
+	dw $223 ;   87.3 Hz F 2 (+0)
+	dw $277 ;   92.5 Hz F#2 (+0)
+	dw $2C6 ;   98.0 Hz G 2 (-1) Bug! 2C7 is closer
+	dw $312 ;  103.9 Hz G#2 (+1)
+	dw $356 ;  109.8 Hz A 2 (-4) Bug! 357 is closer
+	dw $39B ;  116.5 Hz A#2 (-0)
+	dw $3DA ;  123.4 Hz B 2 (-1)
+	dw $416 ;  130.8 Hz C 3 (-0)
+	dw $44E ;  138.6 Hz C#3 (-0)
+	dw $483 ;  146.8 Hz D 3 (-1)
+	dw $4B5 ;  155.5 Hz D#3 (-1)
+	dw $4E5 ;  164.9 Hz E 3 (+1)
+	dw $511 ;  174.5 Hz F 3 (-1)
+	dw $53B ;  184.9 Hz F#3 (-1)
+	dw $563 ;  195.9 Hz G 3 (-1)
+	dw $589 ;  207.7 Hz G#3 (+1)
+	dw $5AC ;  219.9 Hz A 3 (-1)
+	dw $5CE ;  233.2 Hz A#3 (+1)
+	dw $5ED ;  246.8 Hz B 3 (-1)
+	dw $60A ;  261.1 Hz C 4 (-3) Bug! 60B is closer
+	dw $627 ;  277.1 Hz C#4 (-0)
+	dw $642 ;  293.9 Hz D 4 (+1)
+	dw $65B ;  311.3 Hz D#4 (+1)
+	dw $672 ;  329.3 Hz E 4 (-2)
+	dw $689 ;  349.5 Hz F 4 (+1)
+	dw $69E ;  370.3 Hz F#4 (+1)
+	dw $6B2 ;  392.4 Hz G 4 (+2)
+	dw $6C4 ;  414.8 Hz G#4 (-2)
+	dw $6D6 ;  439.8 Hz A 4 (-1)
+	dw $6E7 ;  466.4 Hz A#4 (+1)
+	dw $6F7 ;  494.6 Hz B 4 (+3)
+	dw $706 ;  524.3 Hz C 5 (+3)
+	dw $714 ;  555.4 Hz C#5 (+3)
+	dw $721 ;  587.8 Hz D 5 (+1)
+	dw $72D ;  621.2 Hz D#5 (-3)
+	dw $739 ;  658.7 Hz E 5 (-2)
+	dw $744 ;  697.2 Hz F 5 (-3)
+	dw $74F ;  740.5 Hz F#5 (+1)
+	dw $759 ;  784.9 Hz G 5 (+2)
+	dw $762 ;  829.6 Hz G#5 (-2)
+	dw $76B ;  879.7 Hz A 5 (-1)
+	dw $773 ;  929.6 Hz A#5 (-5)
+	dw $77B ;  985.5 Hz B 5 (-4)
+	dw $783 ; 1048.6 Hz C 6 (+3)
+	dw $78A ; 1110.8 Hz C#6 (+3)
+	dw $790 ; 1170.3 Hz D 6 (-6)
+	dw $797 ; 1248.3 Hz D#6 (+5)
+	dw $79D ; 1324.0 Hz E 6 (+7)
+	dw $7A2 ; 1394.4 Hz F 6 (-3)
+	dw $7A7 ; 1472.7 Hz F#6 (-9)
+	dw $7AC ; 1560.4 Hz G 6 (-8)
+	dw $7B1 ; 1659.1 Hz G#6 (-2)
+	dw $7B6 ; 1771.2 Hz A 6 (+11)
+	dw $7BA ; 1872.5 Hz A#6 (+7)
+	dw $7BE ; 1985.9 Hz B 6 (+9)
+	dw $7C1 ; 2080.5 Hz C 7 (-10)
+	dw $7C4 ; 2184.5 Hz C#7 (-26) Bug! 7C5 is closer
+	dw $7C8 ; 2340.6 Hz D 7 (-6)
+	dw $7CB ; 2473.1 Hz D#7 (-11)
+	dw $7CE ; 2621.4 Hz E 7 (-10)
+	dw $7D1 ; 2788.8 Hz F 7 (-3)
+	dw $7D4 ; 2978.9 Hz F#7 (+11)
+	dw $7D6 ; 3120.8 Hz G 7 (-8)
+	dw $7D9 ; 3360.8 Hz G#7 (+20)
+	dw $7DB ; 3542.5 Hz A 7 (+11)
+	dw $7DD ; 3744.9 Hz A#7 (+7)
+	dw $7DF ; 3971.9 Hz B 7 (+9)
 
+Data_6F06:: ; 6F06
+	db $00, $00, $00, $00, $00, $C0, $A1, $00, $3A, $00, $C0, $B1, $00, $29, $01, $C0, $81, $00, $29, $04, $C0, $01, $23, $45, $67, $89, $AB, $CD, $EF, $FE, $DC, $BA, $98, $76, $54, $32, $10, $01, $12, $23, $34, $45, $56, $67, $78, $89, $9A, $AB, $BC, $CD, $DD, $EE, $FF, $01, $23, $56, $78, $99, $98, $76, $67, $9A, $DF, $FE, $C9, $85, $42, $11, $00
+
+BossCryWavePattern:: ; 6F4B
+	db $01, $23, $45, $67, $89, $AB, $CC, $CD
+	db $00, $0C, $B0, $BB, $00, $FB, $BB, $BB
+
+; Note lengths?
+Data_6F5B:: ; 6F5B
+	db 2, 3, 6, 12, 24, 48
+	db       9, 18, 36
+	db    4, 8
+
+Data_6F66:: ; 6F66
+	db 2, 4,  8, 16, 32, 64
+	db       12, 24, 48
+	db    5, 10
+	db 1
+
+Data_6F72:: ; 6F72
+	db 0, 5, 10, 20, 40, 80
+	db       15, 30, 60
+
+Data_6F7B:: ; 6F7B
+	db 3, 6, 12, 24, 48, 96
+	db       18, 36, 72
+	db    8, 16
+
+Data_6F86:: ; 6F86
+	db 0, 7, 14, 28, 56, 112
+	db       21, 42, 84
+
+; Unused, 8/7 times slower than the previous one
+Data_6F8F:: ; 6F8F
+	db 4, 8, 16, 32, 64, 128
+	db       24, 48, 96
+
+SECTION "TODO name", ROMX[$7FF0], BANK[3]
 ; gets called from timer interrupt
 Call_7FF0:: ; 7FF0
 	jp _Call_7FF0

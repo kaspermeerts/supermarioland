@@ -59,7 +59,12 @@ hSuperballMario::; FFB5
 hDMARoutine::	; FFB6
 	ds $A
 
-ds $DE - $C0
+ds $D0 - $C0
+
+hCurrentChannel:: ; FFD0 Used in music routine
+	ds 1
+
+ds $DE - $D1
 
 hPauseTuneTimer:: ; FFDE
 	ds 1
