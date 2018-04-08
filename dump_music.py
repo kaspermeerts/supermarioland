@@ -16,6 +16,7 @@ music_data = {}
 channel_pointers = [set(), set(), set(), set()]
 song_pointers = set()
 segment_pointers = set()
+segment_channels = {}
 
 def dump_music():
     # FIRST PASS
@@ -64,6 +65,7 @@ def dump_music():
                 if segment_pointer == 0xFFFF:
                     break
                 segment_pointers.add(segment_pointer)
+                segment_channels[segment_pointer] = i
                 segments += 1
 
     all_pointers = song_pointers | channel_pointers[0] | channel_pointers[1] | channel_pointers[2] | channel_pointers[3] | segment_pointers
@@ -93,6 +95,8 @@ def dump_music():
 
 
     with open("music.asm", "w") as f:
+        f.write('INCLUDE "music_macros.asm"\n')
+        f.write('\n')
         f.write('SECTION "Music", ROMX[$6F98], BANK[3]\n\n')
         for key in sorted(music_data.keys()):
             f.write(music_data[key] + "\n")
@@ -135,35 +139,66 @@ def dump_channel(number, channel_pointer, next_ptr):
     data += "\n"
     music_data[channel_pointer] = data
 
+NOTES = [None, "C_", "C_#", "D_", "D_#", "E_", "F_", "F_#", "G_", "G_#", "A_", "A_#", "B_"]
+
 def dump_segment(segment_pointer, next_ptr):
     if segment_pointer in music_data.keys(): # Segments are reused
         return
+
+    channel = segment_channels[segment_pointer]
 
     index = 0
     byte = -1
 
     data = "Segment_%04X::\n" % segment_pointer
 
+    printing_notes = False
+
     while segment_pointer + index < next_ptr:
         byte = read_byte(segment_pointer + index)
         index += 1
-        if byte == 0x9D:
-            b1 = read_byte(segment_pointer + index)
-            index += 1
-            b2 = read_byte(segment_pointer + index)
-            index += 1
-            b3 = read_byte(segment_pointer + index)
-            index += 1
 
-            data += "\tdb $9D, $%02X, $%02X, $%02X\n" % (b1, b2, b3)
-        elif byte & 0xF0 == 0xA0:
-            data += "\tdb $%02X\n" % byte
-        else:
+        if byte != 0x00 and byte != 0x9D and byte & 0xF0 != 0xA0:
             assert byte < 0x92
-            data += "\tdb $%02X\n" % byte
+
+            octave = (byte - 1) // 12 + 2
+            note = byte - (octave - 2) * 12
+            print(byte, octave,note)
+            if not printing_notes:
+                printing_notes = True
+                if channel == 4 - 1:
+                    assert byte in (1,6,11,16)
+                    data += "\tNoise %d" % ((byte - 1) // 5)
+                else:
+                    data += "\tdb $%02X" % byte
+                    #data += "\tNotes %s, %d" % (NOTES[note], octave)
+            else:
+                if channel == 4 - 1:
+                    data += ", %d" % ((byte - 1) // 5)
+                else:
+                    data += ", $%02X" % byte
+                    #data += ", %s, %d" % (NOTES[note], octave)
+
+        else:
+            if printing_notes:
+                data += "\n"
+                printing_notes = False
+
+            if byte == 0x9D:
+                b1 = read_byte(segment_pointer + index)
+                index += 1
+                b2 = read_byte(segment_pointer + index)
+                index += 1
+                b3 = read_byte(segment_pointer + index)
+                index += 1
+
+                data += "\tdb $9D, $%02X, $%02X, $%02X\n" % (b1, b2, b3)
+            elif byte & 0xF0 == 0xA0:
+                data += "\tdb $%02X\n" % byte
+            elif byte == 0x00:
+                data += "\tdb $00\n"
 
     music_data[segment_pointer] = data
-
 
 if __name__ == "__main__":
     dump_music()

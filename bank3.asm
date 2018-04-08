@@ -335,7 +335,11 @@ Call_490D:: ; 490D
 	ld [bc], a
 	ret
 
-INCBIN "baserom.gb", $C966, $6600 - $4966
+INCBIN "baserom.gb", $C966, $4E74 - $4966
+
+SECTION "bank 3 levels", ROMX[$503F], BANK[3]
+
+INCBIN "baserom.gb", $D03F, $6600 - $503F
 
 Data_6600
 	dw StartJumpSFX
@@ -374,26 +378,27 @@ Data_6634
 	dw ContinueDeathCrySFX
 	dw ContinueNoiseSFX
 
+; dump_music.py
 Data_663C
-	dw $6F98	; 1
-	dw $6FA3
-	dw $6FAE
-	dw $6FB9
-	dw $6FC4	; 5
-	dw $6FCF
-	dw $6FDA
-	dw $6FE5
-	dw $78DC
-	dw $78E7	; 10
-	dw $78F2
-	dw $78FD
-	dw $7908
-	dw $7913
-	dw $791E	; 15
-	dw $7929
-	dw $7D6A
-	dw $7934
-	dw $793F	; 19
+	dw Song_6F98	; 1
+	dw Song_6FA3
+	dw Song_6FAE
+	dw Song_6FB9
+	dw Song_6FC4	; 5
+	dw Song_6FCF
+	dw Song_6FDA
+	dw Song_6FE5
+	dw Song_78DC
+	dw Song_78E7	; 10
+	dw Song_78F2
+	dw Song_78FD
+	dw Song_7908
+	dw Song_7913
+	dw Song_791E	; 15
+	dw Song_7929
+	dw Song_7D6A
+	dw Song_7934
+	dw Song_793F	; 19
 
 _Call_7FF0:: ; 6662
 	push af
@@ -423,9 +428,9 @@ _Call_7FF0:: ; 6662
 	call PlaySquareSFX
 	call PlayNoiseSFX	; play noise sfx
 	call PlayWaveSFX	; play wave sfx
-	call Call_6AB5		; setup new music
-	call Call_6CBE
-	call Call_6B09
+	call StartMusic
+	call PlayMusic
+	call PanStereo
 .out
 	xor a
 	ld [$DFE0], a
@@ -1126,12 +1131,10 @@ PlayNoiseSFX:: ; 6A8E
 .out				; forgot about RET Z? Bug
 	ret
 
-; Seriously?? Bug
-Jmp_6AB2 ; 6AB2
+_Unreachable ; 6AB2
 	jp _InitSound
 
-; setup new music
-Call_6AB5:: ; 6AB5
+StartMusic:: ; 6AB5
 	ld hl, $DFE8
 	ldi a, [hl]
 	and a
@@ -1139,106 +1142,112 @@ Call_6AB5:: ; 6AB5
 	cp a, $14
 	ret nc				; 19 songs, bounds check
 	ld [hl], a			; DFE9
-	cp a, $FF			; can this ever be true?
-	jr z, Jmp_6AB2
+	cp a, $FF			; Can never be true. Possibly -1 was used as a sentinel
+	jr z, _Unreachable	; to stop all sound, like in Pokemon
 	ld b, a
 	ld hl, Data_663C
 	ld a, b
-	and a, $1F			; huh?
+	and a, $1F			; Huh?
 	call LookupSoundPointer.lookup
 	call Call_6B8C
-	jp .jmp_6AD3		; seriously... bug
+	jp .initStereo		; Weird
 
-.jmp_6AD3
+.initStereo
 	ld a, [$DFE9]
-	ld hl, Data_6B2F
-.jmp_6AD9
+	ld hl, StereoData
+.loop
 	dec a
-	jr z, .jmp_6AE2
+	jr z, .writeStereoData
 	inc hl
 	inc hl
 	inc hl
 	inc hl
-	jr .jmp_6AD9
+	jr .loop
 
-.jmp_6AE2
+.writeStereoData
 	ldi a, [hl]
-	ldh [$FFD8], a
+	ldh [hMonoOrStereo], a
 	ldi a, [hl]
-	ldh [$FFD6], a
+	ldh [hPanInterval], a
 	ldi a, [hl]
-	ldh [$FFD9], a
+	ldh [hChannelEnableMask1], a
 	ldh [rNR51], a
 	ldi a, [hl]
-	ldh [$FFDA], a
+	ldh [hChannelEnableMask2], a
 	xor a
-	ldh [$FFD5], a
-	ldh [$FFD7], a
+	ldh [hPanTimer], a
+	ldh [hPanCounter], a
 	ret
 
-.call_6AF6
+PanExplosion:: ; 6AF6
 	ld a, [$DFF9]
-	cp a, $01
+	cp a, SFX_EXPLOSION		; Hmh?
 	ret nz
-	ld a, [hl]
-	bit 1, a
-	ld a, $F7
-	jr z, .jmp_6B05
-	ld a, $7F
-.jmp_6B05
-	call Call_6B09.jmp_6B2C
-.jmp_6B08
+	ld a, [hl]				; Always FFD5. Bug
+	bit 1, a				; Every two ticks?
+	ld a, $F7				; Noise left enable
+	jr z, .applyMask
+	ld a, $7F				; Noise right enable
+.applyMask
+	call PanStereo.applyChannelEnableMasks
+.ret
 	ret
 
-Call_6B09:: ; 6B09
+PanStereo:: ; 6B09
 	ld a, [$DFE9]
 	and a
 	ret z
-	ldh a, [$FFD8]
-	cp a, $01
-	jr z, Call_6AB5.jmp_6B08
-	ld hl, $FFD5
-	call Call_6AB5.call_6AF6
-	inc [hl]
+	ldh a, [hMonoOrStereo]
+	cp a, $01				; 01 = Mono, 02 = Stereo
+	jr z, PanExplosion.ret	; Bug... RET Z
+	ld hl, hPanTimer
+	call PanExplosion		; Skips over following code if explosion is playing
+	inc [hl]				; FFD5 - hPanTimer
 	ldi a, [hl]
-	cp [hl]
+	cp [hl]					; FFD6 - hPanInterval
 	ret nz
 	dec l
-	ld [hl], $00
+	ld [hl], $00			; FFD5 - hPanTimer
 	inc l
 	inc l
-	inc [hl]
-	ldh a, [$FFD9]
-	bit 0, [hl]
-	jr z, .jmp_6B2C
-	ldh a, [$FFDA]
-.jmp_6B2C
+	inc [hl]				; FFD7 - hPanCounter
+	ldh a, [hChannelEnableMask1]
+	bit 0, [hl]				; Counter is only used for its lowest bit... Bug
+	jr z, .applyChannelEnableMasks
+	ldh a, [hChannelEnableMask2]
+.applyChannelEnableMasks
 	ldh [rNR51], a
 	ret
 
-Data_6B2F:: ; 6B2F
+; Four bytes:
+; 1: hMonoOrStereo - 01 if mono, 02 if stereo
+; 2: hPanInterval - Ticks between panning
+; 3: hChannelEnableMask1
+; 4: hChannelEnableMask2
+; Quite some unused masks. Bug?
+StereoData:: ; 6B2F
 	db $02, $24, $ED, $DE	; Music 1
 	db $01, $18, $BD, $00
 	db $02, $20, $7F, $B7
 	db $01, $18, $ED, $7F
-	db $01, $18, $FF, $F7
+	db $01, $18, $FF, $F7	; Music 5
 	db $02, $40, $7F, $F7
 	db $02, $40, $7F, $F7
 	db $01, $18, $FF, $F7
 	db $01, $10, $FF, $A5
-	db $01, $00, $65, $00
+	db $01, $00, $65, $00	; Music 10
 	db $01, $00, $FF, $00
 	db $02, $08, $7F, $B5
 	db $01, $00, $ED, $00
 	db $01, $00, $ED, $00
-	db $01, $00, $FF, $00
+	db $01, $00, $FF, $00	; Music 15
 	db $01, $00, $ED, $00
 	db $02, $18, $7E, $E7
 	db $01, $18, $ED, $E7
 	db $01, $00, $DE, $00	; Music 19
 
 ; copy 2 bytes from the address at HL to DE
-CopyWordIndirect:: ; 6B7B
+CopyPointerIndirect:: ; 6B7B
 	ldi a, [hl]
 	ld c, a
 	ld a, [hl]
@@ -1252,7 +1261,7 @@ CopyWordIndirect:: ; 6B7B
 	ret
 
 ; copy 2 bytes from HL to DE
-CopyWord:: ; 6B86
+CopyPointer:: ; 6B86
 	ldi a, [hl]
 	ld [de], a
 	inc e
@@ -1272,27 +1281,27 @@ Call_6B8C::; 6B8C
 	ldi a, [hl]
 	ld [de], a				; byte 0 goes into DF00 (unused, always zero?)
 	inc e
-	call CopyWord			; byte 1,2 into DF01, DF02
+	call CopyPointer			; byte 1,2 into DF01, DF02
 	ld de, $DF10
-	call CopyWord			; byte 3,4 DF10
+	call CopyPointer			; byte 3,4 DF10
 	ld de, $DF20
-	call CopyWord			; byte 5,6 DF20
+	call CopyPointer			; byte 5,6 DF20
 	ld de, $DF30
-	call CopyWord			; byte 7,8 DF30
+	call CopyPointer			; byte 7,8 DF30
 	ld de, $DF40
-	call CopyWord			; byte 9,10 DF40
+	call CopyPointer			; byte 9,10 DF40
 	ld hl, $DF10			; 
 	ld de, $DF14
-	call CopyWordIndirect
+	call CopyPointerIndirect
 	ld hl, $DF20
 	ld de, $DF24
-	call CopyWordIndirect
+	call CopyPointerIndirect
 	ld hl, $DF30
 	ld de, $DF34
-	call CopyWordIndirect
+	call CopyPointerIndirect
 	ld hl, $DF40
 	ld de, $DF44
-	call CopyWordIndirect
+	call CopyPointerIndirect
 	ld bc, $0410		; 4 loops, $10 bytes between each DFx2
 	ld hl, $DF12
 .loop
@@ -1319,38 +1328,38 @@ Jmp_6BF4 ; 6BF4
 	jr Jmp_6C00.jmp_6C2A
 
 Jmp_6C00 ; 6C00
-	call IncrementWord
-	call LoadBfromAddressAtHL
+	call IncrementPointer
+	call LoadFromHLindirect
 	ld e, a
-	call IncrementWord
-	call LoadBfromAddressAtHL
+	call IncrementPointer
+	call LoadFromHLindirect
 	ld d, a
-	call IncrementWord
-	call LoadBfromAddressAtHL
+	call IncrementPointer
+	call LoadFromHLindirect
 	ld c, a
 	inc l
 	inc l
-	ld [hl], e					; DFx6
+	ld [hl], e					; DFx6- will go into NRx2
 	inc l
-	ld [hl], d					; DFx7
+	ld [hl], d					; DFx7 - always 0 or 6F
 	inc l
-	ld [hl], c					; DFx8
+	ld [hl], c					; DFx8 - will go into NRx1
 	dec l
 	dec l
 	dec l
 	dec l
 	push hl
-	ld hl, hCurrentChannel
+	ld hl, hCurrentChannel		; unnecessary, it's in HRAM. Bug
 	ld a, [hl]
 	pop hl
-	cp a, $03			; wave channel
+	cp a, 3						; wave channel
 	jr z, Jmp_6BF4
 .jmp_6C2A
-	call IncrementWord
-	jp Call_6CBE.jmp_6CD7
+	call IncrementPointer
+	jp PlayMusic.jmp_6CD7
 
 ; increment the address located at HL
-IncrementWord:: ; 6C30
+IncrementPointer:: ; 6C30
 	push de
 	ldi a, [hl]
 	ld e, a
@@ -1365,7 +1374,7 @@ IncrementWord:: ; 6C30
 	pop de
 	ret
 
-IncrementWordTwice:: ; 6C3C
+IncrementPointerTwice:: ; 6C3C
 	push de
 	ldi a, [hl]
 	ld e, a
@@ -1373,10 +1382,10 @@ IncrementWordTwice:: ; 6C3C
 	ld d, a
 	inc de
 	inc de
-	jr IncrementWord.storeDE
+	jr IncrementPointer.storeDE
 
 ; todo name
-LoadBfromAddressAtHL:: ; 6C45
+LoadFromHLindirect:: ; 6C45
 	ldi a, [hl]
 	ld c, a
 	ldd a, [hl]
@@ -1415,39 +1424,39 @@ Jmp_6C4C
 	bit 7, [hl]			; DFxF lock status
 	jr nz, Jmp_6C4C		; jump if locked
 	pop hl
-	call Call_6CBE.jmp_6DDC
+	call PlayMusic.jmp_6DDC
 .jmp_6C7A
 	dec l
 	dec l
-	jp Call_6CBE.nextChannel
+	jp PlayMusic.nextChannel
 
 .jmp_6C7F
 	dec l
 	dec l
 	dec l
 	dec l
-	call IncrementWordTwice
+	call IncrementPointerTwice
 .jmp_6C86
 	ld a, l
 	add a, $04
 	ld e, a
 	ld d, h
-	call CopyWordIndirect
+	call CopyPointerIndirect
 	cp a, $00
 	jr z, .stopSong
 	cp a, $FF
 	jr z, .restartChannel
 	inc l
-	jp Call_6CBE.jmp_6CD5
+	jp PlayMusic.jmp_6CD5
 
 .restartChannel
 	dec l
 	push hl
-	call IncrementWordTwice		; skip over FFFF
-	call LoadBfromAddressAtHL
+	call IncrementPointerTwice		; skip over FFFF
+	call LoadFromHLindirect
 	ld e, a
-	call IncrementWord
-	call LoadBfromAddressAtHL
+	call IncrementPointer
+	call LoadFromHLindirect
 	ld d, a						; DE is restart pointer
 	pop hl
 	ld a, e
@@ -1464,12 +1473,12 @@ Jmp_6C4C
 	call _InitSound.muteChannels
 	ret
 
-Call_6CBE:: ; 6CBE
-	ld hl, $DFE9		; music
+PlayMusic:: ; 6CBE
+	ld hl, $DFE9				; music currently playing
 	ld a, [hl]
 	and a
 	ret z
-	ld a, 1
+	ld a, 1						; start from channel 1, square (with sweep)
 	ldh [hCurrentChannel], a
 	ld hl, $DF10
 .jmp_6CCB
@@ -1483,7 +1492,7 @@ Call_6CBE:: ; 6CBE
 	inc l
 	inc l
 .jmp_6CD7
-	call LoadBfromAddressAtHL	; reads a byte from the channel?
+	call LoadFromHLindirect		; DFx4 - DFx5
 	cp a, $00					; stores a copy in B
 	jp z, Jmp_6C4C.jmp_6C7F
 	cp a, $9D
@@ -1501,38 +1510,38 @@ Call_6CBE:: ; 6CBE
 	ld l, a
 	inc de
 	ld a, [de]
-	ld h, a
+	ld h, a						; HL ← note lengths pointer?
 	add hl, bc
 	ld a, [hl]
 	pop hl
 	dec l
-	ldi [hl], a
-	call IncrementWord
-	call LoadBfromAddressAtHL
+	ldi [hl], a					; DFx3
+	call IncrementPointer
+	call LoadFromHLindirect		; DFx4 - DFx5
 .jmp_6D04
 	ld a, b
 	ld c, a
 	ld b, $00
-	call IncrementWord
+	call IncrementPointer		; DFx4 - DFx5
 	ldh a, [hCurrentChannel]
-	cp a, $04					; Noise
+	cp a, 4						; Noise
 	jp z, .jmp_6D34
 	push hl
 	ld a, l
 	add a, $05
 	ld l, a
 	ld e, l
-	ld d, h
+	ld d, h						; DFx9
 	inc l
 	inc l
 	ld a, c
 	cp a, $01
 	jr z, .jmp_6D2F
-	ld [hl], 00
+	ld [hl], 00					; DFxB
 	ld hl, NotePitches
 	add hl, bc
 	ldi a, [hl]
-	ld [de], a					; DFx9 ?
+	ld [de], a					; DFx9
 	inc e
 	ld a, [hl]
 	ld [de], a					; DFxA
@@ -1563,12 +1572,12 @@ Call_6CBE:: ; 6CBE
 .jmp_6D4B
 	push hl
 	ldh a, [hCurrentChannel]
-	cp a, $01				; Square 1
+	cp a, 1					; Square 1
 	jr z, .jmp_6D73
-	cp a, $02				; Square 2
+	cp a, 2					; Square 2
 	jr z, .jmp_6D6F
-	ld c, LOW(rNR30)
-	ld a, [$DF3F]
+	ld c, LOW(rNR30)		; Wave
+	ld a, [$DF3F]			; Lock
 	bit 7, a
 	jr nz, .jmp_6D64
 	xor a
@@ -1623,7 +1632,7 @@ Call_6CBE:: ; 6CBE
 	ld a, [hl]				; DFxF lock
 	pop hl
 	bit 7, a
-	jr nz, .jmp_6DAB		; if locked, dont adjust channels
+	jr nz, .resetNoteTimer	; don't update the channel registers when locked
 	ld a, d
 	ld [$FF00+c], a			; NRx1
 	inc c
@@ -1640,16 +1649,16 @@ Call_6CBE:: ; 6CBE
 	or a, $05				; euhm
 	ld l, a
 	res 0, [hl]				; DFxF lock? lowest bit
-.jmp_6DAB
+.resetNoteTimer
 	pop hl
 	dec l
-	ldd a, [hl]
-	ldd [hl], a
+	ldd a, [hl]				; DFx4 - note length
+	ldd [hl], a				; DFx3 - note timer
 	dec l
 .nextChannel
 	ld de, hCurrentChannel
 	ld a, [de]
-	cp a, $04
+	cp a, 4
 	jr z, .jmp_6DC1			; done after 4 channels
 	inc a
 	ld [de], a
@@ -1756,11 +1765,12 @@ Call_6CBE:: ; 6CBE
 	jr .jmp_6DFC
 
 Data_6E3D:: ; 6E3D
-	db $00, $00, $00, $00, $00, $00, $10, $00, $0F, $00, $00
-	db $11, $00, $0F, $F0, $01, $12, $10, $FF, $EF, $01, $12
-	db $10, $FF, $EF, $01, $12, $10, $FF, $EF, $01, $12, $10
-	db $FF, $EF, $01, $12, $10, $FF, $EF, $01, $12, $10, $FF
-	db $EF, $01, $12, $10, $FF, $EF, $01, $12, $10, $FF, $EF
+	db $00, $00, $00, $00, $00
+	db $00, $10, $00, $0F, $00, $00, $11, $00, $0F, $F0
+	db $01, $12, $10, $FF, $EF, $01, $12, $10, $FF, $EF
+	db $01, $12, $10, $FF, $EF, $01, $12, $10, $FF, $EF
+	db $01, $12, $10, $FF, $EF, $01, $12, $10, $FF, $EF
+	db $01, $12, $10, $FF, $EF, $01, $12, $10, $FF, $EF
 
 ; Chromatic pitches. The number in brackets shows how many cents the pitch
 ; is off from ideal
@@ -1840,7 +1850,23 @@ NotePitches:: ; 6E74
 	dw $7DF ; 3971.9 Hz B 7 (+9)
 
 Data_6F06:: ; 6F06
-	db $00, $00, $00, $00, $00, $C0, $A1, $00, $3A, $00, $C0, $B1, $00, $29, $01, $C0, $81, $00, $29, $04, $C0, $01, $23, $45, $67, $89, $AB, $CD, $EF, $FE, $DC, $BA, $98, $76, $54, $32, $10, $01, $12, $23, $34, $45, $56, $67, $78, $89, $9A, $AB, $BC, $CD, $DD, $EE, $FF, $01, $23, $56, $78, $99, $98, $76, $67, $9A, $DF, $FE, $C9, $85, $42, $11, $00
+	db $00
+	db $00, $00, $00, $00, $C0 ; 1
+	db $A1 ,$00, $3A, $00, $C0 ; 6
+	db $B1, $00, $29, $01, $C0 ; 11
+	db $81, $00, $29, $04, $C0 ; 16
+
+TriangeWavePattern:: ; 6F1B
+	db $01, $23, $45, $67, $89, $AB, $CD, $EF
+	db $FE, $DC, $BA, $98, $76, $54, $32, $10
+
+SawtoothWavePattern:: ; 6F2B
+	db $01, $12, $23, $34, $45, $56, $67, $78
+	db $89, $9A, $AB, $BC, $CD, $DD, $EE, $FF
+
+WavePattern_6F3B:: ; 6F3B ~sum of three cosines.
+	db $01, $23, $56, $78, $99, $98, $76, $67
+	db $9A, $DF, $FE, $C9, $85, $42, $11, $00
 
 BossCryWavePattern:: ; 6F4B
 	db $01, $23, $45, $67, $89, $AB, $CC, $CD

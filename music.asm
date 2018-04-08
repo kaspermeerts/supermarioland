@@ -1,3 +1,5 @@
+INCLUDE "music_macros.asm"
+
 SECTION "Music", ROMX[$6F98], BANK[3]
 
 Song_6F98::
@@ -79,46 +81,30 @@ Channel4_7014::
 Segment_701C::
 	db $9D, $66, $00, $80
 	db $A5
-	db $01
-	db $01
+	db $01, $01
 	db $00
 
 Segment_7024::
 	db $9D, $76, $00, $81
 	db $A4
-	db $42
-	db $3E
-	db $3A
+	db $42, $3E, $3A
 	db $A9
-	db $36
-	db $36
-	db $36
-	db $36
-	db $36
-	db $36
+	db $36, $36, $36, $36, $36, $36
 	db $00
 
 Segment_7034::
 	db $9D, $3B, $6F, $A0
 	db $A4
-	db $52
-	db $4E
-	db $4C
+	db $52, $4E, $4C
 	db $A9
-	db $48
-	db $48
-	db $48
-	db $48
-	db $48
-	db $48
+	db $48, $48, $48, $48, $48, $48
 	db $00
 
 Segment_7044::
 	db $A4
 	db $01
 	db $A9
-	db $3A
-	db $01
+	db $3A, $01
 	db $A3
 	db $3E
 	db $A2
@@ -126,16 +112,11 @@ Segment_7044::
 	db $A7
 	db $01
 	db $A9
-	db $34
-	db $4C
-	db $01
-	db $48
+	db $34, $4C, $01, $48
 	db $A3
-	db $44
-	db $3E
+	db $44, $3E
 	db $A9
-	db $44
-	db $01
+	db $44, $01
 	db $A4
 	db $3E
 	db $A9
@@ -148,28 +129,11 @@ Segment_7061::
 	db $A4
 	db $01
 	db $A9
-	db $3E
-	db $01
-	db $3E
-	db $01
-	db $01
-	db $3E
-	db $01
-	db $01
-	db $01
-	db $01
-	db $01
-	db $3A
+	db $3E, $01, $3E, $01, $01, $3E, $01, $01, $01, $01, $01, $3A
 	db $A3
-	db $36
-	db $34
+	db $36, $34
 	db $A9
-	db $30
-	db $01
-	db $34
-	db $01
-	db $01
-	db $42
+	db $30, $01, $34, $01, $01, $42
 	db $A4
 	db $01
 	db $A5
@@ -177,32 +141,18 @@ Segment_7061::
 	db $A4
 	db $01
 	db $A9
-	db $3E
-	db $01
-	db $3E
-	db $01
-	db $01
-	db $3E
-	db $01
-	db $01
-	db $01
-	db $01
-	db $01
-	db $3A
+	db $3E, $01, $3E, $01, $01, $3E, $01, $01, $01, $01, $01, $3A
 	db $A3
-	db $36
-	db $34
+	db $36, $34
 	db $A5
-	db $01
-	db $01
+	db $01, $01
 	db $00
 
 Segment_7094::
 	db $A4
 	db $01
 	db $A9
-	db $4C
-	db $01
+	db $4C, $01
 	db $A3
 	db $4E
 	db $A2
@@ -210,16 +160,11 @@ Segment_7094::
 	db $A7
 	db $01
 	db $A9
-	db $44
-	db $52
-	db $01
-	db $4E
+	db $44, $52, $01, $4E
 	db $A3
-	db $4C
-	db $48
+	db $4C, $48
 	db $A9
-	db $4C
-	db $01
+	db $4C, $01
 	db $A4
 	db $44
 	db $A9
@@ -232,28 +177,11 @@ Segment_70B1::
 	db $A4
 	db $01
 	db $A9
-	db $4E
-	db $01
-	db $4E
-	db $01
-	db $01
-	db $4E
-	db $01
-	db $01
-	db $01
-	db $01
-	db $01
-	db $4C
+	db $4E, $01, $4E, $01, $01, $4E, $01, $01, $01, $01, $01, $4C
 	db $A3
-	db $48
-	db $44
+	db $48, $44
 	db $A9
-	db $42
-	db $01
-	db $44
-	db $01
-	db $01
-	db $48
+	db $42, $01, $44, $01, $01, $48
 	db $A4
 	db $01
 	db $A5
@@ -261,194 +189,111 @@ Segment_70B1::
 	db $A4
 	db $01
 	db $A9
-	db $4E
-	db $01
-	db $4E
-	db $01
-	db $01
-	db $4E
-	db $01
-	db $01
-	db $01
-	db $01
-	db $01
-	db $4C
+	db $4E, $01, $4E, $01, $01, $4E, $01, $01, $01, $01, $01, $4C
 	db $A3
-	db $48
-	db $44
+	db $48, $44
 	db $A4
-	db $42
-	db $3E
-	db $3A
-	db $36
+	db $42, $3E, $3A, $36
 	db $00
 
 Segment_70E6::
 	db $A3
 	db $44
 	db $A9
-	db $44
-	db $01
-	db $3A
+	db $44, $01, $3A
 	db $A3
 	db $44
 	db $A9
-	db $44
-	db $01
-	db $3A
+	db $44, $01, $3A
 	db $A3
 	db $44
 	db $A9
-	db $44
-	db $01
-	db $3A
+	db $44, $01, $3A
 	db $A3
 	db $44
 	db $A9
-	db $44
-	db $01
-	db $3A
+	db $44, $01, $3A
 	db $A3
 	db $36
 	db $A9
-	db $36
-	db $01
-	db $44
+	db $36, $01, $44
 	db $A3
 	db $36
 	db $A9
-	db $36
-	db $01
-	db $44
+	db $36, $01, $44
 	db $A3
 	db $36
 	db $A9
-	db $36
-	db $01
-	db $44
+	db $36, $01, $44
 	db $A3
 	db $36
 	db $A9
-	db $36
-	db $01
-	db $44
+	db $36, $01, $44
 	db $00
 
 Segment_7117::
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
 	db $3A
 	db $A9
-	db $3A
-	db $01
-	db $48
+	db $3A, $01, $48
 	db $A3
 	db $3A
 	db $A9
-	db $3A
-	db $01
-	db $48
+	db $3A, $01, $48
 	db $A3
 	db $3A
 	db $A9
-	db $3A
-	db $01
-	db $48
+	db $3A, $01, $48
 	db $A3
 	db $3A
 	db $A9
-	db $3A
-	db $01
-	db $48
+	db $3A, $01, $48
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
 	db $48
 	db $A9
-	db $48
-	db $01
-	db $3E
+	db $48, $01, $3E
 	db $A3
-	db $52
-	db $52
-	db $4E
-	db $4E
-	db $4C
-	db $4C
-	db $48
-	db $48
+	db $52, $52, $4E, $4E, $4C, $4C, $48, $48
 	db $00
 
 Segment_7169::
 	db $A3
-	db $06
-	db $06
-	db $06
-	db $06
-	db $0B
-	db $0B
+	Noise 1, 1, 1, 1, 2, 2
 	db $A9
-	db $0B
-	db $0B
-	db $0B
-	db $0B
-	db $0B
-	db $0B
+	Noise 2, 2, 2, 2, 2, 2
 	db $00
 
 Segment_7178::
 	db $A9
-	db $06
-	db $01
-	db $01
-	db $10
-	db $01
-	db $06
-	db $01
-	db $06
-	db $01
-	db $10
-	db $01
-	db $06
+	Noise 1, 0, 0, 3, 0, 1, 0, 1, 0, 3, 0, 1
 	db $00
 
 Channel1_7186::
@@ -465,84 +310,26 @@ Segment_7198::
 	db $A9
 	db $01
 	db $A2
-	db $1A
-	db $01
-	db $22
-	db $10
-	db $14
-	db $18
-	db $1A
-	db $01
-	db $28
-	db $22
-	db $01
-	db $01
-	db $1A
-	db $01
-	db $22
-	db $10
-	db $14
-	db $18
-	db $1A
-	db $01
+	db $1A, $01, $22, $10, $14, $18, $1A, $01, $28, $22, $01, $01, $1A, $01, $22, $10, $14, $18, $1A, $01
 	db $A3
 	db $01
 	db $A9
-	db $01
-	db $01
+	db $01, $01
 	db $00
 
 Segment_71B9::
 	db $9D, $93, $00, $80
 	db $A2
-	db $1A
-	db $01
-	db $22
-	db $10
-	db $14
-	db $18
-	db $1A
-	db $01
-	db $28
-	db $22
-	db $01
-	db $01
-	db $1A
-	db $01
-	db $22
-	db $10
-	db $14
-	db $18
-	db $1A
-	db $01
+	db $1A, $01, $22, $10, $14, $18, $1A, $01, $28, $22, $01, $01, $1A, $01, $22, $10, $14, $18, $1A, $01
 	db $A4
 	db $01
 	db $00
 
 Segment_71D5::
 	db $A2
-	db $06
-	db $01
-	db $01
-	db $06
-	db $01
-	db $06
-	db $06
-	db $01
-	db $06
-	db $06
-	db $01
-	db $01
-	db $06
-	db $01
-	db $01
-	db $06
-	db $01
-	db $06
-	db $06
-	db $01
+	Noise 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0
 	db $A4
-	db $01
+	Noise 0
 	db $00
 
 Channel1_71ED::
@@ -573,22 +360,17 @@ Segment_722B::
 	db $A3
 	db $3E
 	db $A9
-	db $38
-	db $3E
-	db $38
+	db $38, $3E, $38
 	db $AB
 	db $01
 	db $A8
 	db $36
 	db $A3
-	db $28
-	db $2A
+	db $28, $2A
 	db $A2
-	db $2A
-	db $2E
+	db $2A, $2E
 	db $A3
-	db $2A
-	db $2E
+	db $2A, $2E
 	db $A5
 	db $28
 	db $A4
@@ -596,26 +378,19 @@ Segment_722B::
 	db $A3
 	db $3E
 	db $A9
-	db $38
-	db $3E
-	db $38
+	db $38, $3E, $38
 	db $AB
 	db $01
 	db $A8
 	db $36
 	db $A3
-	db $28
-	db $2A
+	db $28, $2A
 	db $A2
-	db $2A
-	db $2E
+	db $2A, $2E
 	db $A3
 	db $32
 	db $A1
-	db $2E
-	db $32
-	db $2E
-	db $2A
+	db $2E, $32, $2E, $2A
 	db $A5
 	db $28
 	db $00
@@ -624,8 +399,7 @@ Segment_725E::
 	db $A5
 	db $2A
 	db $A4
-	db $01
-	db $32
+	db $01, $32
 	db $A5
 	db $3C
 	db $A4
@@ -633,13 +407,9 @@ Segment_725E::
 	db $A3
 	db $38
 	db $A2
-	db $3C
-	db $38
+	db $3C, $38
 	db $A5
-	db $36
-	db $01
-	db $01
-	db $01
+	db $36, $01, $01, $01
 	db $00
 
 Segment_7272::
@@ -648,56 +418,30 @@ Segment_7272::
 
 Segment_7277::
 	db $A3
-	db $40
-	db $42
-	db $40
-	db $42
-	db $40
-	db $42
-	db $40
-	db $4E
-	db $40
-	db $42
-	db $40
-	db $42
-	db $40
-	db $42
-	db $40
-	db $3C
+	db $40, $42, $40, $42, $40, $42, $40, $4E, $40, $42, $40, $42, $40, $42, $40, $3C
 	db $00
 
 Segment_7289::
-	db $42
-	db $50
-	db $42
-	db $50
-	db $42
-	db $50
-	db $42
-	db $50
+	db $42, $50, $42, $50, $42, $50, $42, $50
 	db $00
 
 Segment_7292::
 	db $A3
-	db $06
+	Noise 1
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $A3
-	db $06
+	Noise 1
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $A3
-	db $06
+	Noise 1
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $00
 
 Channel1_72A7::
@@ -717,64 +461,36 @@ Segment_72B3::
 	db $A0
 	db $01
 	db $A1
-	db $58
-	db $54
-	db $52
-	db $4E
-	db $4A
+	db $58, $54, $52, $4E, $4A
 	db $A6
 	db $01
 	db $A2
-	db $40
-	db $01
-	db $32
-
+	db $40, $01, $32
 Segment_72C5::
 	db $9D, $B1, $00, $80
 	db $A1
-	db $58
-	db $54
-	db $52
-	db $4E
-	db $4A
+	db $58, $54, $52, $4E, $4A
 	db $A6
 	db $01
 	db $A2
-	db $4E
-	db $01
-	db $52
+	db $4E, $01, $52
 	db $00
 
 Segment_72D6::
 	db $9D, $3B, $6F, $20
 	db $A1
-	db $58
-	db $54
-	db $52
-	db $4E
-	db $4A
+	db $58, $54, $52, $4E, $4A
 	db $A6
 	db $01
 	db $A2
-	db $60
-	db $01
-	db $62
-	db $01
-	db $01
-
+	db $60, $01, $62, $01, $01
 Segment_72E8::
 	db $A1
-	db $06
-	db $06
-	db $06
-	db $06
-	db $06
+	Noise 1, 1, 1, 1, 1
 	db $A6
-	db $01
+	Noise 0
 	db $A3
-	db $06
-	db $06
-
+	Noise 1, 1
 Channel1_72F3::
 	dw Segment_72FD, $0000
 
@@ -792,16 +508,9 @@ Segment_72FD::
 	db $A8
 	db $52
 	db $A2
-	db $52
-	db $01
-	db $52
-	db $01
-	db $52
-	db $01
+	db $52, $01, $52, $01, $52, $01
 	db $A8
-	db $56
-	db $58
-	db $5A
+	db $56, $58, $5A
 	db $00
 
 Segment_730F::
@@ -809,16 +518,9 @@ Segment_730F::
 	db $A8
 	db $4A
 	db $A2
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
+	db $4A, $01, $4A, $01, $4A, $01
 	db $A8
-	db $4E
-	db $50
-	db $52
+	db $4E, $50, $52
 	db $00
 
 Segment_7321::
@@ -826,31 +528,18 @@ Segment_7321::
 	db $A8
 	db $70
 	db $A2
-	db $70
-	db $01
-	db $70
-	db $01
-	db $70
-	db $01
+	db $70, $01, $70, $01, $70, $01
 	db $A8
-	db $74
-	db $76
-	db $78
+	db $74, $76, $78
 	db $00
 
 Segment_7333::
 	db $A8
-	db $06
+	Noise 1
 	db $A3
-	db $06
-	db $06
-	db $06
+	Noise 1, 1, 1
 	db $A8
-	db $06
-	db $06
-	db $06
-	db $06
-
+	Noise 1, 1, 1, 1
 Channel1_733E::
 	dw Segment_737A, Segment_73AC, Segment_73AC, Segment_7433, $FFFF, $7340
 
@@ -866,14 +555,7 @@ Channel4_7362::
 Segment_736A::
 	db $9D, $A2, $00, $80
 	db $A2
-	db $40
-	db $44
-	db $01
-	db $48
-	db $01
-	db $44
-	db $01
-	db $40
+	db $40, $44, $01, $48, $01, $44, $01, $40
 	db $A5
 	db $3C
 	db $00
@@ -881,14 +563,7 @@ Segment_736A::
 Segment_737A::
 	db $9D, $82, $00, $80
 	db $A2
-	db $4A
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
+	db $4A, $4A, $01, $4A, $01, $4A, $01, $4A
 	db $A5
 	db $44
 	db $00
@@ -896,63 +571,31 @@ Segment_737A::
 Segment_738A::
 	db $9D, $3B, $6F, $20
 	db $A2
-	db $52
-	db $54
-	db $01
-	db $58
-	db $01
-	db $54
-	db $01
-	db $52
-	db $40
-	db $36
-	db $01
-	db $30
-	db $28
-	db $01
-	db $01
-	db $01
+	db $52, $54, $01, $58, $01, $54, $01, $52, $40, $36, $01, $30, $28, $01, $01, $01
 	db $00
 
 Segment_73A0::
 	db $A2
-	db $06
-	db $06
-	db $01
-	db $06
-	db $01
-	db $06
-	db $01
-	db $06
+	Noise 1, 1, 0, 1, 0, 1, 0, 1
 	db $A5
-	db $06
+	Noise 1
 	db $00
 
 Segment_73AC::
 	db $A2
-	db $3A
-	db $01
-	db $01
+	db $3A, $01, $01
 	db $A7
 	db $40
 	db $A3
 	db $3A
 	db $A4
-	db $01
-	db $32
+	db $01, $32
 	db $AA
-	db $36
-	db $44
-	db $44
-	db $44
-	db $48
-	db $4A
+	db $36, $44, $44, $44, $48, $4A
 	db $A5
 	db $01
 	db $A2
-	db $3A
-	db $3A
-	db $01
+	db $3A, $3A, $01
 	db $A7
 	db $40
 	db $A3
@@ -960,285 +603,185 @@ Segment_73AC::
 	db $A5
 	db $01
 	db $AA
-	db $48
-	db $01
-	db $01
-	db $36
-	db $3A
-	db $3C
+	db $48, $01, $01, $36, $3A, $3C
 	db $A5
 	db $3A
 	db $00
 
 Segment_73D4::
 	db $A2
-	db $4A
-	db $01
-	db $01
+	db $4A, $01, $01
 	db $A7
 	db $52
 	db $A3
 	db $4A
 	db $A2
-	db $44
-	db $4E
-	db $01
-	db $54
+	db $44, $4E, $01, $54
 	db $A4
 	db $44
 	db $AA
-	db $48
-	db $54
-	db $54
-	db $54
-	db $58
-	db $5C
+	db $48, $54, $54, $54, $58, $5C
 	db $A2
-	db $58
-	db $52
-	db $01
-	db $4A
+	db $58, $52, $01, $4A
 	db $A4
 	db $40
 	db $A2
-	db $4A
-	db $4A
-	db $01
+	db $4A, $4A, $01
 	db $A7
 	db $52
 	db $A3
 	db $4A
 	db $A2
-	db $44
-	db $4E
-	db $01
-	db $54
+	db $44, $4E, $01, $54
 	db $A4
 	db $44
 	db $AA
-	db $48
-	db $01
-	db $01
-	db $48
-	db $4A
-	db $4E
+	db $48, $01, $01, $48, $4A, $4E
 	db $A5
 	db $4A
 	db $00
 
 Segment_740A::
 	db $A7
-	db $32
-	db $3A
+	db $32, $3A
 	db $A3
 	db $40
 	db $A7
-	db $3C
-	db $44
+	db $3C, $44
 	db $A3
 	db $4A
 	db $A7
-	db $40
-	db $48
+	db $40, $48
 	db $A3
 	db $36
 	db $A7
-	db $32
-	db $3A
+	db $32, $3A
 	db $A3
 	db $40
 	db $A7
-	db $32
-	db $3A
+	db $32, $3A
 	db $A3
 	db $40
 	db $A7
-	db $3C
-	db $44
+	db $3C, $44
 	db $A3
 	db $4A
 	db $A7
-	db $40
-	db $48
+	db $40, $48
 	db $A3
 	db $36
 	db $A7
-	db $32
-	db $3A
+	db $32, $3A
 	db $A3
 	db $40
 	db $00
 
 Segment_7433::
 	db $AA
-	db $44
-	db $44
-	db $44
-	db $44
-	db $40
-	db $3C
+	db $44, $44, $44, $44, $40, $3C
 	db $A7
-	db $40
-	db $32
+	db $40, $32
 	db $A3
 	db $01
 	db $A2
-	db $36
-	db $01
-	db $01
-	db $36
-	db $36
-	db $3A
-	db $01
-	db $3C
+	db $36, $01, $01, $36, $36, $3A, $01, $3C
 	db $A5
 	db $40
 	db $AA
-	db $44
-	db $01
-	db $44
-	db $44
-	db $48
-	db $4A
+	db $44, $01, $44, $44, $48, $4A
 	db $A7
-	db $48
-	db $40
+	db $48, $40
 	db $A3
 	db $01
 	db $A7
-	db $44
-	db $40
+	db $44, $40
 	db $A3
 	db $3C
 	db $A2
-	db $01
-	db $3C
-	db $01
-	db $01
+	db $01, $3C, $01, $01
 	db $A4
 	db $40
 	db $00
 
 Segment_7463::
 	db $AA
-	db $54
-	db $54
-	db $54
-	db $54
-	db $52
-	db $4E
+	db $54, $54, $54, $54, $52, $4E
 	db $A7
-	db $52
-	db $4A
+	db $52, $4A
 	db $A3
 	db $01
 	db $A2
-	db $48
-	db $01
-	db $01
-	db $48
-	db $48
-	db $4A
-	db $01
-	db $4E
+	db $48, $01, $01, $48, $48, $4A, $01, $4E
 	db $A5
 	db $52
 	db $AA
-	db $54
-	db $01
-	db $54
-	db $54
-	db $58
-	db $5C
+	db $54, $01, $54, $54, $58, $5C
 	db $A7
-	db $58
-	db $52
+	db $58, $52
 	db $A3
 	db $01
 	db $A7
-	db $54
-	db $52
+	db $54, $52
 	db $A3
 	db $4E
 	db $A2
-	db $01
-	db $44
-	db $01
-	db $01
+	db $01, $44, $01, $01
 	db $A4
 	db $48
 	db $00
 
 Segment_7493::
 	db $A7
-	db $3C
-	db $44
+	db $3C, $44
 	db $A3
 	db $4A
 	db $A7
-	db $32
-	db $3A
+	db $32, $3A
 	db $A3
 	db $40
 	db $A7
-	db $40
-	db $48
+	db $40, $48
 	db $A3
 	db $36
 	db $A7
-	db $32
-	db $3A
+	db $32, $3A
 	db $A3
 	db $40
 	db $A7
-	db $3C
-	db $44
+	db $3C, $44
 	db $A3
 	db $4A
 	db $A7
-	db $3A
-	db $40
+	db $3A, $40
 	db $A3
 	db $48
 	db $A7
-	db $3C
-	db $44
+	db $3C, $44
 	db $A3
 	db $4A
 	db $A2
-	db $01
-	db $40
-	db $01
-	db $01
+	db $01, $40, $01, $01
 	db $A4
 	db $40
 	db $00
 
 Segment_74BE::
 	db $A3
-	db $06
+	Noise 1
 	db $A9
-	db $06
-	db $01
-	db $06
+	Noise 1, 0, 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A9
-	db $06
-	db $01
-	db $06
+	Noise 1, 0, 1
 	db $A3
-	db $06
+	Noise 1
 	db $A9
-	db $06
-	db $01
-	db $06
+	Noise 1, 0, 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A9
-	db $06
-	db $01
-	db $06
+	Noise 1, 0, 1
 	db $00
 
 Channel1_74D7::
@@ -1256,18 +799,7 @@ Channel4_7507::
 Segment_750F::
 	db $9D, $84, $00, $00
 	db $A2
-	db $70
-	db $70
-	db $70
-	db $01
-	db $6A
-	db $01
-	db $6A
-	db $01
-	db $66
-	db $01
-	db $66
-	db $01
+	db $70, $70, $70, $01, $6A, $01, $6A, $01, $66, $01, $66, $01
 	db $A4
 	db $6A
 	db $00
@@ -1275,18 +807,7 @@ Segment_750F::
 Segment_7523::
 	db $9D, $74, $00, $00
 	db $A2
-	db $66
-	db $66
-	db $66
-	db $01
-	db $60
-	db $01
-	db $60
-	db $01
-	db $5C
-	db $01
-	db $5C
-	db $01
+	db $66, $66, $66, $01, $60, $01, $60, $01, $5C, $01, $5C, $01
 	db $A4
 	db $60
 	db $00
@@ -1294,14 +815,12 @@ Segment_7523::
 Segment_7537::
 	db $9D, $3B, $6F, $20
 	db $A5
-	db $01
-	db $01
+	db $01, $01
 	db $00
 
 Segment_753F::
 	db $A5
-	db $01
-	db $01
+	Noise 0, 0
 	db $00
 
 Segment_7543::
@@ -1311,18 +830,15 @@ Segment_7543::
 	db $A3
 	db $48
 	db $A4
-	db $4E
-	db $48
+	db $4E, $48
 	db $A4
 	db $44
 	db $A3
-	db $48
-	db $44
+	db $48, $44
 	db $A4
 	db $40
 	db $A3
-	db $3A
-	db $36
+	db $3A, $36
 	db $A8
 	db $44
 	db $A3
@@ -1330,26 +846,21 @@ Segment_7543::
 	db $A4
 	db $4E
 	db $A3
-	db $48
-	db $44
+	db $48, $44
 	db $A2
-	db $58
-	db $5C
+	db $58, $5C
 	db $A3
 	db $58
 	db $A2
-	db $52
-	db $58
+	db $52, $58
 	db $A3
 	db $52
 	db $A2
-	db $4E
-	db $52
+	db $4E, $52
 	db $A3
 	db $4E
 	db $A2
-	db $48
-	db $44
+	db $48, $44
 	db $A3
 	db $40
 	db $A8
@@ -1357,29 +868,21 @@ Segment_7543::
 	db $A3
 	db $48
 	db $A4
-	db $4E
-	db $48
+	db $4E, $48
 	db $A4
 	db $44
 	db $A3
-	db $48
-	db $44
+	db $48, $44
 	db $A4
 	db $40
 	db $A3
-	db $3A
-	db $36
+	db $3A, $36
 	db $A8
 	db $3A
 	db $A3
-	db $3E
-	db $3A
-	db $36
-	db $30
-	db $2C
+	db $3E, $3A, $36, $30, $2C
 	db $A5
-	db $30
-	db $01
+	db $30, $01
 	db $00
 
 Segment_7592::
@@ -1389,18 +892,15 @@ Segment_7592::
 	db $A3
 	db $52
 	db $A4
-	db $58
-	db $52
+	db $58, $52
 	db $A4
 	db $4E
 	db $A3
-	db $52
-	db $4E
+	db $52, $4E
 	db $A4
 	db $48
 	db $A3
-	db $44
-	db $40
+	db $44, $40
 	db $A8
 	db $4E
 	db $A3
@@ -1408,109 +908,83 @@ Segment_7592::
 	db $A4
 	db $58
 	db $A3
-	db $52
-	db $4E
+	db $52, $4E
 	db $A5
-	db $52
-	db $01
+	db $52, $01
 	db $A8
 	db $4E
 	db $A3
 	db $52
 	db $A4
-	db $58
-	db $52
+	db $58, $52
 	db $A4
 	db $4E
 	db $A3
-	db $52
-	db $4E
+	db $52, $4E
 	db $A4
 	db $48
 	db $A3
-	db $44
-	db $40
+	db $44, $40
 	db $A8
 	db $44
 	db $A3
-	db $48
-	db $44
-	db $40
-	db $3A
-	db $36
+	db $48, $44, $40, $3A, $36
 	db $A5
-	db $3A
-	db $01
+	db $3A, $01
 	db $00
 
 Segment_75D0::
 	db $A3
 	db $28
 	db $A2
-	db $40
-	db $36
+	db $40, $36
 	db $A3
-	db $28
-	db $40
+	db $28, $40
 	db $A3
 	db $28
 	db $A2
-	db $40
-	db $36
+	db $40, $36
 	db $A3
-	db $28
-	db $40
+	db $28, $40
 	db $A3
 	db $1A
 	db $A2
-	db $32
-	db $28
+	db $32, $28
 	db $A3
-	db $1A
-	db $32
+	db $1A, $32
 	db $A3
 	db $1A
 	db $A2
-	db $32
-	db $28
+	db $32, $28
 	db $A3
-	db $1A
-	db $32
+	db $1A, $32
 	db $00
 
 Segment_75F1::
 	db $A3
 	db $1E
 	db $A2
-	db $36
-	db $2C
+	db $36, $2C
 	db $A3
-	db $1E
-	db $36
+	db $1E, $36
 	db $A3
 	db $1E
 	db $A2
-	db $36
-	db $2C
+	db $36, $2C
 	db $A3
-	db $1E
-	db $36
+	db $1E, $36
 	db $A3
 	db $22
 	db $A2
-	db $3A
-	db $30
+	db $3A, $30
 	db $A3
-	db $22
-	db $3A
+	db $22, $3A
 	db $A3
 	db $22
 	db $A2
-	db $3A
-	db $30
+	db $3A, $30
 	db $A3
-	db $22
-	db $3A
+	db $22, $3A
 	db $00
 
 Segment_7612::
@@ -1523,23 +997,19 @@ Segment_7612::
 	db $A3
 	db $66
 	db $A2
-	db $6A
-	db $66
+	db $6A, $66
 	db $A4
 	db $60
 	db $A3
-	db $66
-	db $60
+	db $66, $60
 	db $A3
 	db $5C
 	db $A2
-	db $60
-	db $5C
+	db $60, $5C
 	db $A3
 	db $58
 	db $A2
-	db $52
-	db $4E
+	db $52, $4E
 	db $A5
 	db $66
 	db $A8
@@ -1547,15 +1017,13 @@ Segment_7612::
 	db $A3
 	db $60
 	db $A5
-	db $66
-	db $01
+	db $66, $01
 	db $A8
 	db $52
 	db $A3
 	db $58
 	db $A4
-	db $5C
-	db $58
+	db $5C, $58
 	db $A8
 	db $52
 	db $A3
@@ -1563,18 +1031,15 @@ Segment_7612::
 	db $A4
 	db $48
 	db $A3
-	db $44
-	db $40
+	db $44, $40
 	db $A8
 	db $44
 	db $A3
 	db $48
 	db $A4
-	db $4E
-	db $52
+	db $4E, $52
 	db $A5
-	db $58
-	db $01
+	db $58, $01
 	db $00
 
 Segment_7650::
@@ -1587,23 +1052,19 @@ Segment_7650::
 	db $A3
 	db $4E
 	db $A2
-	db $52
-	db $4E
+	db $52, $4E
 	db $A4
 	db $48
 	db $A3
-	db $4E
-	db $48
+	db $4E, $48
 	db $A3
 	db $44
 	db $A2
-	db $48
-	db $44
+	db $48, $44
 	db $A3
 	db $40
 	db $A2
-	db $3A
-	db $36
+	db $3A, $36
 	db $A5
 	db $4E
 	db $A8
@@ -1611,15 +1072,13 @@ Segment_7650::
 	db $A3
 	db $48
 	db $A5
-	db $4E
-	db $01
+	db $4E, $01
 	db $A8
 	db $52
 	db $A3
 	db $58
 	db $A4
-	db $5C
-	db $58
+	db $5C, $58
 	db $A8
 	db $52
 	db $A3
@@ -1627,117 +1086,87 @@ Segment_7650::
 	db $A4
 	db $48
 	db $A3
-	db $44
-	db $40
+	db $44, $40
 	db $A8
 	db $44
 	db $A3
 	db $48
 	db $A4
-	db $4E
-	db $52
+	db $4E, $52
 	db $A5
-	db $58
-	db $01
+	db $58, $01
 	db $00
 
 Segment_768E::
 	db $A3
 	db $1E
 	db $A2
-	db $36
-	db $2C
+	db $36, $2C
 	db $A3
-	db $1E
-	db $36
+	db $1E, $36
 	db $A3
 	db $1E
 	db $A2
-	db $36
-	db $2C
+	db $36, $2C
 	db $A3
-	db $1E
-	db $36
+	db $1E, $36
 	db $A3
 	db $1A
 	db $A2
-	db $32
-	db $28
+	db $32, $28
+	db $A3
+	db $1A, $32
 	db $A3
 	db $1A
-	db $32
-	db $A3
-	db $1A
 	db $A2
-	db $32
-	db $28
+	db $32, $28
 	db $A3
-	db $1A
-	db $32
+	db $1A, $32
 	db $A3
 	db $30
 	db $A2
-	db $48
-	db $26
+	db $48, $26
 	db $A3
-	db $30
-	db $48
+	db $30, $48
 	db $A3
 	db $30
 	db $A2
-	db $48
-	db $26
+	db $48, $26
 	db $A3
-	db $30
-	db $48
+	db $30, $48
 	db $A3
 	db $1E
 	db $A2
-	db $36
-	db $2C
+	db $36, $2C
 	db $A3
-	db $1E
-	db $36
+	db $1E, $36
 	db $A3
 	db $1E
 	db $A2
-	db $36
-	db $2C
+	db $36, $2C
 	db $A3
-	db $1E
-	db $36
+	db $1E, $36
 	db $A5
-	db $22
-	db $22
-	db $1A
-	db $1A
-	db $1E
-	db $1E
-	db $22
-	db $22
+	db $22, $22, $1A, $1A, $1E, $1E, $22, $22
 	db $00
 
 Segment_76D8::
 	db $A3
-	db $06
+	Noise 1
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $A3
-	db $06
+	Noise 1
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A2
-	db $06
-	db $06
+	Noise 1, 1
 	db $00
 
 Channel1_76ED::
@@ -1755,15 +1184,7 @@ Channel4_770D::
 Segment_7715::
 	db $9D, $92, $00, $80
 	db $A2
-	db $52
-	db $01
-	db $50
-	db $01
-	db $4E
-	db $4A
-	db $01
-	db $01
-	db $01
+	db $52, $01, $50, $01, $4E, $4A, $01, $01, $01
 	db $A7
 	db $40
 	db $A4
@@ -1785,103 +1206,45 @@ Segment_7728::
 Segment_7735::
 	db $9D, $3B, $6F, $20
 	db $A2
-	db $70
-	db $01
-	db $6E
-	db $01
-	db $6C
-	db $6A
-	db $01
-	db $01
+	db $70, $01, $6E, $01, $6C, $6A, $01, $01
 	db $A4
-	db $01
-	db $40
+	db $01, $40
 	db $00
 
 Segment_7746::
 	db $A6
-	db $06
+	Noise 1
 	db $A1
-	db $06
+	Noise 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A6
-	db $06
+	Noise 1
 	db $A1
-	db $06
+	Noise 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A2
-	db $01
-	db $06
-	db $01
-	db $01
+	Noise 0, 1, 0, 0
 	db $A6
-	db $0B
+	Noise 2
 	db $A1
-	db $06
+	Noise 1
 	db $A3
-	db $06
+	Noise 1
 	db $00
 
 Segment_775E::
 	db $A3
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
+	db $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $4A, $01, $4A, $01, $4A, $01, $4A
 	db $A5
 	db $01
 	db $A3
-	db $01
-	db $6E
+	db $01, $6E
 	db $A4
 	db $6E
 	db $A3
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $3A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
+	db $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $3A, $01, $4A, $01, $4A, $01, $4A, $01, $4A
 	db $A5
 	db $01
 	db $A6
@@ -1896,8 +1259,7 @@ Segment_775E::
 
 Segment_77A2::
 	db $A3
-	db $52
-	db $01
+	db $52, $01
 	db $A6
 	db $4E
 	db $A1
@@ -1913,22 +1275,9 @@ Segment_77A2::
 	db $A1
 	db $4E
 	db $A2
-	db $52
-	db $01
-	db $52
-	db $01
+	db $52, $01, $52, $01
 	db $A3
-	db $4E
-	db $4A
-	db $52
-	db $54
-	db $58
-	db $5C
-	db $01
-	db $4A
-	db $4A
-	db $44
-	db $40
+	db $4E, $4A, $52, $54, $58, $5C, $01, $4A, $4A, $44, $40
 	db $A6
 	db $01
 	db $A1
@@ -1936,18 +1285,13 @@ Segment_77A2::
 	db $A4
 	db $01
 	db $A3
-	db $3C
-	db $40
-	db $44
-	db $48
+	db $3C, $40, $44, $48
 	db $A3
-	db $01
-	db $70
+	db $01, $70
 	db $A4
 	db $70
 	db $A3
-	db $52
-	db $01
+	db $52, $01
 	db $A6
 	db $4E
 	db $A1
@@ -1963,26 +1307,15 @@ Segment_77A2::
 	db $A1
 	db $4E
 	db $A2
-	db $52
-	db $01
-	db $52
-	db $01
+	db $52, $01, $52, $01
 	db $A3
-	db $4E
-	db $4A
-	db $5C
-	db $58
-	db $62
+	db $4E, $4A, $5C, $58, $62
 	db $A6
 	db $52
 	db $A1
 	db $4E
 	db $A3
-	db $01
-	db $4A
-	db $4A
-	db $4E
-	db $52
+	db $01, $4A, $4A, $4E, $52
 	db $A6
 	db $01
 	db $A1
@@ -1990,10 +1323,7 @@ Segment_77A2::
 	db $A4
 	db $01
 	db $A3
-	db $54
-	db $52
-	db $4A
-	db $4E
+	db $54, $52, $4A, $4E
 	db $A6
 	db $01
 	db $A1
@@ -2012,42 +1342,14 @@ Segment_780E::
 	db $A1
 	db $28
 	db $A3
-	db $32
-	db $58
-	db $32
-	db $5A
-	db $32
-	db $5A
-	db $32
-	db $5C
-	db $32
-	db $5C
-	db $32
-	db $5E
-	db $44
-	db $5E
-	db $3C
-	db $5C
-	db $3C
-	db $5C
-	db $3A
-	db $58
-	db $3A
-	db $58
-	db $4E
-	db $52
-	db $54
-	db $56
+	db $32, $58, $32, $5A, $32, $5A, $32, $5C, $32, $5C, $32, $5E, $44, $5E, $3C, $5C, $3C, $5C, $3A, $58, $3A, $58, $4E, $52, $54, $56
 	db $A5
 	db $01
 	db $00
 
 Segment_7832::
 	db $A3
-	db $01
-	db $5C
-	db $60
-	db $62
+	db $01, $5C, $60, $62
 	db $A3
 	db $60
 	db $A6
@@ -2057,8 +1359,7 @@ Segment_7832::
 	db $A4
 	db $01
 	db $A3
-	db $54
-	db $01
+	db $54, $01
 	db $A6
 	db $58
 	db $A1
@@ -2066,19 +1367,9 @@ Segment_7832::
 	db $A3
 	db $01
 	db $A2
-	db $52
-	db $01
-	db $54
-	db $01
-	db $56
-	db $01
-	db $58
-	db $01
+	db $52, $01, $54, $01, $56, $01, $58, $01
 	db $A3
-	db $01
-	db $5C
-	db $60
-	db $62
+	db $01, $5C, $60, $62
 	db $A3
 	db $60
 	db $A6
@@ -2088,30 +1379,20 @@ Segment_7832::
 	db $A4
 	db $01
 	db $A3
-	db $68
-	db $66
-	db $01
-	db $62
+	db $68, $66, $01, $62
 	db $A5
 	db $01
 	db $00
 
 Segment_7866::
 	db $A3
-	db $01
-	db $4A
-	db $4E
-	db $44
-	db $4E
+	db $01, $4A, $4E, $44, $4E
 	db $A6
 	db $40
 	db $A1
 	db $48
 	db $A3
-	db $01
-	db $40
-	db $44
-	db $3C
+	db $01, $40, $44, $3C
 	db $A6
 	db $48
 	db $A1
@@ -2121,103 +1402,53 @@ Segment_7866::
 	db $A5
 	db $01
 	db $A3
-	db $01
-	db $4A
-	db $4E
-	db $44
-	db $4E
+	db $01, $4A, $4E, $44, $4E
 	db $A6
 	db $40
 	db $A1
 	db $48
 	db $A3
-	db $01
-	db $40
-	db $32
-	db $32
-	db $01
-	db $32
-	db $01
-	db $01
-	db $01
-	db $01
+	db $01, $40, $32, $32, $01, $32, $01, $01, $01, $01
 	db $00
 
 Segment_7893::
 	db $A3
-	db $3C
-	db $4A
-	db $3C
-	db $4A
-	db $3A
-	db $4A
-	db $3A
-	db $4A
-	db $36
-	db $5C
-	db $36
-	db $5C
+	db $3C, $4A, $3C, $4A, $3A, $4A, $3A, $4A, $36, $5C, $36, $5C
 	db $A2
-	db $4A
-	db $01
-	db $4E
-	db $01
-	db $50
-	db $01
-	db $52
-	db $01
+	db $4A, $01, $4E, $01, $50, $01, $52, $01
 	db $A3
-	db $3C
-	db $4A
-	db $3C
-	db $4A
-	db $3A
-	db $4A
-	db $3A
-	db $4A
-	db $42
-	db $50
-	db $42
-	db $50
+	db $3C, $4A, $3C, $4A, $3A, $4A, $3A, $4A, $42, $50, $42, $50
 	db $A1
-	db $58
-	db $01
-	db $58
-	db $01
+	db $58, $01, $58, $01
 	db $A2
-	db $54
-	db $01
-	db $52
-	db $01
-	db $4E
-	db $01
+	db $54, $01, $52, $01, $4E, $01
 	db $00
 
 Segment_78C3::
 	db $A3
-	db $06
+	Noise 1
 	db $A6
-	db $06
+	Noise 1
 	db $A1
-	db $06
+	Noise 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A6
-	db $06
+	Noise 1
 	db $A1
-	db $06
+	Noise 1
 	db $A3
-	db $06
+	Noise 1
 	db $A6
-	db $06
+	Noise 1
 	db $A1
-	db $06
+	Noise 1
 	db $A3
-	db $0B
+	Noise 2
 	db $A6
-	db $06
+	Noise 1
 	db $A1
-	db $06
+	Noise 1
 	db $00
 
 Song_78DC::
@@ -2315,122 +1546,59 @@ Channel4_7962::
 Segment_7968::
 	db $9D, $90, $00, $00
 	db $A5
-	db $01
-	db $1E
-	db $20
+	db $01, $1E, $20
 	db $A4
-	db $22
-	db $24
+	db $22, $24
 	db $A3
-	db $26
-	db $28
-	db $2A
-	db $2C
+	db $26, $28, $2A, $2C
 	db $00
 
 Segment_7979::
 	db $9D, $A0, $00, $00
 	db $A5
-	db $01
-	db $10
-	db $12
+	db $01, $10, $12
 	db $A4
-	db $14
-	db $16
+	db $14, $16
 	db $A3
-	db $18
-	db $1A
-	db $1C
-	db $1E
+	db $18, $1A, $1C, $1E
 	db $00
 
 Segment_798A::
 	db $9D, $3B, $6F, $20
 	db $A5
-	db $01
-	db $28
-	db $2A
+	db $01, $28, $2A
 	db $A4
-	db $2C
-	db $2E
+	db $2C, $2E
 	db $A3
-	db $30
-	db $32
-	db $34
-	db $36
+	db $30, $32, $34, $36
 	db $00
 
 Segment_799B::
 	db $A1
-	db $06
-	db $06
-	db $06
-	db $06
-	db $0B
-	db $06
-	db $06
-	db $06
-	db $06
-	db $06
-	db $06
-	db $06
-	db $0B
-	db $06
-	db $06
-	db $06
+	Noise 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1
 	db $00
 
 Segment_79AD::
 	db $9D, $60, $00, $C1
 	db $A4
-	db $1E
-	db $2A
-	db $28
-	db $34
+	db $1E, $2A, $28, $34
 	db $A5
-	db $32
-	db $01
+	db $32, $01
 	db $A4
-	db $1E
-	db $2A
-	db $28
-	db $34
+	db $1E, $2A, $28, $34
 	db $A5
-	db $36
-	db $01
+	db $36, $01
 	db $00
 
 Segment_79C2::
 	db $9D, $83, $00, $00
 	db $A2
-	db $10
-	db $0E
-	db $0C
-	db $0A
-	db $08
-	db $06
-	db $04
-	db $02
+	db $10, $0E, $0C, $0A, $08, $06, $04, $02
 	db $00
 
 Segment_79D0::
 	db $A1
-	db $28
-	db $40
-	db $26
-	db $3E
-	db $24
-	db $3C
-	db $22
-	db $3A
-	db $20
-	db $38
-	db $1E
-	db $36
-	db $1C
-	db $34
-	db $1A
-	db $32
+	db $28, $40, $26, $3E, $24, $3C, $22, $3A, $20, $38, $1E, $36, $1C, $34, $1A, $32
 	db $00
 
 Channel1_79E2::
@@ -2442,43 +1610,13 @@ Channel2_79E8::
 Segment_79EE::
 	db $9D, $84, $00, $80
 	db $A2
-	db $40
-	db $42
-	db $40
-	db $42
-	db $40
-	db $42
-	db $40
-	db $42
-	db $40
-	db $46
-	db $4C
-	db $52
-	db $58
-	db $52
-	db $4C
-	db $46
+	db $40, $42, $40, $42, $40, $42, $40, $42, $40, $46, $4C, $52, $58, $52, $4C, $46
 	db $00
 
 Segment_7A04::
 	db $9D, $74, $00, $80
 	db $A2
-	db $10
-	db $12
-	db $10
-	db $12
-	db $10
-	db $12
-	db $10
-	db $12
-	db $22
-	db $28
-	db $2E
-	db $34
-	db $3A
-	db $34
-	db $2E
-	db $28
+	db $10, $12, $10, $12, $10, $12, $10, $12, $22, $28, $2E, $34, $3A, $34, $2E, $28
 	db $00
 
 Channel1_7A1A::
@@ -2493,21 +1631,10 @@ Channel3_7A20::
 Segment_7A22::
 	db $9D, $60, $00, $81
 	db $A3
-	db $3C
-	db $4A
-	db $54
-	db $4A
-	db $40
-	db $4A
-	db $3C
-	db $3A
-	db $2A
+	db $3C, $4A, $54, $4A, $40, $4A, $3C, $3A, $2A
 	db $9D, $30, $00, $81
 	db $A1
-	db $3A
-	db $3C
-	db $3A
-	db $36
+	db $3A, $3C, $3A, $36
 	db $A4
 	db $3A
 	db $00
@@ -2515,9 +1642,7 @@ Segment_7A22::
 Segment_7A3C::
 	db $9D, $80, $00, $81
 	db $A3
-	db $44
-	db $4A
-	db $5C
+	db $44, $4A, $5C
 	db $A4
 	db $58
 	db $A3
@@ -2533,15 +1658,13 @@ Segment_7A3C::
 Segment_7A4F::
 	db $9D, $3B, $6F, $21
 	db $A8
-	db $54
-	db $52
+	db $54, $52
 	db $A4
 	db $42
 	db $A3
 	db $3C
 	db $A5
 	db $32
-
 Channel1_7A5C::
 	dw Segment_7A6E, Segment_7A8C, Segment_7A6E, Segment_7A95, $0000
 
@@ -2551,51 +1674,17 @@ Channel2_7A66::
 Segment_7A6E::
 	db $9D, $66, $00, $81
 	db $A3
-	db $58
-	db $60
-	db $66
-	db $60
-	db $56
-	db $60
-	db $66
-	db $60
-	db $54
-	db $60
-	db $66
-	db $60
-	db $52
-	db $58
-	db $62
-	db $58
-	db $50
-	db $58
-	db $62
-	db $58
-	db $4E
-	db $58
-	db $60
-	db $58
+	db $58, $60, $66, $60, $56, $60, $66, $60, $54, $60, $66, $60, $52, $58, $62, $58, $50, $58, $62, $58, $4E, $58, $60, $58
 	db $00
 
 Segment_7A8C::
-	db $4C
-	db $52
-	db $58
-	db $5C
-	db $58
-	db $4A
-	db $56
-	db $4E
+	db $4C, $52, $58, $5C, $58, $4A, $56, $4E
 	db $00
 
 Segment_7A95::
-	db $52
-	db $58
-	db $5C
-	db $56
+	db $52, $58, $5C, $56
 	db $A4
-	db $60
-	db $40
+	db $60, $40
 	db $00
 
 Segment_7A9D::
@@ -2603,48 +1692,27 @@ Segment_7A9D::
 	db $A4
 	db $78
 	db $A3
-	db $74
-	db $70
+	db $74, $70
 	db $A8
 	db $78
 	db $A2
-	db $70
-	db $74
+	db $70, $74
 	db $A3
-	db $78
-	db $78
-	db $74
-	db $70
-	db $78
-	db $7A
-	db $7E
-	db $82
-	db $01
-	db $70
-	db $70
-	db $68
+	db $78, $78, $74, $70, $78, $7A, $7E, $82, $01, $70, $70, $68
 	db $A4
-	db $66
-	db $78
+	db $66, $78
 	db $00
 
 Segment_7ABC::
 	db $A3
-	db $6A
-	db $70
-	db $74
-	db $78
+	db $6A, $70, $74, $78
 	db $A4
-	db $74
-	db $66
+	db $74, $66
 	db $00
 
 Segment_7AC5::
 	db $A3
-	db $7A
-	db $6A
-	db $6E
-	db $66
+	db $7A, $6A, $6E, $66
 	db $A5
 	db $70
 	db $00
@@ -2658,12 +1726,7 @@ Channel3_7AD1::
 Segment_7AD3::
 	db $9D, $50, $00, $80
 	db $A1
-	db $40
-	db $01
-	db $40
-	db $01
-	db $40
-	db $01
+	db $40, $01, $40, $01, $40, $01
 	db $A3
 	db $42
 	db $A2
@@ -2675,30 +1738,13 @@ Segment_7AD3::
 Segment_7AE5::
 	db $9D, $1B, $6F, $A0
 	db $A2
-	db $78
-	db $78
-	db $78
+	db $78, $78, $78
 	db $A3
 	db $7A
 	db $A2
 	db $7E
 	db $A1
-	db $82
-	db $70
-	db $82
-	db $70
-	db $82
-	db $70
-	db $82
-	db $70
-	db $82
-	db $70
-	db $82
-	db $70
-	db $82
-	db $70
-	db $82
-	db $70
+	db $82, $70, $82, $70, $82, $70, $82, $70, $82, $70, $82, $70, $82, $70, $82, $70
 	db $00
 
 Channel1_7B03::
@@ -2745,7 +1791,6 @@ Segment_7B1E::
 	db $1C
 	db $A1
 	db $01
-
 Channel1_7B32::
 	dw Segment_7B66, Segment_7B6D, Segment_7B87, Segment_7B6D, Segment_7B8A, Segment_7B66, Segment_7B6D, Segment_7B87, Segment_7B6D, Segment_7B8A, $0000
 
@@ -2766,30 +1811,7 @@ Segment_7B66::
 
 Segment_7B6D::
 	db $A2
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $01
-	db $40
-	db $01
-	db $40
-	db $01
-	db $40
-	db $01
-	db $40
+	db $01, $4A, $01, $4A, $01, $4A, $01, $4A, $01, $4A, $01, $4A, $01, $4A, $01, $4A, $01, $40, $01, $40, $01, $40, $01, $40
 	db $00
 
 Segment_7B87::
@@ -2798,12 +1820,7 @@ Segment_7B87::
 	db $00
 
 Segment_7B8A::
-	db $01
-	db $4A
-	db $01
-	db $4A
-	db $4A
-	db $01
+	db $01, $4A, $01, $4A, $4A, $01
 	db $00
 
 Segment_7B91::
@@ -2816,46 +1833,23 @@ Segment_7B98::
 	db $A4
 	db $42
 	db $A2
-	db $46
-	db $4C
-	db $4A
-	db $46
+	db $46, $4C, $4A, $46
 	db $A3
-	db $50
-	db $50
+	db $50, $50
 	db $A2
-	db $50
-	db $54
-	db $4A
-	db $4C
+	db $50, $54, $4A, $4C
 	db $A3
-	db $46
-	db $46
+	db $46, $46
 	db $A2
-	db $46
-	db $4C
-	db $4A
-	db $46
+	db $46, $4C, $4A, $46
 	db $00
 
 Segment_7BB0::
-	db $42
-	db $5A
-	db $58
-	db $54
-	db $50
-	db $4C
-	db $4A
-	db $46
+	db $42, $5A, $58, $54, $50, $4C, $4A, $46
 	db $00
 
 Segment_7BB9::
-	db $42
-	db $50
-	db $46
-	db $4A
-	db $42
-	db $01
+	db $42, $50, $46, $4A, $42, $01
 	db $00
 
 Segment_7BC0::
@@ -2863,107 +1857,18 @@ Segment_7BC0::
 	db $A3
 	db $01
 	db $A2
-	db $42
-	db $50
-	db $38
-	db $50
-	db $42
-	db $50
-	db $38
-	db $50
-	db $42
-	db $50
-	db $38
-	db $50
-	db $42
-	db $50
-	db $38
-	db $50
-	db $38
-	db $5E
-	db $46
-	db $5E
-	db $38
-	db $5E
-	db $46
-	db $5E
-	db $42
-	db $5A
-	db $58
-	db $54
-	db $50
-	db $4C
-	db $4A
-	db $46
-	db $42
-	db $50
-	db $38
-	db $50
-	db $42
-	db $50
-	db $38
-	db $50
-	db $42
-	db $50
-	db $38
-	db $50
-	db $42
-	db $50
-	db $38
-	db $50
-	db $38
-	db $5E
-	db $46
-	db $5E
-	db $38
-	db $5E
-	db $46
-	db $5E
-	db $42
-	db $50
-	db $38
-	db $50
-	db $42
-	db $01
+	db $42, $50, $38, $50, $42, $50, $38, $50, $42, $50, $38, $50, $42, $50, $38, $50, $38, $5E, $46, $5E, $38, $5E, $46, $5E, $42, $5A, $58, $54, $50, $4C, $4A, $46, $42, $50, $38, $50, $42, $50, $38, $50, $42, $50, $38, $50, $42, $50, $38, $50, $38, $5E, $46, $5E, $38, $5E, $46, $5E, $42, $50, $38, $50, $42, $01
 	db $00
 
 Segment_7C06::
 	db $A3
-	db $01
+	Noise 0
 	db $A2
-	db $06
-	db $0B
-	db $06
-	db $0B
-	db $06
-	db $0B
-	db $0B
-	db $0B
-	db $06
-	db $0B
-	db $06
-	db $0B
-	db $06
+	Noise 1, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 1
 	db $A1
-	db $0B
-	db $0B
+	Noise 2, 2
 	db $A2
-	db $06
-	db $0B
-	db $06
-	db $0B
-	db $06
-	db $0B
-	db $06
-	db $0B
-	db $0B
-	db $0B
-	db $0B
-	db $06
-	db $0B
-	db $06
-	db $0B
-	db $01
+	Noise 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 1, 2, 1, 2, 0
 	db $00
 
 Channel1_7C2B::
@@ -2981,23 +1886,13 @@ Channel4_7C3D::
 Segment_7C43::
 	db $9D, $54, $00, $80
 	db $A2
-	db $50
-	db $4E
-	db $4C
-	db $4A
-	db $48
-	db $46
+	db $50, $4E, $4C, $4A, $48, $46
 	db $00
 
 Segment_7C4F::
 	db $9D, $34, $00, $80
 	db $A2
-	db $3A
-	db $38
-	db $36
-	db $34
-	db $32
-	db $30
+	db $3A, $38, $36, $34, $32, $30
 	db $00
 
 Segment_7C5B::
@@ -3005,34 +1900,26 @@ Segment_7C5B::
 	db $A8
 	db $44
 	db $A7
-	db $44
-	db $4A
+	db $44, $4A
 	db $A8
-	db $50
-	db $50
+	db $50, $50
 	db $A8
 	db $44
 	db $A7
-	db $44
-	db $4A
+	db $44, $4A
 	db $A8
-	db $50
-	db $50
+	db $50, $50
 	db $00
 
 Segment_7C70::
 	db $A2
-	db $06
-	db $06
-	db $06
+	Noise 1, 1, 1
 	db $A7
-	db $0B
+	Noise 2
 	db $A2
-	db $06
-	db $06
-	db $06
+	Noise 1, 1, 1
 	db $A7
-	db $0B
+	Noise 2
 	db $00
 
 Channel1_7C7D::
@@ -3047,19 +1934,7 @@ Channel3_7C83::
 Segment_7C85::
 	db $9D, $D1, $00, $80
 	db $A7
-	db $32
-	db $36
-	db $3A
-	db $3C
-	db $40
-	db $44
-	db $48
-	db $4A
-	db $4E
-	db $52
-	db $54
-	db $58
-	db $5C
+	db $32, $36, $3A, $3C, $40, $44, $48, $4A, $4E, $52, $54, $58, $5C
 	db $00
 
 Segment_7C98::
@@ -3067,67 +1942,13 @@ Segment_7C98::
 	db $AA
 	db $01
 	db $A7
-	db $32
-	db $36
-	db $3A
-	db $3C
-	db $40
-	db $44
-	db $48
-	db $4A
-	db $4E
-	db $52
-	db $54
-	db $58
-	db $5C
+	db $32, $36, $3A, $3C, $40, $44, $48, $4A, $4E, $52, $54, $58, $5C
 	db $00
 
 Segment_7CAD::
 	db $9D, $3B, $6F, $20
 	db $A2
-	db $4A
-	db $01
-	db $52
-	db $4E
-	db $01
-	db $54
-	db $52
-	db $01
-	db $58
-	db $54
-	db $01
-	db $5C
-	db $58
-	db $01
-	db $60
-	db $5C
-	db $01
-	db $62
-	db $60
-	db $01
-	db $66
-	db $62
-	db $01
-	db $6A
-	db $66
-	db $01
-	db $6C
-	db $6A
-	db $01
-	db $70
-	db $6C
-	db $01
-	db $74
-	db $70
-	db $01
-	db $78
-	db $74
-	db $01
-	db $7A
-	db $78
-	db $01
-	db $7E
-
+	db $4A, $01, $52, $4E, $01, $54, $52, $01, $58, $54, $01, $5C, $58, $01, $60, $5C, $01, $62, $60, $01, $66, $62, $01, $6A, $66, $01, $6C, $6A, $01, $70, $6C, $01, $74, $70, $01, $78, $74, $01, $7A, $78, $01, $7E
 Channel1_7CDC::
 	dw Segment_7CEE, $FFFF, $7CDC
 
@@ -3140,125 +1961,28 @@ Channel4_7CE8::
 Segment_7CEE::
 	db $9D, $91, $00, $80
 	db $A2
-	db $40
-	db $4E
-	db $40
-	db $4E
-	db $40
-	db $4E
-	db $40
-	db $4E
-	db $44
-	db $52
-	db $44
-	db $4E
-	db $44
-	db $52
-	db $44
-	db $4E
-	db $4A
-	db $58
-	db $4A
-	db $58
-	db $4A
-	db $58
-	db $4A
-	db $58
-	db $4E
-	db $4E
-	db $4A
-	db $4A
-	db $48
-	db $48
-	db $44
-	db $44
+	db $40, $4E, $40, $4E, $40, $4E, $40, $4E, $44, $52, $44, $4E, $44, $52, $44, $4E, $4A, $58, $4A, $58, $4A, $58, $4A, $58, $4E, $4E, $4A, $4A, $48, $48, $44, $44
 	db $00
 
 Segment_7D14::
 	db $9D, $91, $00, $80
 	db $A1
-	db $60
-	db $66
-	db $70
-	db $60
-	db $66
-	db $70
-	db $60
-	db $66
-	db $70
-	db $60
-	db $66
-	db $70
-	db $60
-	db $66
-	db $70
-	db $01
-	db $5C
-	db $64
-	db $70
-	db $5C
-	db $64
-	db $70
-	db $5C
-	db $64
-	db $70
-	db $5C
-	db $64
-	db $70
-	db $5C
-	db $64
-	db $70
-	db $01
-	db $62
-	db $6A
-	db $70
-	db $62
-	db $6A
-	db $70
-	db $62
-	db $6A
-	db $70
-	db $62
-	db $6A
-	db $70
-	db $62
-	db $6A
-	db $70
-	db $01
-	db $6E
-	db $5C
-	db $6E
-	db $5C
-	db $6A
-	db $70
-	db $6A
-	db $58
-	db $66
-	db $56
-	db $66
-	db $56
-	db $62
-	db $6A
-	db $62
-	db $52
+	db $60, $66, $70, $60, $66, $70, $60, $66, $70, $60, $66, $70, $60, $66, $70, $01, $5C, $64, $70, $5C, $64, $70, $5C, $64, $70, $5C, $64, $70, $5C, $64, $70, $01, $62, $6A, $70, $62, $6A, $70, $62, $6A, $70, $62, $6A, $70, $62, $6A, $70, $01, $6E, $5C, $6E, $5C, $6A, $70, $6A, $58, $66, $56, $66, $56, $62, $6A, $62, $52
 	db $00
 
 Segment_7D5A::
 	db $A2
-	db $06
+	Noise 1
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $06
+	Noise 1
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $06
+	Noise 1
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $00
 
 Song_7D6A::
@@ -3293,130 +2017,59 @@ Segment_7DC0::
 
 Segment_7DC5::
 	db $A3
-	db $4C
-	db $3A
-	db $44
-	db $4C
-	db $50
-	db $3E
-	db $48
-	db $50
-	db $52
-	db $40
-	db $4A
-	db $52
-	db $56
-	db $44
-	db $4E
-	db $56
-	db $5A
-	db $48
-	db $52
-	db $5A
-	db $5C
-	db $4A
-	db $52
-	db $5C
-	db $5A
-	db $48
-	db $52
-	db $5A
-	db $5C
-	db $4A
-	db $52
-	db $5C
+	db $4C, $3A, $44, $4C, $50, $3E, $48, $50, $52, $40, $4A, $52, $56, $44, $4E, $56, $5A, $48, $52, $5A, $5C, $4A, $52, $5C, $5A, $48, $52, $5A, $5C, $4A, $52, $5C
 	db $00
 
 Segment_7DE7::
 	db $A2
-	db $5A
-	db $01
-	db $01
-	db $52
-	db $01
-	db $01
-	db $48
-	db $01
-	db $01
-	db $56
-	db $01
-	db $5C
-	db $01
-	db $5A
-	db $56
+	db $5A, $01, $01, $52, $01, $01, $48, $01, $01, $56, $01, $5C, $01, $5A, $56
 	db $A5
-	db $52
-	db $01
+	db $52, $01
 	db $A2
 	db $01
 	db $A2
-	db $5A
-	db $01
-	db $01
-	db $52
-	db $01
-	db $01
-	db $48
-	db $01
+	db $5A, $01, $01, $52, $01, $01, $48, $01
 	db $A4
 	db $52
 	db $A2
-	db $01
-	db $50
-	db $52
+	db $01, $50, $52
 	db $A4
 	db $56
 	db $A2
 	db $01
 	db $A4
-	db $4C
-	db $50
-	db $01
+	db $4C, $50, $01
 	db $00
 
 Segment_7E14::
 	db $A8
 	db $52
 	db $A2
-	db $50
-	db $52
+	db $50, $52
 	db $A4
-	db $56
-	db $48
+	db $56, $48
 	db $A8
 	db $5A
 	db $A2
-	db $56
-	db $5A
+	db $56, $5A
 	db $A3
-	db $5C
-	db $4C
-	db $52
-	db $50
+	db $5C, $4C, $52, $50
 	db $A8
 	db $52
 	db $A2
-	db $50
-	db $52
+	db $50, $52
 	db $A4
-	db $56
-	db $48
+	db $56, $48
 	db $A8
 	db $5A
 	db $A2
-	db $56
-	db $5A
+	db $56, $5A
 	db $A3
-	db $60
-	db $4A
-	db $52
-	db $58
+	db $60, $4A, $52, $58
 	db $A4
-	db $5C
-	db $62
+	db $5C, $62
 	db $A5
-	db $5A
-	db $56
+	db $5A, $56
 	db $00
 
 Segment_7E3F::
@@ -3425,213 +2078,68 @@ Segment_7E3F::
 
 Segment_7E44::
 	db $A2
-	db $44
-	db $44
-	db $5C
-	db $5C
-	db $44
-	db $44
-	db $5C
-	db $5C
-	db $44
-	db $44
-	db $5C
-	db $5C
-	db $44
-	db $44
-	db $5C
-	db $5C
+	db $44, $44, $5C, $5C, $44, $44, $5C, $5C, $44, $44, $5C, $5C, $44, $44, $5C, $5C
 	db $00
 
 Segment_7E56::
-	db $3A
-	db $3A
-	db $52
-	db $52
-	db $3A
-	db $3A
-	db $52
-	db $52
-	db $3A
-	db $3A
-	db $52
-	db $52
-	db $3A
-	db $3A
-	db $52
-	db $52
+	db $3A, $3A, $52, $52, $3A, $3A, $52, $52, $3A, $3A, $52, $52, $3A, $3A, $52, $52
 	db $00
 
 Segment_7E67::
 	db $A3
-	db $52
-	db $52
-	db $52
-	db $52
-	db $50
-	db $50
-	db $50
-	db $50
-	db $4E
-	db $4E
-	db $4E
-	db $4E
-	db $4C
-	db $4C
-	db $4C
-	db $4C
-	db $44
-	db $44
-	db $44
-	db $44
-	db $42
-	db $42
-	db $42
-	db $42
-	db $3E
-	db $3E
-	db $3E
-	db $3E
-	db $48
-	db $48
-	db $48
-	db $48
+	db $52, $52, $52, $52, $50, $50, $50, $50, $4E, $4E, $4E, $4E, $4C, $4C, $4C, $4C, $44, $44, $44, $44, $42, $42, $42, $42, $3E, $3E, $3E, $3E, $48, $48, $48, $48
 	db $00
 
 Segment_7E89::
 	db $A2
-	db $2C
-	db $2C
-	db $44
-	db $44
-	db $2C
-	db $2C
-	db $44
-	db $44
-	db $2C
-	db $2C
-	db $44
-	db $44
-	db $2C
-	db $2C
-	db $44
-	db $44
-	db $2A
-	db $2A
-	db $42
-	db $42
-	db $2A
-	db $2A
-	db $42
-	db $42
+	db $2C, $2C, $44, $44, $2C, $2C, $44, $44, $2C, $2C, $44, $44, $2C, $2C, $44, $44, $2A, $2A, $42, $42, $2A, $2A, $42, $42
 	db $00
 
 Segment_7EA3::
-	db $26
-	db $26
-	db $3E
-	db $3E
-	db $30
-	db $30
-	db $48
-	db $48
+	db $26, $26, $3E, $3E, $30, $30, $48, $48
 	db $00
 
 Segment_7EAC::
-	db $28
-	db $28
-	db $40
-	db $40
-	db $28
-	db $28
-	db $40
-	db $40
-	db $28
-	db $28
-	db $40
-	db $40
-	db $28
-	db $28
-	db $40
-	db $40
-	db $30
-	db $30
-	db $3A
-	db $42
-	db $30
-	db $30
-	db $3A
-	db $42
-	db $30
-	db $30
-	db $38
-	db $3E
-	db $30
-	db $30
-	db $38
-	db $3E
+	db $28, $28, $40, $40, $28, $28, $40, $40, $28, $28, $40, $40, $28, $28, $40, $40, $30, $30, $3A, $42, $30, $30, $3A, $42, $30, $30, $38, $3E, $30, $30, $38, $3E
 	db $00
 
 Segment_7ECD::
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $A1
-	db $06
-	db $06
+	Noise 1, 1
 	db $A2
-	db $0B
+	Noise 2
 	db $00
 
 Segment_7EF6::
 	db $A2
-	db $06
-	db $06
-	db $10
-	db $06
-	db $06
-	db $06
-	db $10
-	db $06
-	db $06
-	db $06
-	db $10
-	db $06
-	db $06
-	db $06
-	db $10
-	db $06
+	Noise 1, 1, 3, 1, 1, 1, 3, 1, 1, 1, 3, 1, 1, 1, 3, 1
 	db $00
 

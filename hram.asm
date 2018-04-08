@@ -64,7 +64,27 @@ ds $D0 - $C0
 hCurrentChannel:: ; FFD0 Used in music routine
 	ds 1
 
-ds $DE - $D1
+ds $D5 - $D1
+
+hPanTimer:: ; FFD5
+	ds 1
+
+hPanInterval:: ; FFD6
+	ds 1
+
+hPanCounter:: ; FFD7
+	ds 1
+
+hMonoOrStereo:: ; FFD8
+	ds 1
+
+hChannelEnableMask1:: ; FFD9
+	ds 1
+
+hChannelEnableMask2:: ; FFDA
+	ds 1
+
+ds $DE - $DB
 
 hPauseTuneTimer:: ; FFDE
 	ds 1

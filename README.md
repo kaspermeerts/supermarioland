@@ -19,5 +19,5 @@ A quick and dirty Python script `coverage.py` is provided to estimate how much o
 * Bank 1: a quarter
 * Bank 2: half
 * Bank 3: half
-* High RAM: 40 out of 127 bytes identified
+* High RAM: 46 out of 127 bytes identified
 
