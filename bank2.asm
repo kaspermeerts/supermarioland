@@ -1218,7 +1218,11 @@ _GameState_1A:: ; 5CDE
 	ld [$DA17], a
 	ret
 
-INCBIN "baserom.gb", $9F15, $791A - $5F15
+; Start Menu screen
+INCBIN "baserom.gb", $9F15, $6002 - $5F15
+
+SECTION "bank 2 levels", ROMX[$6190], BANK[2]
+INCBIN "baserom.gb", $A190, $791A - $6190
 
 INCBIN "gfx/menuTiles1.2bpp"
 INCBIN "gfx/menuTiles2.2bpp"

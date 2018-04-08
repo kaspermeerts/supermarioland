@@ -38,4 +38,8 @@ INCBIN "gfx/backgroundWorld2.2bpp"
 INCBIN "gfx/enemiesWorld4.2bpp"
 INCBIN "gfx/backgroundWorld4.2bpp"
 
-INCBIN "baserom.gb", $4FB2, $8000 - $4FB2
+
+INCBIN "baserom.gb", $4FB2, $5179 - $4FB2
+
+SECTION "bank 1 levels", ROMX[$55BB], BANK[1]
+INCBIN "baserom.gb", $55BB, $8000 - $55BB

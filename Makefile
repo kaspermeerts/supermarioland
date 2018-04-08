@@ -2,7 +2,7 @@
 .SUFFIXES:
 .SUFFIXES: .asm .o .gb
 
-objects := bank0.o bank1.o bank2.o bank3.o music.o
+objects := bank0.o bank1.o bank2.o bank3.o music.o levels/enemy_locations.o
 
 all: mario.gb check
 

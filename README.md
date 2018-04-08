@@ -16,7 +16,7 @@ As of now it requires a copy of the original ROM named "baserom.gb" to be placed
 A quick and dirty Python script `coverage.py` is provided to estimate how much of the ROM has been disassembled
 
 * Bank 0: three quarters
-* Bank 1: a quarter
+* Bank 1: a third
 * Bank 2: half
 * Bank 3: half
 * High RAM: 46 out of 127 bytes identified
