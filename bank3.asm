@@ -335,7 +335,205 @@ Call_490D:: ; 490D
 	ld [bc], a
 	ret
 
-INCBIN "baserom.gb", $C966, $4E74 - $4966
+Jmp_4966:: ; 4966
+	inc e
+	ld a, [de]
+	cp a, $0F
+	jr nc, .jmp_49B5
+	inc e
+	dec a
+	ld [de], a
+	dec e
+	ld a, $0F
+	ld [de], a
+	jr .jmp_49B5
+.jmp_4975
+	push af
+	ld a, [de]
+	and a
+	jr nz, .jmp_4988
+	ld a, [$C20C]
+	cp a, $03
+	ld a, $02
+	jr c, .jmp_4985
+	ld a, $04
+.jmp_4985
+	ld [$C20E], a			; walking or running
+.jmp_4988
+	pop af
+	jr .jmp_49AC
+
+.jmp_498B
+	ldh a, [hGameState]
+	cp a, $0D
+	jp z, .jmp_4A7F
+	ld de, $C207			; jump status
+	ldh a, [hJoyPressed]
+	ld b, a
+	ldh a, [hJoyHeld]
+	bit 1, a				; B button todo
+	jr nz, .jmp_4975
+	push af
+	ld a, [$C20E]			; walking running
+	cp a, $04
+	jr nz, .jmp_49AB
+	ld a, $02
+	ld [$C20E], a
+.jmp_49AB
+	pop af
+.jmp_49AC
+	bit 0, a				; A button
+	jr nz, .jmp_49BF
+	ld a, [de]
+	cp a, $01
+	jr z, Jmp_4966
+.jmp_49B5
+	bit 7, b				; Down button
+	jp nz, .jmp_4A77
+.jmp_49BA
+	bit 1, b				; B button
+	jr nz, .jmp_49FD
+	ret
+
+.jmp_49BF
+	ld a, [de]
+	and a
+	jr nz, .jmp_49B5
+	ld hl, $C20A			; 1 if on ground
+	ld a, [hl]
+	and a
+	jr z, .jmp_49B5
+	bit 0, b				; A button
+	jr z, .jmp_49B5
+	ld [hl], $00
+	ld hl, $C203			; animation thing
+	push hl
+	ld a, [hl]
+	cp a, $18				; crouching big?
+	jr z, .jmp_49F2
+	and a, $F0
+	or a, $04
+	ld [hl], a
+	ld a, [$C20E]			; walking running
+	cp a, $04
+	jr z, .jmp_49ED
+	ld a, $02
+	ld [$C20E], a
+	ld [$C208], a
+.jmp_49ED
+	ld hl, $C20C
+	ld [hl], $30
+.jmp_49F2
+	ld hl, $DFE0
+	ld [hl], SFX_JUMP
+	ld a, $01
+	ld [de], a
+	pop hl
+	jr .jmp_49B5
+
+.jmp_49FD
+	ld hl, $C20C
+	ld a, [hl]
+	cp a, $06
+	jr nz, .jmp_4A0C
+	ldh a, [$FF9F]
+	and a
+	jr nz, .jmp_4A0C
+	ld [hl], $00
+.jmp_4A0C
+	ldh a, [hGameState]
+	cp a, $0D
+	ld b, $03
+	jr z, .jmp_4A1A
+	ldh a, [hSuperballMario]
+	and a
+	ret z
+	ld b, $01
+.jmp_4A1A
+	ld hl, $FFA9			; projectile status?
+	ld de, wOAMBuffer
+.jmp_4A20
+	ldi a, [hl]
+	and a
+	jr z, .jmp_4A2C
+	inc e
+	inc e
+	inc e
+	inc e
+	dec b
+	jr nz, .jmp_4A20
+	ret
+
+.jmp_4A2C
+	push hl
+	ld hl, $C205
+	ld b, [hl]
+	ld hl, $C201
+	ldi a, [hl]
+	add a, $FE
+	ld [de], a
+	inc e
+	ld c, $02
+	bit 5, b			; left button
+	jr z, .jmp_4A41
+	ld c, $F8
+.jmp_4A41
+	ldi a, [hl]
+	add c
+	ld [de], a
+	ld c, $60
+	inc e
+	ldh a, [hGameState]
+	cp a, $0D
+	jr nz, .jmp_4A57
+	ld c, $7A
+	ldh a, [hLevelIndex]
+	cp a, $0B			; last level?
+	jr nz, .jmp_4A57
+	ld c, $6E
+.jmp_4A57
+	ld a, c
+	ld [de], a
+	inc e
+	xor a
+	ld [de], a
+	pop hl
+	dec l
+	ld c, $0A
+	bit 5, b			; left button?
+	jr nz, .jmp_4A66
+	ld c, $09
+.jmp_4A66
+	ld [hl], c
+	ld hl, $DFE0
+	ld [hl], SFX_SUPERBALL
+	ld a, $0C
+	ld [$C0AE], a
+	ld a, $FF
+	ld [wSuperballTTL], a
+	ret
+
+.jmp_4A77
+	ld hl, $C20C
+	ld [hl], $20
+	jp .jmp_49BA
+.jmp_4A7F
+	ldh a, [hJoyPressed]
+	and a, $03				; A or B
+	jr nz, .jmp_4A0C
+	ldh a, [hJoyHeld]
+	bit 0, a				; A button
+	ret z
+	ld hl, $C0AE
+	ld a, [hl]
+	and a
+.jmp_4A8F
+	jp z, .jmp_4A0C
+	dec [hl]
+	ret
+
+
+INCBIN "baserom.gb", $CA94, $4E74 - $4A94
 
 SECTION "bank 3 levels", ROMX[$503F], BANK[3]
 
