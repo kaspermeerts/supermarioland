@@ -341,7 +341,7 @@ SECTION "bank 3 levels", ROMX[$503F], BANK[3]
 
 INCBIN "baserom.gb", $D03F, $6600 - $503F
 
-Data_6600
+Data_6600:
 	dw StartJumpSFX
 	dw StartSuperballSFX
 	dw StartStompSFX
@@ -354,7 +354,7 @@ Data_6600
 	dw StartTimerTickSFX
 	dw StartFlowerSFX
 
-Data_6616
+Data_6616:
 	dw ContinueJumpSFX
 	dw ContinueSquareSFX
 	dw ContinueStompSFX
@@ -367,19 +367,19 @@ Data_6616
 	dw ContinueSquareSFX
 	dw ContinueSweepSquareSFX
 
-Data_662C
+Data_662C:
 	dw StartExplosionSFX
 	dw StartBrickShatterSFX
 	dw StartDeathCrySFX
 	dw StartFireBreathSFX
-Data_6634
+Data_6634:
 	dw ContinueNoiseSFX
 	dw ContinueNoiseSFX
 	dw ContinueDeathCrySFX
 	dw ContinueNoiseSFX
 
 ; dump_music.py
-Data_663C
+Data_663C:
 	dw Song_6F98	; 1
 	dw Song_6FA3
 	dw Song_6FAE
@@ -654,7 +654,7 @@ StartSuperballSFX:: ; 67E4
 	ld hl, SuperballChannelData
 	jp Jmp_69C6
 
-ContinueSquareSFX
+ContinueSquareSFX:
 	call updateSoundProgress
 	and a
 	ret nz
@@ -735,7 +735,7 @@ StartFlowerSFX:: ; 6868
 	ld hl, FlowerChannelData
 	jp Jmp_69C6
 
-GrowChannelData
+GrowChannelData:
 	db $27, $80, $8A, $10, $86 ; 264.3 Hz ~ C4 (17 cents off though)
 
 StartGrowSFX:: ; 687A
@@ -774,7 +774,7 @@ StartBumpSFX:: ; 68A5
 
 InjuryChannelData::
 	db $3A, $80, $E3, $20, $86 ; 273.1 Hz (one octave above the bump thing?)
-InjuryEnvelopeData
+InjuryEnvelopeData:
 	db $F3, $B3, $A3, $93, $83, $73, $63, $53, $43, $33, $23, $23, $13, $00
 
 StartInjurySFX::
@@ -1131,7 +1131,7 @@ PlayNoiseSFX:: ; 6A8E
 .out				; forgot about RET Z? Bug
 	ret
 
-_Unreachable ; 6AB2
+_Unreachable: ; 6AB2
 	jp _InitSound
 
 StartMusic:: ; 6AB5
@@ -1317,7 +1317,7 @@ Call_6B8C::; 6B8C
 	ld [$DF3E], a
 	ret
 
-Jmp_6BF4 ; 6BF4
+Jmp_6BF4: ; 6BF4
 	push hl
 	xor a
 	ldh [rNR30], a		; disable wave channel
@@ -1327,7 +1327,7 @@ Jmp_6BF4 ; 6BF4
 	pop hl
 	jr Jmp_6C00.jmp_6C2A
 
-Jmp_6C00 ; 6C00
+Jmp_6C00: ; 6C00
 	call IncrementPointer
 	call LoadFromHLindirect
 	ld e, a
@@ -1394,7 +1394,7 @@ LoadFromHLindirect:: ; 6C45
 	ld b, a				; B ← [BC]
 	ret
 
-Jmp_6C4C
+Jmp_6C4C:
 	pop hl
 	jr .jmp_6C7A
 
