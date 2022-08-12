@@ -2399,7 +2399,7 @@ PrintVictoryMessage:: ; F8A
 	inc de
 	jr .printLetter
 
-Text_FE1
+Text_FE1:
 	db "thank you mario.", $FE, $73
 	db "oh! daisy", $FF
 
@@ -3221,12 +3221,12 @@ GameState_38::
 	ldh [hGameState], a	; init menu
 	ret
 
-AnimateSpaceshipAndClouds
+AnimateSpaceshipAndClouds:
 	call GameState_31.animateSpaceship
 	call GameState_33.animateClouds
 	ret
 
-Text_1557
+Text_1557:
 	db "producer", $FE
 	db "g.yokoi", $FE
 	db "director", $FE
@@ -3295,7 +3295,7 @@ GameState_0A:: ; 162F
 	ret
 
 ; clear some sort of overlay?
-Call_165E ; 165E
+Call_165E: ; 165E
 	ld hl, $CA3F		; the bottom rightmost tile of the total area
 	ld bc, $0240
 .clearLoop
@@ -3607,7 +3607,7 @@ Call_17BC:: ; 17BC
 	ld [$DFE0], a			; coin sound
 	jr .jmp_1801
 
-Jmp_185D
+Jmp_185D:
 	ld hl, $C201
 	ld a, [hl]
 	dec a
@@ -5631,7 +5631,7 @@ Call_24EF:: ; 24EF
 	ld a, [hl]
 	ldh [$FFC7], a	; flags
 
-Jmp_250B
+Jmp_250B:
 	xor a
 	ldh [$FFC4], a
 	ldh [$FFC5], a
@@ -7060,7 +7060,7 @@ Data_3564:: ; 3564
 INCBIN "baserom.gb", $3564, $3D1A - $3564
 
 ; called at level start, is some sort of init
-Call_3D1A; 3D1A
+Call_3D1A: ; 3D1A
 	ld hl, $C030	; TODO ? wOAMBuffer + $30 ? used for "dynamic" sprites?
 	ld b, $20
 	xor a
@@ -7509,7 +7509,7 @@ DMARoutine::
 	dec a
 	jr nz, .wait
 	ret
-DMARoutineEnd
+DMARoutineEnd:
 
 ; TODO Give this a name
 db "mario*    world time"

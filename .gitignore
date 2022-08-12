@@ -4,3 +4,4 @@ coverage_map.png
 *.gb
 *.sym
 *.map
+/.vscode/*
